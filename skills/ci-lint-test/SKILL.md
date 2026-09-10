@@ -5,7 +5,6 @@ id: ci-lint-test
 name: ci-lint-test
 ---
 
-
 # CI Lint and Test Runner
 
 Run lint and test steps from the CI pipeline file locally to verify CI will pass before pushing.

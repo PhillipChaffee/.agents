@@ -10,7 +10,6 @@ id: pre-mr-checklist
 name: pre-mr-checklist
 ---
 
-
 # Pre-MR Checklist
 
 Scan changed files for common issues that should be resolved before creating a merge request.

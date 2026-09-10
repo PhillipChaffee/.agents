@@ -13,7 +13,6 @@ id: deep-research
 name: deep-research
 ---
 
-
 # Deep Research (tiered orchestrator)
 
 Always do **Step 0 (complexity triage)** first, then run exactly one tier. Scale

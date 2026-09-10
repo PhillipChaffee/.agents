@@ -10,7 +10,6 @@ id: plan-review
 name: plan-review
 ---
 
-
 # Plan Review (Multi-Agent Orchestrator)
 
 Run a comprehensive plan review by planning reviewer dispatch, launching the selected

@@ -5,7 +5,6 @@ id: code-review
 name: code-review
 ---
 
-
 # Code Review (Multi-Agent Orchestrator)
 
 Run a comprehensive code review by planning reviewer dispatch, launching the selected specialized reviewers in parallel, filtering their findings through a verifier subagent, then producing a curated summary. The user can reply freeform with decisions, ask to walk through blockers one at a time, and optionally hand accepted fixes to an implementer subagent that edits the source files in place. Includes a **review-only mode** for callers (e.g. `mr-review`) that want just the curated summary.

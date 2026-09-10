@@ -5,7 +5,6 @@ id: refactor-planner
 name: refactor-planner
 ---
 
-
 # Refactor Planner
 
 Produce a structured, behavior-preserving refactoring plan for a specified target (file, function, module, or directory). The plan is **executor-ready**: each phase has an id, files, validation command, atomic commit message, and rollback instruction so a future executor (or you, manually) can pick it up phase-by-phase.

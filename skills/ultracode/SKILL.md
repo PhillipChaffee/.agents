@@ -10,7 +10,6 @@ id: ultracode
 name: ultracode
 ---
 
-
 # Ultracode
 
 Ultracode is on: optimize for the most exhaustive, correct answer — not the

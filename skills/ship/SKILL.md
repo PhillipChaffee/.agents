@@ -9,10 +9,13 @@ id: ship
 name: ship
 ---
 
-
 # Ship
 
 Thin phase state machine that takes Linear ENG work from intake (or optional ticket create from a Slack/problem paste) through research, plan, implement, verify, and GitLab MRs. Compose existing skills by **reading and executing** each child `SKILL.md` on the **main agent** — do not copy child SOPs into this file.
+
+## Kit config
+
+If .agents/kit.json exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
 
 ## Inputs
 

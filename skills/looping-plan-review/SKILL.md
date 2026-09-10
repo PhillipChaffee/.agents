@@ -9,7 +9,6 @@ id: looping-plan-review
 name: looping-plan-review
 ---
 
-
 # Looping Plan Review (Architecture Align → Implementation Converge)
 
 Drive a plan to "ready" in two phases:
@@ -23,6 +22,10 @@ Drive a plan to "ready" in two phases:
 
 This skill orchestrates; review mechanics live in `skills/plan-review/SKILL.md`.
 The plan-side analogue of `/looping-code-review`.
+
+## Kit config
+
+If .agents/kit.json exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
 
 ## When to use
 

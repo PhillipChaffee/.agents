@@ -5,7 +5,6 @@ id: clean-plan
 name: clean-plan
 ---
 
-
 # Clean Plan
 
 Edit an implementation plan in place so a **simple implementer model** can execute it top-to-bottom. Two principles drive every edit:
@@ -16,6 +15,10 @@ Edit an implementation plan in place so a **simple implementer model** can execu
 The skill removes fluff, aligns the frontmatter `todos` with the plan body, checks the plan against the plan-steps rule when one is accessible, reorganizes steps into the right execution order, fleshes out underspecified steps, and flags work that requires a human.
 
 The user reviews changes with `git diff` after the skill completes — never auto-commit.
+
+## Kit config
+
+If .agents/kit.json exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
 
 ## Target Resolution
 

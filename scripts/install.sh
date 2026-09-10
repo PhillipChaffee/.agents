@@ -148,31 +148,44 @@ PY
 
 copy_one() {
   # $1 src (repo-relative), $2 dest (target-relative), $3 mode
+  # Returns: 0 written/managed, 1 skipped, 2 no source
   local src="$1" dest="$2" mode="$3"
   local dest_abs="$STAMP_DIR/$dest" src_abs="$REPO_ROOT/$src"
-  local action="" managed=0
+  local action="" managed=0 cmp_src="$src_abs" cmp_tmp=""
 
   if [ ! -f "$src_abs" ]; then
-    return 0
+    return 2
   fi
   if [ -f "$dest_abs" ]; then
     if is_stamped "$dest"; then
       action=UPDATE
       managed=1
-    elif cmp -s "$src_abs" "$dest_abs"; then
-      action=IDENTICAL
-      managed=1
-    elif [ "$FORCE" -eq 1 ]; then
-      action=FORCE
-      managed=1
     else
-      echo "SKIP $dest (unstamped, differs — use --force to overwrite)"
-      return 1
+      # Filtered installs can never byte-match the repo source, so the
+      # identity check must compare against the filtered form — otherwise
+      # --adopt can never bind an existing kit's agent files.
+      if [ "$mode" = "cursor-agent" ]; then
+        cmp_tmp=$(mktemp)
+        filter_cursor_agent "$src_abs" "$cmp_tmp"
+        cmp_src="$cmp_tmp"
+      fi
+      if cmp -s "$cmp_src" "$dest_abs"; then
+        action=IDENTICAL
+        managed=1
+      elif [ "$FORCE" -eq 1 ]; then
+        action=FORCE
+        managed=1
+      else
+        echo "SKIP $dest (unstamped, differs — use --force to overwrite)"
+        [ -n "$cmp_tmp" ] && rm -f "$cmp_tmp"
+        return 1
+      fi
     fi
   else
     action=ADD
     managed=1
   fi
+  [ -n "$cmp_tmp" ] && rm -f "$cmp_tmp"
 
   if [ "$DRY_RUN" -eq 1 ]; then
     echo "$action $dest"

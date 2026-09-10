@@ -1,0 +1,14 @@
+{
+  "_note": "Template only — the installer never writes this file. Configure your own MCP servers per vendor docs; never commit real tokens.",
+  "mcpServers": {
+    "linear": {
+      "url": "https://mcp.linear.app/sse",
+      "transport": "sse"
+    },
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "<gitlab-mcp-server>"],
+      "transport": "stdio"
+    }
+  }
+}

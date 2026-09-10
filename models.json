@@ -1,0 +1,9 @@
+{
+  "_note": "Template only — vendor model slugs; never commit provider keys or tokens.",
+  "vendor_note": "These are Cursor-vendor model slugs used by the kit's agents. Swap them for your own provider's equivalents for the fast, main, and deep tiers before use.",
+  "presets": {
+    "fast": "cursor-grok-4.6-high-fast",
+    "main": "cursor-grok-4.6-high-fast",
+    "deep": "cursor-grok-4.6-high-fast"
+  }
+}

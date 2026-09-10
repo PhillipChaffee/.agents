@@ -40,7 +40,7 @@ Selection hint for the planner: treat **Code Organization** as a default pick wh
 diff adds new files, moves or renames symbols, or introduces helpers, dataclasses, or enums.
 
 Prefer `subagent_type: "Code Review Planner"`. If unavailable, use `generalPurpose` with
-`cr-planner.md` inlined and the selected planner model.
+`cr-planner` inlined and the selected planner model.
 
 ## Reviewers
 
@@ -51,14 +51,14 @@ The reviewers are native Cursor agents in `agents/`:
 
 | Agent | File | Domain |
 |-------|------|--------|
-| Security | `cr-security.md` | Injection, auth, secrets, data exposure |
-| Correctness | `cr-correctness.md` | Logic bugs, edge cases, None handling |
-| Performance | `cr-performance.md` | N+1 queries, blocking ops, memory, hot paths |
-| Architecture | `cr-architecture.md` | SRP, coupling, layering, cross-service contracts |
-| Test Quality | `cr-test-quality.md` | Coverage gaps, anti-patterns, test ROI |
-| Deployment Safety | `cr-deployment-safety.md` | Migrations, deploy order, feature flags, rollback |
-| Simplification | `cr-simplification.md` | Over-engineering, duplication, change atomicity |
-| Code Organization | `cr-organization.md` | File/folder placement, module homes, moved-symbol hygiene |
+| Security | `cr-security` | Injection, auth, secrets, data exposure |
+| Correctness | `cr-correctness` | Logic bugs, edge cases, None handling |
+| Performance | `cr-performance` | N+1 queries, blocking ops, memory, hot paths |
+| Architecture | `cr-architecture` | SRP, coupling, layering, cross-service contracts |
+| Test Quality | `cr-test-quality` | Coverage gaps, anti-patterns, test ROI |
+| Deployment Safety | `cr-deployment-safety` | Migrations, deploy order, feature flags, rollback |
+| Simplification | `cr-simplification` | Over-engineering, duplication, change atomicity |
+| Code Organization | `cr-organization` | File/folder placement, module homes, moved-symbol hygiene |
 
 Each reviewer:
 - Has `readonly: true` (cannot modify files)
@@ -89,7 +89,7 @@ Use the named **Code Review Verifier** agent on `cursor-grok-4.6-high-fast` by d
 to `claude-fable-5-thinking-high` when verifying a large, conflicting, or high-stakes finding set
 where false-positive filtering needs deeper judgment. When unsure, stay on grok. The main chat
 applies any upgrade when launching the subagent; this skill does not switch models itself. If the
-type is unavailable, use `generalPurpose` with `cr-verifier.md` inlined and the same model.
+type is unavailable, use `generalPurpose` with `cr-verifier` inlined and the same model.
 
 **Input to pass**: the git diff + changed file paths, the planner's verifier instructions, and all
 selected reviewer outputs concatenated with source attribution (e.g. `[Security]`, `[Correctness]`).
@@ -187,7 +187,7 @@ Apply 3 approved fixes now via the implementer subagent? [yes / no / edit list]
 After fixes apply, suggest: "If you want to verify nothing regressed, re-invoke `/code-review` and re-run your tests."
 
 Use the named **Code Review Implementer** agent on `cursor-grok-4.6-high-fast`. If the type is unavailable,
-use `generalPurpose` with `cr-implementer.md` inlined and the same model.
+use `generalPurpose` with `cr-implementer` inlined and the same model.
 
 ## Review-only mode
 

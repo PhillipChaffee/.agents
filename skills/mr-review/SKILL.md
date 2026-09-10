@@ -13,6 +13,10 @@ name: mr-review
 
 Review a GitLab MR and post **every** finding as an **unpublished draft note** written in the reviewer's voice. Draft notes are visible only to their author until published, so the reviewer edits and selectively publishes them in the GitLab UI. This skill never publishes drafts. Every run opens with an MR overview and review-state summary (Step 3); that summary alone is the deliverable when the user only asks where an MR stands.
 
+## Kit config
+
+If `.agents/kit.json` exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
+
 ## Dependencies
 
 This skill composes one other skill and optionally one user rule:

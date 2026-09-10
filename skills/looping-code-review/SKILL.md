@@ -13,7 +13,7 @@ This skill orchestrates; the underlying review mechanics live in `skills/code-re
 
 ## Kit config
 
-If .agents/kit.json exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
+If `.agents/kit.json` exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
 
 ## When to use
 

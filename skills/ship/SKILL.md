@@ -15,7 +15,7 @@ Thin phase state machine that takes Linear ENG work from intake (or optional tic
 
 ## Kit config
 
-If .agents/kit.json exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
+If `.agents/kit.json` exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill. When creating MRs, also prefer its mr_draft_default value.
 
 ## Inputs
 

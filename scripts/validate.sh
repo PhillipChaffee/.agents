@@ -92,6 +92,7 @@ AGENT_REF = re.compile(
     r"research-(?:planner|synthesizer)|refactor-(?:code|placement)-scout)\b"
 )
 SKILL_CMD = re.compile(r"`/([a-z][a-z0-9-]*)`")
+SLASH_REF = re.compile(r"(?<![`\w:./>-])/([a-z][a-z0-9-]+)")
 SKILL_PATH = re.compile(r"skills/([a-z][a-z0-9-]*)/SKILL\.md")
 RULE_REF = re.compile(r"rules/([a-z][a-z0-9-]*)\.md")
 EXTERNAL = {"autopilot", "create-skill", "create-rule", "canvas"}
@@ -110,6 +111,11 @@ for md in md_files:
             continue
         if skill_ids and ref not in skill_ids:
             fail(f"{rel}: references unknown skill '/{ref}'")
+    for ref in set(SLASH_REF.findall(text)):
+        if ref in EXTERNAL:
+            continue
+        if skill_ids and ref not in skill_ids:
+            fail(f"{rel}: references unknown skill '/{ref}'")
     for ref in set(SKILL_PATH.findall(text)):
         if skill_ids and ref not in skill_ids:
             fail(f"{rel}: references unknown skill path 'skills/{ref}/SKILL.md'")
@@ -117,9 +123,9 @@ for md in md_files:
     for ref in set(RULE_REF.findall(text)):
         if rules_dir.is_dir() and ref not in rule_ids:
             fail(f"{rel}: references unknown rule 'rules/{ref}.md'")
-    # ~/.cursor/rules/<x>.mdc mentions document an installed-kit location and
-    # are legitimate; repo-relative .cursor/rules/ paths and RULE.mdc are stale.
-    if re.search(r"(?<!~/)\.cursor/rules", text) or "RULE.mdc" in text:
+    # ~/.cursor/<x> mentions document an installed-kit location and are
+    # legitimate; repo-relative .cursor/ paths are stale migration leftovers.
+    if re.search(r"(?<!~/)\.cursor/(?:rules|skills|agents|plans)", text) or "RULE.mdc" in text:
         fail(f"{rel}: stale Cursor-era rule path")
 
 for w in warns:

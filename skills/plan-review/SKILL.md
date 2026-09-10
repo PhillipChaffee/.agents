@@ -63,7 +63,7 @@ Selection hints for the planner:
   Scope, Adversarial, and Simplification (see planner agent).
 
 Prefer `subagent_type` matching the planner agent name. If unavailable, use `generalPurpose`
-with `pr-planner.md` inlined and the selected planner model.
+with `pr-planner` inlined and the selected planner model.
 
 ## Reviewers
 
@@ -74,15 +74,15 @@ The reviewers are native Cursor agents in `agents/`:
 
 | Agent | File | Domain |
 |-------|------|--------|
-| Problem & Scope | `pr-problem-scope.md` | Clarity, success criteria, scope boundaries |
-| Adversarial | `pr-adversarial.md` | Premises, hidden assumptions, strategic pre-mortem |
-| Architecture & Design | `pr-architecture.md` | Structure, coupling, contracts, system fit |
-| Organization | `pr-organization.md` | File/folder/symbol placement in the planned change |
-| Naming | `pr-naming.md` | Identifier and module naming in the planned change |
-| Simplification & Maintainability | `pr-simplification.md` | Over-engineering, reuse misses, plan bloat |
-| Technical Feasibility | `pr-feasibility.md` | Soundness, alternatives, hidden prerequisites |
-| Risk & Rollback | `pr-risk-rollback.md` | Failure modes, mitigations, blast radius, observability |
-| Completeness & Sequencing | `pr-completeness.md` | Step ordering, dependencies, validation checkpoints |
+| Problem & Scope | `pr-problem-scope` | Clarity, success criteria, scope boundaries |
+| Adversarial | `pr-adversarial` | Premises, hidden assumptions, strategic pre-mortem |
+| Architecture & Design | `pr-architecture` | Structure, coupling, contracts, system fit |
+| Organization | `pr-organization` | File/folder/symbol placement in the planned change |
+| Naming | `pr-naming` | Identifier and module naming in the planned change |
+| Simplification & Maintainability | `pr-simplification` | Over-engineering, reuse misses, plan bloat |
+| Technical Feasibility | `pr-feasibility` | Soundness, alternatives, hidden prerequisites |
+| Risk & Rollback | `pr-risk-rollback` | Failure modes, mitigations, blast radius, observability |
+| Completeness & Sequencing | `pr-completeness` | Step ordering, dependencies, validation checkpoints |
 
 Each reviewer:
 
@@ -106,7 +106,7 @@ If the `Task` tool is missing (nested subagent, restricted toolset, some Cloud a
 invent a single-pass self-review or fake Approve. Prefer this sequential role-artifact fallback
 on the current agent:
 
-1. Run the planner role inline (read `pr-planner.md`) and record the selected roster in the
+1. Run the planner role inline (read `pr-planner`) and record the selected roster in the
    synthesis artifact — same selection rules as the Task path, including the
    `architecture-alignment` preference set when that mode is active.
 2. Read each selected agent file under `agents/` and run those roles **in order**,
@@ -148,7 +148,7 @@ Use the named **Plan Review Verifier** agent on `cursor-grok-4.6-high-fast` by d
 to `claude-fable-5-thinking-high` when verifying a large, conflicting, or high-stakes finding
 set where false-positive filtering needs deeper judgment. When unsure, stay on grok. The main
 chat applies any upgrade when launching the subagent; this skill does not switch models itself.
-If the type is unavailable, use `generalPurpose` with `pr-verifier.md` inlined and the same model.
+If the type is unavailable, use `generalPurpose` with `pr-verifier` inlined and the same model.
 
 **Input to pass**: the full plan text, the planner's verifier instructions, and all selected
 reviewer outputs concatenated with source attribution (e.g. `[Problem & Scope]`,
@@ -254,7 +254,7 @@ Apply 3 approved fixes now via the implementer subagent? [yes / no / edit list]
 After fixes apply, suggest: "If you want to verify nothing regressed, re-invoke `/plan-review`."
 
 Use the named **Plan Review Implementer** agent on `cursor-grok-4.6-high-fast`. If the type is
-unavailable, use `generalPurpose` with `pr-implementer.md` inlined and the same model.
+unavailable, use `generalPurpose` with `pr-implementer` inlined and the same model.
 
 ## Review-only mode
 

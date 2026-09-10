@@ -113,7 +113,9 @@ MAPPING=$(build_mapping)
 
 stamp_paths() {
   [ -f "$STAMP_FILE" ] || return 0
-  tail -n +3 "$STAMP_FILE"
+  # Only accept sane relative paths; a corrupted or tampered stamp must
+  # never make rm/cp resolve outside the target root.
+  tail -n +3 "$STAMP_FILE" | grep -E '^[A-Za-z0-9._/-]+$' | grep -v '\.\.' || true
 }
 
 is_stamped() {
@@ -212,12 +214,13 @@ run_install() {
   new_manifest > "$MANIFEST_TMP"
   while IFS=$'\t' read -r src dest mode; do
     [ -n "$src" ] || continue
-    if copy_one "$src" "$dest" "$mode"; then
-      wrote=$((wrote + 1))
-      printf '%s\n' "$dest" >> "$MANIFEST_TMP"
-    else
-      skipped=$((skipped + 1))
-    fi
+    local rc=0
+    copy_one "$src" "$dest" "$mode" || rc=$?
+    case $rc in
+      0) wrote=$((wrote + 1)); printf '%s\n' "$dest" >> "$MANIFEST_TMP" ;;
+      1) skipped=$((skipped + 1)) ;;
+      2) : ;;
+    esac
   done <<EOF
 $MAPPING
 EOF
@@ -285,12 +288,15 @@ run_pull() {
   local changed=0 line src dest mode
   while IFS=$'\t' read -r src dest mode; do
     [ -n "$src" ] || continue
+    if [ "$mode" = "cursor-agent" ]; then
+      # Cursor-installed agents are frontmatter-filtered, so pulling them
+      # would overwrite the repo's protocol files with the filtered form.
+      echo "SKIP-PULL $dest (filtered at install; edit the repo source, or pull via --target agents)"
+      continue
+    fi
     if [ -f "$STAMP_DIR/$dest" ] && ! cmp -s "$STAMP_DIR/$dest" "$REPO_ROOT/$src"; then
       echo "PULL $dest -> $src"
       [ "$DRY_RUN" -eq 1 ] || cp "$STAMP_DIR/$dest" "$REPO_ROOT/$src"
-      if [ "$mode" = "cursor-agent" ]; then
-        echo "  note: $src pulled from Cursor layout — vendor key diffs may need manual reconcile"
-      fi
       changed=$((changed + 1))
     fi
   done <<EOF

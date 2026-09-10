@@ -18,7 +18,7 @@ The user reviews changes with `git diff` after the skill completes — never aut
 
 ## Kit config
 
-If .agents/kit.json exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
+If `.agents/kit.json` exists in the workspace, read it before starting and prefer its tracker, labels, docs_dir, and plans_dir values over the defaults in this skill.
 
 ## Target Resolution
 
@@ -143,7 +143,7 @@ The target audience is a simple implementer model: it executes instructions lite
 Tighten — for each remaining body section and each todo:
 
 - Start with a clear action verb: `Add`, `Replace`, `Remove`, `Wire`, `Run`, `Update`, `Switch`, `Migrate`.
-- Name the file when the step touches one specific file (e.g. ``[`service-b/website/agents/models.py`](service-b/website/agents/models.py)``).
+- Name the file when the step touches one specific file (e.g. `service-b/website/agents/models.py`).
 - Inline only the code that has to be in that exact form. Drop illustrative snippets where one prose line conveys the same constraint.
 - Keep prose constraints that can't be expressed in code (e.g. "must run inside a transaction", "no external API calls inside this lock").
 

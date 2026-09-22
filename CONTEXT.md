@@ -25,5 +25,11 @@ A code host with issues and PRs/MRs. This kit targets GitHub only; GitLab and Li
 **Main flow**:
 The canonical path for feature work: grill the idea, spec it, split tickets, implement test-first, close with the two-tier code review. _Avoid_: pipeline, shipping flow
 
+**Worktree**:
+A linked checkout of a repo created with `git worktree add`, where every mutating session happens. _Avoid_: branch folder, scratch clone
+
+**Main checkout**:
+The repo's primary working directory, left unedited by agents; new work goes in a worktree instead. _Avoid_: root repo, home directory
+
 **Reference repo**:
 67-sus-95-clean — the strictest-setups repo that owns per-language lint, type, docstring, and coverage enforcement, applied per project by its `init-<lang>-repo` skills. _Avoid_: lint repo, standards repo

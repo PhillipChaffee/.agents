@@ -71,12 +71,20 @@ The pieces his set doesn't ship, by what they get you in the flow:
 
 #### Rules (9)
 
-Always-applied conventions — minimal changes, code organization, comment and
-subagent discipline, worktree discipline, delegation and
-look-it-up policy — distilled
-in [agents.md](agents.md) (the auto-loaded instruction layer); full text in
-[rules/](rules/). Two optional rules (`design-docs`, `writing-voice`) are opt-in
-per repo. The kit carries **no language rules** (ADR-0002) — per-language lint,
+| Rule | What it covers |
+| --- | --- |
+| `code-organization` | Every symbol goes where a reader would look; moves carry tests, imports, and patch targets along |
+| `comment-style` | Comments carry why, not what; present state only, host-docstring density |
+| `git-worktrees` | Mutating agent sessions work in a worktree under `~/worktrees/`; the main checkout stays unedited |
+| `look-it-up` | Look up what can be looked up — official docs first, then primary sources, cited |
+| `minimal-changes` | Smallest change that works; delete over work around |
+| `skill-creation` | Author skills with the platform's creation skill; validate frontmatter on every edit |
+| `subagents` | Inline only for narrow checks; delegate the rest in parallel; self-contained prompts, curated output |
+| `design-docs` | Opt-in: fixed eight-heading template for design docs |
+| `writing-voice` | Opt-in: fill-in template for your own writing voice |
+
+Distilled into [agents.md](agents.md) (the auto-loaded instruction layer); full
+text in [rules/](rules/). The kit carries **no language rules** (ADR-0002) — per-language lint,
 type, docstring, and coverage enforcement lives in the
 [full-lint](https://github.com/PhillipChaffee/full-lint) reference
 repo, applied per project by its `init-<lang>` skills; the kit's own repo-wide

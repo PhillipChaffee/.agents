@@ -1,88 +1,92 @@
 # .agents
 
-My agent kit for real engineering work — research, review, planning, and
-shipping. Small, composable skills; specialized sub-agents for the heavy
-thinking; always-applied rules that keep every session on the rails.
-Published as an [.agents Protocol](https://dotagentsprotocol.com) repo: the
-layout is vendor-neutral, version-controllable, and installable into any
-conformant consumer.
+My personal agent kit — a small, composable set of skills, sub-agents, and
+always-applied rules that power my GitHub-based workflow, published as an
+[.agents Protocol](https://dotagentsprotocol.com) repo: the layout is
+vendor-neutral, version-controllable, and installable into any conformant
+consumer.
 
-The kit powers a specific workflow: run a fast model in the main window,
-delegate deep work (research, code review, plan review) to sub-agents in
-isolated contexts, and keep always-on conventions in rules rather than
-hoping the model remembers them.
+## The workflow
+
+The kit powers the [Matt Pocock main flow](https://github.com/mattpocock/skills):
+
+1. **Grill the idea** (`/grill-with-docs`) — interview it sharp, record decisions in `CONTEXT.md` and ADRs
+2. **Spec it** (`/to-spec`), **split tickets** (`/to-tickets`) with blocking edges
+3. **Implement** each ticket (`/implement` driving `/tdd`), fresh context per ticket
+4. **Close with `/code-review`** — this kit's combined two-tier review (see below)
+
+`/triage` is the on-ramp for incoming issues; `/wayfinder` charts efforts too large
+for one session. The wrapper skills are external and configured per repo by
+`/setup-matt-pocock-skills`; this repo's own `CONTEXT.md` and `docs/adr/` record
+the kit's own domain decisions.
 
 ## What's inside
 
-### Skills
+### Skills (4)
 
-| Skill | What it does | Requires agents |
-| --- | --- | --- |
-| `ci-lint-test` | Run a project's CI lint/test steps locally before pushing | — |
-| `clean-plan` | Tidy an implementation plan so a simple agent can execute it | — |
-| `code-review` | Multi-reviewer code review with specialized sub-agents | `cr-planner`, 8 `cr-*` reviewers, `cr-verifier`, `cr-implementer` |
-| `deep-research` | Tiered research workflow that scales effort to the task | `researcher-lite/mid/deep`, `research-planner`, `research-synthesizer` |
-| `looping-code-review` | Review → minimal fix → re-review loop on a branch | drives `code-review` |
-| `looping-plan-review` | Architecture alignment, then plan-review convergence until Approve | drives `plan-review` |
-| `mr-review` | End-to-end GitLab MR review; posts findings as draft notes | drives `code-review` |
-| `plan-review` | Multi-reviewer plan/design review pipeline | `pr-planner`, 10 `pr-*` reviewers, `pr-verifier`, `pr-implementer` |
-| `pre-mr-checklist` | Pre-merge hygiene: imports, types, logging, tests, secrets | — |
-| `refactor-planner` | Design a behavior-preserving refactor before touching code | `refactor-code-scout`, `refactor-placement-scout` |
-| `ship` | Linear ticket → research → plan → implement → MRs | many (`pr-*`, researchers, `cr-*`) |
-| `ultracode` | Exhaustive multi-agent orchestration for high-stakes work | any |
-| `setup-agent-kit` | One-time per-repo kit configuration: tracker, labels, doc dirs | — |
+| Skill | What it does |
+| --- | --- |
+| `code-review` | Two-tier review: standard = two-axis (Standards + Spec); deep = specialist panel + verifier + walkthrough + applied fixes |
+| `research` | Tiered research: direct answers, background research, or a full research→synthesis pipeline; Tier 2/3 write a cited file to `docs/research/` for the main flow to consume |
+| `ci-lint-test` | Run a project's CI lint/test steps locally before pushing (GitHub Actions first-class, GitLab CI supported) |
+| `pre-mr-checklist` | Pre-push hygiene: imports, types, logging format, test coverage, secrets |
 
-### Sub-agents (30)
+### Sub-agents (16)
 
 | Group | Agents |
 | --- | --- |
 | Code review | `cr-planner`, `cr-security`, `cr-correctness`, `cr-performance`, `cr-architecture`, `cr-organization`, `cr-test-quality`, `cr-deployment-safety`, `cr-simplification`, `cr-verifier`, `cr-implementer` |
-| Plan review | `pr-planner`, `pr-problem-scope`, `pr-feasibility`, `pr-risk-rollback`, `pr-completeness`, `pr-adversarial`, `pr-architecture`, `pr-organization`, `pr-naming`, `pr-simplification`, `pr-verifier`, `pr-implementer` |
-| Refactor scouts | `refactor-code-scout`, `refactor-placement-scout` |
 | Research | `researcher-lite`, `researcher-mid`, `researcher-deep`, `research-planner`, `research-synthesizer` |
 
-### Rules (20)
+### Rules (9)
 
-Always-applied conventions — engineering workflow, minimal changes, plan
-structure, MR descriptions, subagent delegation, Python/Django/pytest
-style, comment and docstring discipline. Distilled in
-[agents.md](agents.md) (the auto-loaded instruction layer); full text in
-[rules/](rules/). Two optional rules (`design-docs`, `writing-voice`) are
-opt-in per repo.
+Always-applied conventions — minimal changes, code organization, comment and
+subagent discipline, PR descriptions, delegation and look-it-up policy — distilled
+in [agents.md](agents.md) (the auto-loaded instruction layer); full text in
+[rules/](rules/). Two optional rules (`design-docs`, `writing-voice`) are opt-in
+per repo. The kit carries **no language rules** (ADR-0002) — per-language lint,
+type, docstring, and coverage enforcement lives in the
+[67-sus-95-clean](https://github.com/PhillipChaffee/67-sus-95-clean) reference
+repo, applied per project by its `init-<lang>` skills.
+
+### Domain docs
+
+`CONTEXT.md` (glossary) + `docs/adr/` (decisions) + `docs/agents/` (tracker,
+triage labels, domain-doc consumer rules).
 
 ## Install
 
-| Channel | Command | Notes |
-| --- | --- | --- |
-| .agents protocol (default) | `git clone https://github.com/PhillipChaffee/.agents.git && cd .agents && ./scripts/install.sh --target agents` | Installs into `~/.agents/` (protocol layout, lowercase `skill.md`). Read by protocol consumers such as the DotAgents desktop app — Cursor and Claude Code do **not** read `~/.agents`. |
-| Cursor | `./scripts/install.sh --target cursor --adopt` | Kit trees into `~/.cursor/` (`skills/`, flat `agents/*.md`, `rules/*.mdc`). One-time `--adopt` binds an existing setup; the script never touches Cursor app data (`mcp.json`, `projects/`, `plugins/`, state). |
-| Any agent via skills.sh | `npx skills add PhillipChaffee/.agents` | Installs `SKILL.md` files only — companion sub-agents are not included, so agent-dispatching skills degrade (see the requires-agents column). |
-| .agents Hub bundle | coming soon | A `.dotagents` bundle installable via the Hub is planned. |
+```sh
+git clone https://github.com/PhillipChaffee/.agents.git && cd .agents && ./scripts/install.sh --target agents
+```
 
-The installer is non-destructive by default: it manages only the paths in
-its own stamp manifest, skips unstamped files that differ (use `--force`),
-supports `--dry-run`, `--prune`, `--uninstall`, and `--pull` (reverse-sync
-edits from the target back into the repo).
+Installs into `~/.agents/` (protocol layout, lowercase `skill.md`), read by
+protocol consumers such as OpenCode. The installer is non-destructive by
+default: it manages only the paths in its own stamp manifest, skips unstamped
+files that differ (use `--force`), and supports `--dry-run`, `--prune`,
+`--uninstall`, and `--pull` (reverse-sync edits from the target back into the
+repo).
 
-## Protocol mapping
+On install you choose your harness's fast/main/deep models and the installer
+writes a consumer-local `models.json` beside the kit — the kit itself pins no
+models (ADR-0001). MCP setup is printed as guidance, never written.
 
-| Kit artifact | Repo location | Notes |
-| --- | --- | --- |
-| `rules/*.mdc` | `rules/<id>.md` | Frontmatter preserved (`alwaysApply`, `globs`); distilled into [agents.md](agents.md) |
-| flat `agents/*.md` | `agents/<id>/agent.md` | Protocol frontmatter (`id`, `role`, `enabled`, `connection-type`); ids unchanged so skill dispatch references resolve |
-| `skills/<id>/SKILL.md` | same | Uppercase `SKILL.md` kept (Cursor/Claude/skills.sh discover that spelling); the installer emits lowercase `skill.md` into `~/.agents/` so the installed layout is protocol-exact |
+## Per-repo setup
+
+Run Matt Pocock's `/setup-matt-pocock-skills` once per repo to record the
+issue tracker, triage labels, and domain-doc layout in `docs/agents/`. The
+kit's skills read those files; no separate kit config exists.
 
 ## Prerequisites and notes
 
-- `ship` and `mr-review` expect a Linear MCP and a GitLab MCP. Without
-  them, tracker-dependent skills are unavailable; research and review
-  skills work regardless. Run `setup-agent-kit` once per repo to record
-  your tracker, labels, and doc dirs in `.agents/kit.json`.
-- Agents carry vendor model slugs (e.g. `cursor-grok-4.6-high-fast`) in
-  their `model` frontmatter key — a documented vendor extension; swap for
-  your provider's equivalents.
-- [mcp.json](mcp.json) and [models.json](models.json) are templates. The
-  installer never writes them; never commit real tokens or provider keys.
+- The Matt Pocock skills (`grill-with-docs`, `to-spec`, `to-tickets`,
+  `implement`, `tdd`, `triage`, `wayfinder`, `code-review` — replaced by this
+  kit's version) are the assumed workflow environment; install them separately.
+- This kit targets GitHub issues and PRs. GitLab, Linear, and Django-process
+  conventions are work-side and out of scope (ADR-0003).
+- Sub-agents run on whatever subagent model your harness configures; swap in
+  your own tiers — nothing here references a vendor model.
+- Never commit provider keys or tokens anywhere in this kit.
 
 ## Credits
 

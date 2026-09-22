@@ -69,10 +69,13 @@ This rule governs PR comments, code review feedback, discussion replies, chat me
 ## Examples
 
 Line-level review:
+
 - `<example>`
 
 MR-level feedback:
+
 - `<example>`
 
 Quick replies:
+
 - `<example>`

@@ -7,12 +7,14 @@ Examples of good vs. bad review comments across different scenarios.
 ### Security Issue
 
 **Bad:**
-```
+
+```text
 This is insecure.
 ```
 
 **Good:**
-```
+
+```text
 blocker: SQL injection vulnerability
 
 User input is concatenated directly into the query:
@@ -25,12 +27,14 @@ cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
 ### Bug
 
 **Bad:**
-```
+
+```text
 This will crash.
 ```
 
 **Good:**
-```
+
+```text
 blocker: NullPointerException when user has no orders
 
 At line 45, `user.orders[0]` will throw if the orders list is empty.
@@ -44,12 +48,14 @@ return user.orders[0]
 ### Logic Error
 
 **Bad:**
-```
+
+```text
 Wrong logic here.
 ```
 
 **Good:**
-```
+
+```text
 blocker: Off-by-one error in pagination
 
 The current logic skips the first item on each page:
@@ -67,12 +73,14 @@ offset = (page - 1) * page_size  # Assuming 1-indexed pages
 ### Performance Improvement
 
 **Bad:**
-```
+
+```text
 This is slow.
 ```
 
 **Good:**
-```
+
+```text
 suggestion: N+1 query issue
 
 This loop makes a database query for each user, causing N+1 queries:
@@ -90,12 +98,14 @@ orders_by_user = group_by(all_orders, 'user_id')
 ### Code Structure
 
 **Bad:**
-```
+
+```text
 Too long.
 ```
 
 **Good:**
-```
+
+```text
 suggestion: Consider splitting this function
 
 At 80 lines, this function handles validation, transformation, and persistence.
@@ -106,12 +116,14 @@ would make each piece easier to test and understand.
 ### Error Handling
 
 **Bad:**
-```
+
+```text
 Add error handling.
 ```
 
 **Good:**
-```
+
+```text
 suggestion: Handle API timeout gracefully
 
 If the external API times out, this will raise an unhandled exception.
@@ -127,12 +139,14 @@ except TimeoutError:
 ### DRY Violation
 
 **Bad:**
-```
+
+```text
 This is duplicated.
 ```
 
 **Good:**
-```
+
+```text
 suggestion: Extract duplicated validation logic
 
 This email validation appears in three places:
@@ -148,12 +162,14 @@ validation rules only needs one change).
 ### SOLID Violation (Single Responsibility)
 
 **Bad:**
-```
+
+```text
 This class does too much.
 ```
 
 **Good:**
-```
+
+```text
 suggestion: Split OrderProcessor into focused classes
 
 OrderProcessor currently handles validation, payment processing, inventory
@@ -171,12 +187,14 @@ Then `OrderProcessor` orchestrates these, each testable in isolation.
 ### SOLID Violation (Dependency Inversion)
 
 **Bad:**
-```
+
+```text
 Don't hardcode the database.
 ```
 
 **Good:**
-```
+
+```text
 suggestion: Inject the database connection instead of creating it internally
 
 Currently the class instantiates its own database connection:
@@ -202,19 +220,22 @@ changing this class.
 ### Naming
 
 **Bad:**
-```
+
+```text
 Bad name.
 ```
 
 **Good:**
-```
+
+```text
 nit: `userList` → `users`
 
 Plural nouns are typically preferred over type suffixes for collections.
 ```
 
 **Good (vague function name):**
-```
+
+```text
 suggestion: `process()` → more descriptive name
 
 `process()` doesn't convey what this function does. Based on the implementation,
@@ -223,7 +244,8 @@ would make the code self-documenting.
 ```
 
 **Good (cryptic abbreviation):**
-```
+
+```text
 nit: `usr_mgr` → `user_manager`
 
 The abbreviation saves a few characters but hurts readability. Prefer
@@ -231,7 +253,8 @@ full words unless the abbreviation is universally understood (like `id`, `url`).
 ```
 
 **Good (misleading name):**
-```
+
+```text
 suggestion: Rename `get_user()` — it also creates users
 
 This function creates a user if one doesn't exist, which is unexpected
@@ -242,12 +265,14 @@ from the name. Consider `get_or_create_user()` or splitting into
 ### Code Style
 
 **Bad:**
-```
+
+```text
 Format this.
 ```
 
 **Good:**
-```
+
+```text
 nit: Inconsistent string quotes
 
 This file mixes single and double quotes. The project uses single quotes
@@ -257,12 +282,14 @@ for strings per .editorconfig.
 ### Minor Improvement
 
 **Bad:**
-```
+
+```text
 Change this.
 ```
 
 **Good:**
-```
+
+```text
 nit: Could use list comprehension
 
 This loop:
@@ -281,12 +308,14 @@ result = [item.name for item in items]
 ### Seeking Understanding
 
 **Bad:**
-```
+
+```text
 Why?
 ```
 
 **Good:**
-```
+
+```text
 question: What's the reason for the 5-second delay here?
 
 I see we sleep for 5 seconds before retrying. Is this to rate-limit,
@@ -296,12 +325,14 @@ or is there a specific timing requirement from the external service?
 ### Clarifying Intent
 
 **Bad:**
-```
+
+```text
 Explain this.
 ```
 
 **Good:**
-```
+
+```text
 question: Is the empty string check intentional here?
 
 if value == "":
@@ -314,12 +345,14 @@ or is there a reason we treat them differently?
 ### Edge Case Inquiry
 
 **Bad:**
-```
+
+```text
 What about errors?
 ```
 
 **Good:**
-```
+
+```text
 question: What happens if the file doesn't exist?
 
 I see we open the file without checking existence:
@@ -336,12 +369,14 @@ expected that callers ensure the file exists?
 ### Acknowledging Good Work
 
 **Bad:**
-```
+
+```text
 Nice.
 ```
 
 **Good:**
-```
+
+```text
 praise: Excellent error handling strategy here
 
 The exponential backoff with jitter is exactly right for avoiding
@@ -351,7 +386,8 @@ thundering herd problems. Well thought out!
 ### Recognizing Improvement
 
 **Good:**
-```
+
+```text
 praise: This refactoring significantly improves readability
 
 Breaking the validation into its own class makes the main flow
@@ -361,7 +397,8 @@ much clearer. Future developers will thank you.
 ### Learning From Code
 
 **Good:**
-```
+
+```text
 praise: I learned something new here!
 
 I didn't know you could use `functools.cached_property` for lazy
@@ -375,14 +412,16 @@ initialization. This is cleaner than the manual pattern I usually use.
 ### Personal Attacks (Never Do This)
 
 **Terrible:**
-```
+
+```text
 Did you even test this?
 Why would anyone write it this way?
 You clearly don't understand how this works.
 ```
 
 **Better:**
-```
+
+```text
 question: Have we had a chance to test the error path here?
 I'd like to make sure it handles the failure case correctly.
 ```
@@ -390,14 +429,16 @@ I'd like to make sure it handles the failure case correctly.
 ### Vague Criticism (Never Do This)
 
 **Terrible:**
-```
+
+```text
 This is bad.
 Needs work.
 I don't like this approach.
 ```
 
 **Better:**
-```
+
+```text
 suggestion: Consider using dependency injection here
 
 Creating the database connection inside the function makes it hard to test.
@@ -407,14 +448,16 @@ Passing it as a parameter would allow injecting a mock in tests.
 ### Demanding Tone (Never Do This)
 
 **Terrible:**
-```
+
+```text
 Fix this.
 Don't do this.
 Use X instead.
 ```
 
 **Better:**
-```
+
+```text
 suggestion: What do you think about using X here?
 
 It might handle the edge case at line 45 more elegantly.
@@ -427,7 +470,8 @@ It might handle the edge case at line 45 more elegantly.
 When you have multiple small nits in the same area, group them:
 
 **Good:**
-```
+
+```text
 nit: A few style items in this file:
 
 - Line 12: `userList` → `users` (prefer plural over type suffix)

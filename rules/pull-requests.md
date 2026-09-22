@@ -11,7 +11,7 @@ Conventions for PRs on any forge (GitHub today; the contract is forge-neutral).
   - If no issue exists for the work, ask the user whether to create one or proceed without.
   - Never drop an existing issue reference when updating a title.
 
-```
+```text
 # ✅ Good
 #42: Add retry logic for webhook delivery
 

@@ -90,7 +90,7 @@ made, in order:
 ### Upgrade criteria (deep-thinking tier, only when the harness configures one)
 
 | Role | Upgrade when |
-|------|----------------|
+| ------ | ---------------- |
 | `researcher-deep` | Heavy architecture/tradeoff, security/performance, or conflicting-source reasoning, and the subtask evidence packet is already complete (thinking-only; no further source inspection). |
 | planning call | Difficult decomposition remains after collectors assembled a complete evidence packet — including irreversible sequencing or cross-service contract design. |
 | `research-synthesizer` | Large, conflicting, or high-stakes researcher outputs need deeper judgment to curate. |

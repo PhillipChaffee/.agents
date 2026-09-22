@@ -32,4 +32,4 @@ A linked checkout of a repo created with `git worktree add`, where every mutatin
 The repo's primary working directory, left unedited by agents; new work goes in a worktree instead. _Avoid_: root repo, home directory
 
 **Reference repo**:
-67-sus-95-clean — the strictest-setups repo that owns per-language lint, type, docstring, and coverage enforcement, applied per project by its `init-<lang>-repo` skills. _Avoid_: lint repo, standards repo
+full-lint — the strictest-setups repo that owns per-language lint, type, docstring, and coverage enforcement, applied per project by its `init-<lang>-repo` skills, plus the repo-wide hygiene gates this kit self-lints with. _Avoid_: lint repo, standards repo

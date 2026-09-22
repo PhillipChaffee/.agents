@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if command -v python3 >/dev/null 2>&1; then
-  python3 - <<'PY'
+	python3 - <<'PY'
 import re
 import sys
 from pathlib import Path
@@ -144,14 +144,17 @@ print(f"checked {len(skills)} skills, {len(agents)} agents, {len(rule_ids)} rule
 sys.exit(1 if fails else 0)
 PY
 else
-  echo "FAIL python3 is required for validation" >&2
-  exit 1
+	echo "FAIL python3 is required for validation" >&2
+	exit 1
 fi
 
 # 6. Install script sanity (when present)
 if [ -f scripts/install.sh ]; then
-  bash -n scripts/install.sh || { echo "FAIL scripts/install.sh: syntax error"; exit 1; }
-  echo "PASS scripts/install.sh syntax"
+	bash -n scripts/install.sh || {
+		echo "FAIL scripts/install.sh: syntax error"
+		exit 1
+	}
+	echo "PASS scripts/install.sh syntax"
 fi
 
 echo "OK validation passed"

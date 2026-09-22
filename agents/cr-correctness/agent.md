@@ -60,6 +60,7 @@ With full code path understanding, evaluate each change:
 Each finding must cite **specific lines or hunks** from the diff (file + line) AND reference the code path context you traced (e.g., "caller X at file:line passes None when Y is empty"). If you cannot tie it to **this change** with a concrete failure scenario grounded in the actual code, **do not list it**.
 
 Internal checklist (do not output):
+
 - What input or state triggers the bug? (cite the caller or data source you traced)
 - What happens incorrectly (exception, wrong branch, wrong persisted data)?
 - Why would that occur in prod (real data is messier than tests)?
@@ -85,7 +86,7 @@ If there are no correctness/edge-case issues meeting the evidence bar, return ex
 
 Otherwise, output findings using this structure (repeat per finding):
 
-```
+```text
 ### [Severity] Short title
 - **Where:** `path/to/file.py:LINE`
 - **What:** one sentence describing the issue
@@ -95,7 +96,7 @@ Otherwise, output findings using this structure (repeat per finding):
 
 After all findings, add:
 
-```
+```text
 ### Confidence
 - **Level:** high | medium | low
 - **Notes:** assumptions, files not visible in diff, or need for integration test

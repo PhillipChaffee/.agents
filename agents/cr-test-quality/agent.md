@@ -21,6 +21,7 @@ You review **test design and test code quality** for a **git diff**. You do **no
 If the diff includes **no test files and no new/changed logic** that clearly warrants tests, say so briefly and still comment on any **risk** if production behavior changed without tests.
 
 ## Stack context
+
 Multi-service Python workspace (infer services/frameworks from the diff; do not assume a fixed layout). Kit examples may reference Django service-b, FastAPI services, shared libraries, and Kubernetes deployment.
 
 ## Project test conventions (enforce when relevant)
@@ -73,13 +74,14 @@ Flag when you see (diff-only inference; say "possible" if unclear):
 Use exactly these sections:
 
 ### Summary
+
 1-3 bullets: overall test strategy vs change risk.
 
 ### Coverage gaps
 
 If gaps exist, output each using this structure:
 
-```
+```text
 ### [Severity] Short title
 - **Where:** `path/to/file.py:LINE` (production code lacking coverage)
 - **What:** what behavior/path is untested or under-tested

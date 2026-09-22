@@ -14,7 +14,7 @@ main checkout is never the site of agent edits.
 Starting in the main checkout, announce the worktree path, create it on a new
 branch, and continue work from inside it — no permission needed:
 
-```
+```text
 git worktree add ~/worktrees/<clone-dir-basename>/<branch> -b <branch>
 ```
 
@@ -35,7 +35,7 @@ A session already inside a worktree continues where it is.
 After the PR merges or the work is abandoned, remove the worktree and delete
 its branch:
 
-```
+```text
 git worktree remove ~/worktrees/<clone-dir-basename>/<branch>
 git branch -d <branch>
 ```

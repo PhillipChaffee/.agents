@@ -60,6 +60,7 @@ You are **not** responsible for code quality, readability, algorithmic correctne
 ### 6. Observability (failure must be visible)
 
 Ask: **If this breaks in production, how do we know within minutes?**
+
 - Logs: are critical paths likely to emit actionable logs with identifiers (`tenant_id`, `order_id`, `request_id`, `resource_id`)?
 - Metrics/traces/alerts/Sentry: gaps where failures could be silent or misattributed during staged rollout.
 
@@ -78,7 +79,7 @@ If you find **no** deployment or rollout concerns, output **only** this line (ve
 
 Otherwise, output findings using this structure (repeat per finding):
 
-```
+```text
 ### [Severity] Short title
 - **Where:** `path/to/file.py:LINE`
 - **What:** one sentence describing the operational risk

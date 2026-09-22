@@ -76,6 +76,7 @@ If you find **no** organization concerns, output **exactly** this single line (n
 Otherwise, output findings using this structure (repeat per finding):
 
 ### [Severity] Short title
+
 - **Where:** `path/to/file.py:LINE`
 - **What:** one sentence describing the placement problem
 - **Why it matters:** one sentence on the discoverability or maintainability cost

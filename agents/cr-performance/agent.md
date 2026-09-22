@@ -89,7 +89,7 @@ If **no** performance concerns are justified by the diff, output **only** this l
 
 Otherwise, output findings using this structure (repeat per finding):
 
-```
+```text
 ### [Severity] Short title
 - **Where:** `path/to/file.py:LINE`
 - **What:** one sentence describing the issue

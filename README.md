@@ -14,7 +14,7 @@ consumer.
 
 My main flow is Matt Pocock's skills, not part of this kit:
 
-1. **Grill the idea** (`/grill-with-docs`) — interview it sharp, record decisions in `CONTEXT.md` and ADRs
+1. **Grill the idea** (`/grill-with-docs`) — interview it sharp, record decisions in `CONTEXT.md`
 2. **Spec it** (`/to-spec`), **split tickets** (`/to-tickets`) with blocking edges
 3. **Implement** each ticket (`/implement` driving `/tdd`), fresh context per ticket
 4. **Close with `/code-review`** — served by this kit's combined two-tier review (see below)
@@ -82,16 +82,16 @@ The pieces his set doesn't ship, by what they get you in the flow:
 | `writing-voice` | Opt-in: fill-in template for your own writing voice |
 
 Distilled into [agents.md](agents.md) (the auto-loaded instruction layer); full
-text in [rules/](rules/). The kit carries **no language rules** (ADR-0002) — per-language lint,
+text in [rules/](rules/). The kit carries **no language rules** — per-language lint,
 type, docstring, and coverage enforcement lives in the
 [full-lint](https://github.com/PhillipChaffee/full-lint) reference
 repo, applied per project by its `init-<lang>` skills; the kit's own repo-wide
-hygiene gates are copied from that repo (ADR-0006).
+hygiene gates are copied from that repo.
 
 #### Domain docs
 
-`CONTEXT.md` (glossary) + `docs/adr/` (decisions) + `docs/agents/` (tracker,
-triage labels, domain-doc consumer rules).
+`CONTEXT.md` (glossary) + `docs/agents/` (tracker, triage labels,
+domain-doc consumer rules).
 
 ## Install
 
@@ -108,7 +108,7 @@ repo).
 
 On install you choose your harness's fast/main/deep models and the installer
 writes a consumer-local `models.json` beside the kit — the kit itself pins no
-models (ADR-0001). MCP setup is printed as guidance, never written.
+models. MCP setup is printed as guidance, never written.
 
 ## Prerequisites and notes
 
@@ -117,7 +117,7 @@ models (ADR-0001). MCP setup is printed as guidance, never written.
 - The kit is forge-agnostic: its skills, rules, and agents reference no
   specific code host. Issue tracking is per-repo configuration, recorded by
   `/setup-matt-pocock-skills` in `docs/agents/issue-tracker.md` — GitHub,
-  GitLab, or Linear all work (ADR-0007).
+  GitLab, or Linear all work.
 - Sub-agents run on whatever subagent model your harness configures; swap in
   your own tiers — nothing here references a vendor model.
 - Never commit provider keys or tokens anywhere in this kit.

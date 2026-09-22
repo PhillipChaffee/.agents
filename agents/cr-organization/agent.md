@@ -4,7 +4,6 @@ description: >
   Evaluate file/folder placement and symbol location in git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-organization
-model: cursor-grok-4.6-high-fast
 name: Code Organization
 readonly: true
 role: delegation-target

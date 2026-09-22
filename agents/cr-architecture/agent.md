@@ -4,7 +4,6 @@ description: >
   Evaluate structure, boundaries, and coupling in git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-architecture
-model: cursor-grok-4.6-high-fast
 name: Architecture & Design
 readonly: true
 role: delegation-target

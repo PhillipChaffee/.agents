@@ -1,9 +1,8 @@
 ---
 connection-type: internal
-description: Use as the mandatory first step of multi-agent code review. Selects reviewers, focus briefs, and optional Fable upgrade candidates before findings are gathered.
+description: Use as the mandatory first step of multi-agent code review. Selects reviewers, focus briefs, and optional deep-tier upgrade candidates before findings are gathered.
 enabled: true
 id: cr-planner
-model: cursor-grok-4.6-high-fast
 name: Code Review Planner
 readonly: true
 role: delegation-target
@@ -28,11 +27,11 @@ Return:
 2. **Review scope**: the behavior, files, and cross-system interactions under review.
 3. **Selected reviewers**: the full roster or a focused subset, with a reason for every inclusion
    and omission.
-4. **Reviewer models**: assign every selected reviewer `cursor-grok-4.6-high-fast`. Optionally
-   list Fable upgrade candidates (reviewer + reason) for the main chat to apply when launching
+4. **Reviewer models**: assign every selected reviewer the harness's default subagent model. Optionally
+   list upgrade candidates (reviewer + reason) for the main chat to apply when launching
    subagents — do not treat those as launches you perform yourself.
 5. **Focus briefs**: exact risks and questions each selected reviewer should investigate.
 6. **Verifier instructions**: claims, interactions, and scope boundaries the verifier must check.
 
-Use only reviewers from the supplied roster. A review domain alone does not justify Fable; the
+Use only reviewers from the supplied roster. A review domain alone does not justify an upgrade; the
 changeset's complexity must justify any upgrade candidate.

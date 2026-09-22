@@ -1,15 +1,14 @@
 ---
 connection-type: internal
 description: >-
-  High-knowledge, heavy-reasoning researcher for one subtask of a deep-research
-  investigation. Defaults to grok; optional Fable upgrade when deeper thinking-only
-  reasoning is needed and the subtask evidence packet is already complete. Use for
-  architecture and tradeoff analysis, security/performance reasoning, ambiguous or
-  novel questions, and synthesis across many or conflicting sources. Reads the
-  codebase, the web, and MCP tools on grok; never edits files.
+  High-knowledge, heavy-reasoning researcher for one subtask of a research
+  investigation. Use for architecture and tradeoff analysis, security/performance
+  reasoning, ambiguous or novel questions, and synthesis across many or conflicting
+  sources. On a configured deep-thinking tier, may run thinking-only when the subtask
+  evidence packet is already complete. Reads the codebase, the web, and MCP tools;
+  never edits files.
 enabled: true
 id: researcher-deep
-model: cursor-grok-4.6-high-fast
 name: researcher-deep
 readonly: false
 role: delegation-target

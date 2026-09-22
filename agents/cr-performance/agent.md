@@ -4,7 +4,6 @@ description: >
   Identify performance and scalability issues in git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-performance
-model: cursor-grok-4.6-high-fast
 name: Performance Reviewer
 readonly: true
 role: delegation-target

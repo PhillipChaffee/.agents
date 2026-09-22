@@ -1,13 +1,12 @@
 ---
 connection-type: internal
 description: >-
-  Fast, low-cost researcher for simple, high-volume reads in a deep-research
+  Fast, low-cost researcher for simple, high-volume reads in a research
   investigation. Use for mechanical subtasks: locating a definition or call sites,
   reading a specific file, extracting config values, confirming a single fact.
   Reads the codebase, the web, and MCP tools; never edits files.
 enabled: true
 id: researcher-lite
-model: composer-2.5-fast
 name: researcher-lite
 readonly: false
 role: delegation-target

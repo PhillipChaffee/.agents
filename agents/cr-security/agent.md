@@ -4,7 +4,6 @@ description: >
   Security-only review of git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-security
-model: cursor-grok-4.6-high-fast
 name: Security Reviewer
 readonly: true
 role: delegation-target

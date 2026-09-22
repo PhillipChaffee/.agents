@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Restructured the README around workflow value and slimmed the kit (#18).
+
+- README: "What this kit adds" now pitches what the kit gets you in the
+  workflow — worktree discipline, the deeper two-tier code review, tiered
+  research, specific subagent behavior, the look-it-up policy — and
+  "What's inside" keeps the reference inventory under it
+- Deleted the `ci-lint-test` and `pre-mr-checklist` skills; skills 4 → 2
+- Deleted the `pull-requests` rule (PR-description guidance); rules 10 → 9;
+  `agents.md` and the install smoke test updated to match
+
 Realigned to the personal workflow only (ADR-0003) and the Matt Pocock main flow (ADR-0004).
 
 - Skills cut from 13 to 4: threw `ship`, `plan-review`, `looping-plan-review`,

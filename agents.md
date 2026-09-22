@@ -37,12 +37,6 @@ Limit edits to only the files and lines necessary — no tangential refactors or
 
 Full text: [rules/minimal-changes.md](rules/minimal-changes.md)
 
-### pull-requests
-
-PR titles include the issue reference: `#123: Short description` — ask whether to create an issue if none exists, never drop an existing reference. Descriptions must contain `## Problem` (concrete symptoms), `## Fix` (approach + `### Changes` with bold scope labels), `## Impact` (improvements, trade-offs, residual risks), and `## Test Plan` (concrete verification steps). Ask rather than guess when context is missing.
-
-Full text: [rules/pull-requests.md](rules/pull-requests.md)
-
 ### skill-creation
 
 Before writing or editing any skill, read and follow your agent platform's skill-creation skill (Cursor: `/create-skill`); do not invent structure, frontmatter, or description style from memory. Keep frontmatter for discovery only; workflow detail in the body. `name` is lowercase-hyphenated, matches the folder, ≤64 chars; `description` is non-empty ≤1024 chars, third person, what + when, folded block scalar (`>-`) when longer than one line or containing colons. Validate frontmatter (YAML parse + name/description assertions) after every create or update.

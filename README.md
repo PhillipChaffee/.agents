@@ -3,7 +3,7 @@
 My personal agent kit — add-ons for my everyday coding workflow. The main
 flow is [Matt Pocock's skills](https://github.com/mattpocock/skills),
 installed separately; this kit layers on top of it: a combined two-tier code
-review, tiered research, CI hygiene, and always-applied rules. Published as
+review, tiered research, worktree discipline, and always-applied rules. Published as
 an [.agents Protocol](https://dotagentsprotocol.com) repo: the layout is
 vendor-neutral, version-controllable, and installable into any conformant
 consumer.
@@ -33,35 +33,44 @@ record the issue tracker, triage labels, and domain-doc layout in
 two-axis `code-review` and `research` — skip those two when picking, or
 uninstall his copies after, so the kit's versions own the names.
 
-### What this kit adds
+## What this kit adds
 
-The pieces his set doesn't ship: the specialist deep-review tier, the tiered
-research pipeline with repo-file output, CI and pre-push hygiene skills, and
-the always-applied rules distilled in [agents.md](agents.md). This repo's own
-`CONTEXT.md` and `docs/adr/` record the kit's own domain decisions.
+The pieces his set doesn't ship, by what they get you in the flow:
 
-## What's inside
+- **Worktree discipline** — every mutating agent session works in a git
+  worktree under `~/worktrees/`, never in the main checkout
+- **A more in-depth code review** — the combined two-tier review: a standard
+  two-axis pass, then when warranted a deep tier with a specialist subagent
+  panel, an adversarial verifier, a walkthrough, and fixes applied in place
+- **A better research skill** — tiered research from a direct answer up to a
+  full research→synthesis pipeline, writing a cited
+  `docs/research/<topic>.md` for the main flow to consume
+- **Specific subagent behavior** — delegation rules: when to work inline
+  versus dispatch, self-contained prompts, curated-not-pasted output, model
+  tiers pinned by the harness rather than the kit
+- **A look-it-up policy** — no answers from memory when a source exists;
+  official docs first, citations included
 
-### Skills (4)
+### What's inside
+
+#### Skills (2)
 
 | Skill | What it does |
 | --- | --- |
 | `code-review` | Two-tier review: standard = two-axis (Standards + Spec); deep = specialist panel + verifier + walkthrough + applied fixes |
 | `research` | Tiered research: direct answers, background research, or a full research→synthesis pipeline; Tier 2/3 write a cited file to `docs/research/` for the main flow to consume |
-| `ci-lint-test` | Run a project's CI lint/test steps locally before pushing (GitHub Actions first-class, GitLab CI supported) |
-| `pre-mr-checklist` | Pre-push hygiene: imports, types, logging format, test coverage, secrets |
 
-### Sub-agents (16)
+#### Sub-agents (16)
 
 | Group | Agents |
 | --- | --- |
 | Code review | `cr-planner`, `cr-security`, `cr-correctness`, `cr-performance`, `cr-architecture`, `cr-organization`, `cr-test-quality`, `cr-deployment-safety`, `cr-simplification`, `cr-verifier`, `cr-implementer` |
 | Research | `researcher-lite`, `researcher-mid`, `researcher-deep`, `research-planner`, `research-synthesizer` |
 
-### Rules (10)
+#### Rules (9)
 
 Always-applied conventions — minimal changes, code organization, comment and
-subagent discipline, PR descriptions, worktree discipline, delegation and
+subagent discipline, worktree discipline, delegation and
 look-it-up policy — distilled
 in [agents.md](agents.md) (the auto-loaded instruction layer); full text in
 [rules/](rules/). Two optional rules (`design-docs`, `writing-voice`) are opt-in
@@ -70,7 +79,7 @@ type, docstring, and coverage enforcement lives in the
 [67-sus-95-clean](https://github.com/PhillipChaffee/67-sus-95-clean) reference
 repo, applied per project by its `init-<lang>` skills.
 
-### Domain docs
+#### Domain docs
 
 `CONTEXT.md` (glossary) + `docs/adr/` (decisions) + `docs/agents/` (tracker,
 triage labels, domain-doc consumer rules).

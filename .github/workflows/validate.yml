@@ -19,6 +19,6 @@ jobs:
           test -f "$SBX/.agents/skills/code-review/skill.md"
           test -f "$SBX/.agents/skills/research/skill.md"
           test -f "$SBX/.agents/agents/cr-security/agent.md"
-          test -f "$SBX/.agents/rules/pull-requests.md"
+          test -f "$SBX/.agents/rules/look-it-up.md"
           test ! -f "$SBX/.agents/agents.md"
           rm -rf "$SBX"

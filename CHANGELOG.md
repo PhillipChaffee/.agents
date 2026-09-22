@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+Restructured the README around workflow value and slimmed the kit (#18).
+
+- README: "What this kit adds" now pitches what the kit gets you in the
+  workflow — worktree discipline, the deeper two-tier code review, tiered
+  research, specific subagent behavior, the look-it-up policy — and
+  "What's inside" keeps the reference inventory under it
+- Deleted the `ci-lint-test` and `pre-mr-checklist` skills; skills 4 → 2
+- Deleted the `pull-requests`, `skill-creation`, and `design-docs` rules;
+  rules 10 → 7; `agents.md` and the install smoke test updated to match
+- ADR-0007 supersedes ADR-0003: the kit is forge-agnostic and the repo is
+  silent about work-versus-personal; issue tracking is per-repo configuration
+
 Adopted the reference repo's hygiene gates and retired the `67-sus-95-clean` name (ADR-0006).
 
 - The repo now self-lints: full-lint's repo-wide hygiene configs copied

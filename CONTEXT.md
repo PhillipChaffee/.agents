@@ -1,6 +1,6 @@
 # .agents Kit
 
-Phillip Chaffee's public agent kit: skills, rules, and sub-agents published under the .agents Protocol, powering a grill-to-review main flow across two forges.
+Phillip Chaffee's public agent kit: skills, rules, and sub-agents published under the .agents Protocol, powering a forge-agnostic grill-to-review main flow.
 
 ## Language
 
@@ -20,7 +20,7 @@ An always-applied convention loaded into every session; full text in `rules/`, d
 A named specialist the harness dispatches into an isolated context; defined in `agents/`, driven by skills. _Avoid_: reviewer, worker
 
 **Forge**:
-A code host with issues and PRs/MRs. This kit targets GitHub only; GitLab and Linear are work-side and out of scope. _Avoid_: code host, remote
+A code host with issues and PRs/MRs. The kit is forge-agnostic — nothing in `skills/`, `rules/`, or `agents/` targets a host, and issue tracking is per-repo configuration (`docs/agents/issue-tracker.md`, written by `/setup-matt-pocock-skills`): GitHub, GitLab, and Linear all work. _Avoid_: code host, remote
 
 **Main flow**:
 The canonical path for feature work: grill the idea, spec it, split tickets, implement test-first, close with the two-tier code review. _Avoid_: pipeline, shipping flow

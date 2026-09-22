@@ -37,18 +37,6 @@ Limit edits to only the files and lines necessary — no tangential refactors or
 
 Full text: [rules/minimal-changes.md](rules/minimal-changes.md)
 
-### pull-requests
-
-PR titles include the issue reference: `#123: Short description` — ask whether to create an issue if none exists, never drop an existing reference. Descriptions must contain `## Problem` (concrete symptoms), `## Fix` (approach + `### Changes` with bold scope labels), `## Impact` (improvements, trade-offs, residual risks), and `## Test Plan` (concrete verification steps). Ask rather than guess when context is missing.
-
-Full text: [rules/pull-requests.md](rules/pull-requests.md)
-
-### skill-creation
-
-Before writing or editing any skill, read and follow your agent platform's skill-creation skill (Cursor: `/create-skill`); do not invent structure, frontmatter, or description style from memory. Keep frontmatter for discovery only; workflow detail in the body. `name` is lowercase-hyphenated, matches the folder, ≤64 chars; `description` is non-empty ≤1024 chars, third person, what + when, folded block scalar (`>-`) when longer than one line or containing colons. Validate frontmatter (YAML parse + name/description assertions) after every create or update.
-
-Full text: [rules/skill-creation.md](rules/skill-creation.md)
-
 ### subagents
 
 Work inline only for user-specified reads, quick lookups, known facts, or narrow checks mid-edit; delegate unfamiliar code, multi-file tracing, debugging, reviews, tradeoff analysis, and research — independent threads in parallel. The kit pins no models (ADR-0001): subagents run on the harness's configured subagent model, and a configured deep-thinking tier is reserved for rare, bounded, thinking-only work on a complete evidence packet with tools forbidden in the prompt. Dispatch prompts are self-contained; curate raw subagent output before presenting it; never paste it. `readonly: true` is wrong for researchers needing web/MCP access — forbid edits in the prompt instead.
@@ -57,7 +45,6 @@ Full text: [rules/subagents.md](rules/subagents.md)
 
 ## Optional rules
 
-- [design-docs](rules/design-docs.md) — fixed eight-heading template for design docs (`Problem` → `Test Plan`, keep `N/A` headings). Opt-in per repo.
 - [writing-voice](rules/writing-voice.md) — fill-in template for your own writing voice; replace placeholders and enable `alwaysApply` before use.
 
 ## Agent skills

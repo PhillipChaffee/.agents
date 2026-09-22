@@ -5,7 +5,7 @@
 My personal agent kit — add-ons for my everyday coding workflow. The main
 flow is [Matt Pocock's skills](https://github.com/mattpocock/skills),
 installed separately; this kit layers on top of it: a combined two-tier code
-review, tiered research, CI hygiene, and always-applied rules. Published as
+review, tiered research, worktree discipline, and always-applied rules. Published as
 an [.agents Protocol](https://dotagentsprotocol.com) repo: the layout is
 vendor-neutral, version-controllable, and installable into any conformant
 consumer.
@@ -14,7 +14,7 @@ consumer.
 
 My main flow is Matt Pocock's skills, not part of this kit:
 
-1. **Grill the idea** (`/grill-with-docs`) — interview it sharp, record decisions in `CONTEXT.md` and ADRs
+1. **Grill the idea** (`/grill-with-docs`) — interview it sharp, record decisions in `CONTEXT.md`
 2. **Spec it** (`/to-spec`), **split tickets** (`/to-tickets`) with blocking edges
 3. **Implement** each ticket (`/implement` driving `/tdd`), fresh context per ticket
 4. **Close with `/code-review`** — served by this kit's combined two-tier review (see below)
@@ -35,48 +35,67 @@ record the issue tracker, triage labels, and domain-doc layout in
 two-axis `code-review` and `research` — skip those two when picking, or
 uninstall his copies after, so the kit's versions own the names.
 
-### What this kit adds
+## What this kit adds
 
-The pieces his set doesn't ship: the specialist deep-review tier, the tiered
-research pipeline with repo-file output, CI and pre-push hygiene skills, and
-the always-applied rules distilled in [agents.md](agents.md). This repo's own
-`CONTEXT.md` and `docs/adr/` record the kit's own domain decisions.
+The pieces his set doesn't ship, by what they get you in the flow:
 
-## What's inside
+- **Worktree discipline** — every mutating agent session works in a git
+  worktree under `~/worktrees/`, never in the main checkout
+- **A more in-depth code review** — the combined two-tier review: a standard
+  two-axis pass, then when warranted a deep tier with a specialist subagent
+  panel, an adversarial verifier, a walkthrough, and fixes applied in place
+- **A better research skill** — tiered research from a direct answer up to a
+  full research→synthesis pipeline, writing a cited
+  `docs/research/<topic>.md` for the main flow to consume
+- **Specific subagent behavior** — delegation rules: when to work inline
+  versus dispatch, self-contained prompts, curated-not-pasted output, model
+  tiers pinned by the harness rather than the kit
+- **A look-it-up policy** — no answers from memory when a source exists;
+  official docs first, citations included
+- **New projects set up with full linting** — the `full-lint` reference
+  repo's `init-<lang>-repo` skills bootstrap a new project with the
+  strictest workable lint, type-check, docstring, formatter, and coverage
+  gates
 
-### Skills (4)
+### What's inside
+
+#### Skills (2)
 
 | Skill | What it does |
 | --- | --- |
 | `code-review` | Two-tier review: standard = two-axis (Standards + Spec); deep = specialist panel + verifier + walkthrough + applied fixes |
 | `research` | Tiered research: direct answers, background research, or a full research→synthesis pipeline; Tier 2/3 write a cited file to `docs/research/` for the main flow to consume |
-| `ci-lint-test` | Run a project's CI lint/test steps locally before pushing (GitHub Actions first-class, GitLab CI supported) |
-| `pre-mr-checklist` | Pre-push hygiene: imports, types, logging format, test coverage, secrets |
 
-### Sub-agents (16)
+#### Sub-agents (16)
 
 | Group | Agents |
 | --- | --- |
 | Code review | `cr-planner`, `cr-security`, `cr-correctness`, `cr-performance`, `cr-architecture`, `cr-organization`, `cr-test-quality`, `cr-deployment-safety`, `cr-simplification`, `cr-verifier`, `cr-implementer` |
 | Research | `researcher-lite`, `researcher-mid`, `researcher-deep`, `research-planner`, `research-synthesizer` |
 
-### Rules (10)
+#### Rules (7)
 
-Always-applied conventions — minimal changes, code organization, comment and
-subagent discipline, PR descriptions, worktree discipline, delegation and
-look-it-up policy — distilled
-in [agents.md](agents.md) (the auto-loaded instruction layer); full text in
-[rules/](rules/). Two optional rules (`design-docs`, `writing-voice`) are opt-in
-per repo. The kit carries **no language rules** (ADR-0002) — per-language lint,
+| Rule | What it covers |
+| --- | --- |
+| `code-organization` | Every symbol goes where a reader would look; moves carry tests, imports, and patch targets along |
+| `comment-style` | Comments carry why, not what; present state only, host-docstring density |
+| `git-worktrees` | Mutating agent sessions work in a worktree under `~/worktrees/`; the main checkout stays unedited |
+| `look-it-up` | Look up what can be looked up — official docs first, then primary sources, cited |
+| `minimal-changes` | Smallest change that works; delete over work around |
+| `subagents` | Inline only for narrow checks; delegate the rest in parallel; self-contained prompts, curated output |
+| `writing-voice` | Opt-in: fill-in template for your own writing voice |
+
+Distilled into [agents.md](agents.md) (the auto-loaded instruction layer); full
+text in [rules/](rules/). The kit carries **no language rules** — per-language lint,
 type, docstring, and coverage enforcement lives in the
 [full-lint](https://github.com/PhillipChaffee/full-lint) reference
 repo, applied per project by its `init-<lang>` skills; the kit's own repo-wide
-hygiene gates are copied from that repo (ADR-0006).
+hygiene gates are copied from that repo.
 
-### Domain docs
+#### Domain docs
 
-`CONTEXT.md` (glossary) + `docs/adr/` (decisions) + `docs/agents/` (tracker,
-triage labels, domain-doc consumer rules).
+`CONTEXT.md` (glossary) + `docs/agents/` (tracker, triage labels,
+domain-doc consumer rules).
 
 ## Install
 
@@ -93,14 +112,16 @@ repo).
 
 On install you choose your harness's fast/main/deep models and the installer
 writes a consumer-local `models.json` beside the kit — the kit itself pins no
-models (ADR-0001). MCP setup is printed as guidance, never written.
+models. MCP setup is printed as guidance, never written.
 
 ## Prerequisites and notes
 
 - The Matt Pocock skills listed above are the assumed workflow environment;
   install them separately (see [the workflow](#the-workflow)).
-- This kit targets GitHub issues and PRs. GitLab, Linear, and Django-process
-  conventions are work-side and out of scope (ADR-0003).
+- The kit is forge-agnostic: its skills, rules, and agents reference no
+  specific code host. Issue tracking is per-repo configuration, recorded by
+  `/setup-matt-pocock-skills` in `docs/agents/issue-tracker.md` — GitHub,
+  GitLab, or Linear all work.
 - Sub-agents run on whatever subagent model your harness configures; swap in
   your own tiers — nothing here references a vendor model.
 - Never commit provider keys or tokens anywhere in this kit.

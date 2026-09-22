@@ -1,0 +1,3 @@
+# The kit is forge-agnostic
+
+The kit carries no forge or tracker-specific content: its skills, rules, and agents work against any code host, and the repo makes no statement about the owner's work setup. Issue tracking is per-repo configuration, written by the Matt Pocock `setup-matt-pocock-skills` skill into `docs/agents/issue-tracker.md` — GitHub, GitLab, or Linear all work. This supersedes ADR-0003, whose personal-versus-work framing leaked the owner's work stack into the repo's own docs; the kit ships nothing forge-specific, so there is no work stack to exclude, and this repo's own tracker (GitHub) lives in `docs/agents/issue-tracker.md`, not in the kit.

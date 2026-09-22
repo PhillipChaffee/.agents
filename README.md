@@ -52,6 +52,10 @@ The pieces his set doesn't ship, by what they get you in the flow:
   tiers pinned by the harness rather than the kit
 - **A look-it-up policy** — no answers from memory when a source exists;
   official docs first, citations included
+- **New projects set up with full linting** — the `full-lint` reference
+  repo's `init-<lang>-repo` skills bootstrap a new project with the
+  strictest workable lint, type-check, docstring, formatter, and coverage
+  gates
 
 ### What's inside
 

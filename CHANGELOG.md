@@ -11,6 +11,8 @@ Restructured the README around workflow value and slimmed the kit (#18).
 - Deleted the `ci-lint-test` and `pre-mr-checklist` skills; skills 4 → 2
 - Deleted the `pull-requests`, `skill-creation`, and `design-docs` rules;
   rules 10 → 7; `agents.md` and the install smoke test updated to match
+- ADR-0007 supersedes ADR-0003: the kit is forge-agnostic and the repo is
+  silent about work-versus-personal; issue tracking is per-repo configuration
 
 Adopted the reference repo's hygiene gates and retired the `67-sus-95-clean` name (ADR-0006).
 

@@ -114,10 +114,10 @@ models (ADR-0001). MCP setup is printed as guidance, never written.
 
 - The Matt Pocock skills listed above are the assumed workflow environment;
   install them separately (see [the workflow](#the-workflow)).
-- The kit is forge-neutral: its skills, rules, and agents reference no
-  specific code host; this repo's own issues and PRs run on GitHub
-  (`docs/agents/issue-tracker.md`). Work-stack conventions — GitLab, Linear,
-  Django process — stay out of scope (ADR-0003).
+- The kit is forge-agnostic: its skills, rules, and agents reference no
+  specific code host. Issue tracking is per-repo configuration, recorded by
+  `/setup-matt-pocock-skills` in `docs/agents/issue-tracker.md` — GitHub,
+  GitLab, or Linear all work (ADR-0007).
 - Sub-agents run on whatever subagent model your harness configures; swap in
   your own tiers — nothing here references a vendor model.
 - Never commit provider keys or tokens anywhere in this kit.

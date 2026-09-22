@@ -85,7 +85,8 @@ The pieces his set doesn't ship, by what they get you in the flow:
 | `subagents` | Inline only for narrow checks; delegate the rest in parallel; self-contained prompts, curated output |
 | `writing-voice` | Opt-in: fill-in template for your own writing voice |
 
-Distilled into [agents.md](agents.md) (the auto-loaded instruction layer); full
+Distilled into `agents.kit.md`, installed as `~/.agents/agents.md` (the
+auto-loaded instruction layer); full
 text in [rules/](rules/). The kit carries **no language rules** — per-language lint,
 type, docstring, and coverage enforcement lives in the
 [full-lint](https://github.com/PhillipChaffee/full-lint) reference

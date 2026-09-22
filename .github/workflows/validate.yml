@@ -23,7 +23,7 @@ jobs:
           test -f "$SBX/.agents/skills/research/skill.md"
           test -f "$SBX/.agents/agents/cr-security/agent.md"
           test -f "$SBX/.agents/rules/look-it-up.md"
-          test ! -f "$SBX/.agents/agents.md"
+          test -f "$SBX/.agents/agents.md"
           rm -rf "$SBX"
 
   # Hygiene job copied verbatim from PhillipChaffee/full-lint

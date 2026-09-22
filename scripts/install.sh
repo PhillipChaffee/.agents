@@ -100,8 +100,11 @@ build_mapping() {
 	for f in rules/*.md; do
 		printf '%s\t%s\n' "$f" "$f"
 	done
-	# Deliberately no agents.md mapping: it would collide with the consumer's
-	# own ~/.agents/AGENTS.md on case-insensitive filesystems.
+	# The distilled instruction layer installs at the protocol home root,
+	# where consumers' harnesses auto-load it; the stamp system owns any
+	# collision with a pre-existing unstamped ~/.agents/agents.md (SKIP
+	# unless byte-identical or --force).
+	printf 'agents.kit.md\tagents.md\n'
 }
 
 MAPPING=$(build_mapping)

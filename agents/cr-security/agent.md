@@ -86,6 +86,7 @@ Map findings to **OWASP Top 10 (2021)** categories when possible.
 ## Attacker-controlled vs server-controlled
 
 **Do not flag** sinks fed only by **server-controlled** values:
+
 - `settings.*`, `django.conf.settings`, `os.environ` (deployment config), constants, internal service URLs from config.
 
 **Investigate** when the path includes: `request.*`, `request.data`, Pydantic models fed by client JSON, headers, query params, path params, WebSocket payloads, uploaded filenames/contents, or **database fields writable by less-trusted users**.
@@ -95,7 +96,7 @@ If you cannot tell from the diff plus one hop of context, emit a single "Needs v
 ## Severity rubric
 
 | Severity | When to use |
-|----------|-------------|
+| ---------- | ------------- |
 | **Critical** | Confirmed RCE, trivial auth bypass, universal data breach, hardcoded live secrets, obvious SQLi/command injection on attacker-controlled input. |
 | **High** | Confirmed exploit with meaningful impact but narrower blast radius (IDOR to sensitive objects, stored XSS, SSRF to internal metadata, insecure deserialization). |
 | **Medium** | Exploit requires extra conditions (specific role, timing, CSRF where impact is real but bounded, reflected XSS in lower-impact context). |
@@ -111,7 +112,7 @@ If **no** in-scope issues meet Medium or higher, output **only** this line (verb
 
 If any issues exist, output findings using this structure (repeat per finding):
 
-```
+```text
 ### [Severity] Short title
 - **Where:** `path/to/file.py:LINE`
 - **What:** one sentence describing the issue
@@ -123,7 +124,7 @@ Optionally tag each finding with `OWASP: A0x` and/or `CWE: CWE-xxx` inline after
 
 If you need clarification on one item, add a final section:
 
-```
+```text
 ### Needs verification
 - **Where:** `file:line` — what to check and why confidence is low
 ```

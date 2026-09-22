@@ -59,7 +59,7 @@ Prompt must include:
 - The smell baseline pasted in full (the sub-agent has no other access to it).
 - The brief: report, per file/hunk, (a) every violation of a documented standard — cite the standard (file + rule); (b) any baseline smell — name it and quote the hunk. Documented-standard breaches can be hard; baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling already enforces. Under 400 words.
 
-The **smell baseline** (Fowler, _Refactoring_ ch. 3; each reads *what it is* → *how to fix*):
+The **smell baseline** (Fowler, _Refactoring_ ch. 3; each reads _what it is_ → _how to fix_):
 
 - **Mysterious Name**: a name that doesn't reveal what it does or holds → rename; no honest name means the design's murky.
 - **Duplicated Code**: the same logic shape in more than one hunk or file → extract the shared shape.
@@ -99,7 +99,7 @@ Run exactly one **Code Review Planner** (`cr-planner`). Pass it the diff, change
 Launch the planner-selected reviewers in one message, each with the diff, changed paths, and its planner-authored focus brief. Every reviewer is read-only and returns structured findings or an exact "no issues" string.
 
 | Agent | Domain |
-|-------|--------|
+| ------- | -------- |
 | `cr-security` | Injection, auth, secrets, data exposure |
 | `cr-correctness` | Logic bugs, edge cases, None handling |
 | `cr-performance` | N+1 queries, blocking ops, memory, hot paths |
@@ -126,7 +126,7 @@ Launch the **Code Review Verifier** (`cr-verifier`) with the diff, the planner's
 
 **Output format** (omit empty sections):
 
-```
+```text
 ## Code review summary
 
 **Verdict**: Ready to Merge | Needs Attention | Needs Work
@@ -171,7 +171,7 @@ Triggered by the user saying "walk me through" after the summary. For each block
 
 Surface the captured decision list and confirm:
 
-```
+```text
 Apply N approved fixes now via the implementer subagent? [yes / no / edit list]
 ```
 
@@ -195,5 +195,5 @@ Only review files in the changeset. A finding outside the diff is an `out-of-sco
 
 ## Communication style
 
-- Use "we" or "this code" instead of "you". Explain the *why* for every finding. Assume positive intent.
+- Use "we" or "this code" instead of "you". Explain the _why_ for every finding. Assume positive intent.
 - Reviewer output is input, not deliverable: produce a curated summary scannable in one read, and drop into per-blocker mode when asked.

@@ -81,7 +81,7 @@ If you find **no** architecture concerns, output **exactly** this single line (n
 
 Otherwise, output findings using this structure (repeat per finding):
 
-```
+```text
 ### [Severity] Short title
 - **Where:** `path/to/file.py:LINE`
 - **What:** one sentence describing the structural concern

@@ -12,6 +12,19 @@ Restructured the README around workflow value and slimmed the kit (#18).
 - Deleted the `pull-requests` rule (PR-description guidance); rules 10 → 9;
   `agents.md` and the install smoke test updated to match
 
+Adopted the reference repo's hygiene gates and retired the `67-sus-95-clean` name (ADR-0006).
+
+- The repo now self-lints: full-lint's repo-wide hygiene configs copied
+  byte-for-byte (`.typos.toml`, `.markdownlint-cli2.jsonc`, `.jscpd.json`,
+  `.gitleaks.toml`, `.yamllint.yaml`, `lychee.toml`, `.github/dependabot.yml`)
+  and a `hygiene` job added to `validate.yml` beside the existing
+  kit-structure `validate` job — spell, markdown, link, secret, copy-paste,
+  shell lint/format, and workflow YAML gates, with Dependabot on the
+  SHA-pinned Actions
+- The reference repo is named `full-lint` everywhere: the domain glossary,
+  ADR-0002, and the README reference link updated from the old
+  `67-sus-95-clean` name and URL
+
 Realigned to the personal workflow only (ADR-0003) and the Matt Pocock main flow (ADR-0004).
 
 - Skills cut from 13 to 4: threw `ship`, `plan-review`, `looping-plan-review`,

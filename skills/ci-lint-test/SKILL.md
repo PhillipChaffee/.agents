@@ -1,5 +1,5 @@
 ---
-description: Parse a project's CI pipeline file (.gitlab-ci.yml) and run all lint and test steps locally before pushing. Use when preparing to push changes, verifying CI will pass, or when the user asks to run pipeline steps, check CI locally, or test before push.
+description: Parse a project's CI pipeline files (.github/workflows/*.yml for GitHub Actions, or .gitlab-ci.yml) and run all lint and test steps locally before pushing. Use when preparing to push changes, verifying CI will pass, or when the user asks to run pipeline steps, check CI locally, or test before push.
 enabled: true
 id: ci-lint-test
 name: ci-lint-test
@@ -7,7 +7,7 @@ name: ci-lint-test
 
 # CI Lint and Test Runner
 
-Run lint and test steps from the CI pipeline file locally to verify CI will pass before pushing.
+Run lint and test steps from the CI pipeline files locally to verify CI will pass before pushing. GitHub Actions workflows are discovered first; `.gitlab-ci.yml` is the fallback for GitLab-hosted projects.
 
 ## Workflow
 
@@ -23,9 +23,20 @@ Task Progress:
 - [ ] Step 6: Re-run to verify fixes
 ```
 
-## Step 1: Find and Parse Pipeline File
+## Step 1: Find and Parse Pipeline Files
 
-Look for `.gitlab-ci.yml` in the project root:
+Check for CI pipeline files in this order:
+
+1. **GitHub Actions** (first-class):
+
+```bash
+ls .github/workflows/
+```
+
+Parse each `.yml`/`.yaml` workflow file. Jobs are the `jobs:` entries; each job's
+`steps:` with `run:` keys hold the commands.
+
+2. **GitLab CI** (fallback for GitLab-hosted projects):
 
 ```bash
 ls -la .gitlab-ci.yml
@@ -138,6 +149,18 @@ Only push when all commands pass.
 | Rust | `cargo clippy` | `cargo test` |
 
 ## Handling Special Cases
+
+### GitHub Actions: `uses:` composite/shared actions
+A step with `uses:` runs a shared action whose internals aren't in the file. If the underlying commands are evident (e.g. a lint action wrapping `ruff check`), run the equivalent command directly; otherwise skip the step and note why.
+
+### GitHub Actions: `strategy.matrix`
+Matrix jobs fan out across versions/configs. Run the step once locally with the project's default toolchain — the point is catching lint/test failures, not reproducing the matrix.
+
+### GitHub Actions: `env:` and `secrets:`
+Steps requiring `secrets.*` or CI-only env cannot run locally. Skip them with a note; do not invent placeholder secrets.
+
+### GitHub Actions: `if:` conditions, `services:`
+Skip jobs that only run on specific events (deploy-on-tag, nightly) or require service containers (databases, etc.) unless the user has them running.
 
 ### Jobs with `extends:`
 Follow the inheritance chain to get the full job definition.

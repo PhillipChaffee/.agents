@@ -5,6 +5,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 ## 1. Security Checklist
 
 ### Input Validation & Injection Prevention
+
 - [ ] All user inputs validated on server side
 - [ ] SQL queries use parameterized queries/prepared statements
 - [ ] NoSQL queries properly sanitized
@@ -15,6 +16,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] LDAP queries use proper escaping
 
 ### Authentication & Authorization
+
 - [ ] Authentication required for protected endpoints
 - [ ] Authorization checks for every sensitive operation
 - [ ] Role-based access control properly implemented
@@ -25,6 +27,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Session invalidation on logout and password change
 
 ### Data Protection
+
 - [ ] Sensitive data not logged (passwords, tokens, PII)
 - [ ] API responses don't expose internal details
 - [ ] Error messages don't reveal sensitive information
@@ -36,6 +39,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Debug endpoints disabled in production
 
 ### XSS & CSRF
+
 - [ ] User content properly escaped before rendering
 - [ ] Content Security Policy headers configured
 - [ ] CSRF tokens validated on state-changing requests
@@ -43,6 +47,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] DOM manipulation uses safe methods
 
 ### Cryptography
+
 - [ ] Modern encryption algorithms (no MD5/SHA1 for security)
 - [ ] Cryptographically secure random number generation
 - [ ] Encryption keys of sufficient length
@@ -50,6 +55,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] IV/nonce values never reused
 
 ### Dependencies
+
 - [ ] Dependencies from trusted sources
 - [ ] No known vulnerable versions
 - [ ] Lock files committed
@@ -60,6 +66,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 ## 2. Performance Checklist
 
 ### Algorithm & Complexity
+
 - [ ] Time complexity appropriate for data size
 - [ ] Nested loops necessary and bounded
 - [ ] Recursive functions have proper base cases
@@ -67,6 +74,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Early termination used where applicable
 
 ### Memory Management
+
 - [ ] Large objects not unnecessarily duplicated
 - [ ] Generators used for large data streams
 - [ ] Resources properly closed (files, connections)
@@ -75,6 +83,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Large collections paginated
 
 ### Database & Queries
+
 - [ ] N+1 query problems avoided
 - [ ] Queries have appropriate indexes
 - [ ] `SELECT *` avoided when specific columns suffice
@@ -84,6 +93,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Query results limited
 
 ### Caching
+
 - [ ] Expensive operations cached
 - [ ] Cache invalidation strategy defined
 - [ ] Cache keys unique and collision-free
@@ -92,6 +102,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Memoization for pure functions
 
 ### Async & Concurrency
+
 - [ ] No blocking in async contexts
 - [ ] I/O-bound operations use async
 - [ ] Thread safety for shared resources
@@ -100,6 +111,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Parallel execution for independent operations
 
 ### Network & I/O
+
 - [ ] HTTP keep-alive connections reused
 - [ ] Compression enabled for large payloads
 - [ ] Batch API calls instead of individual
@@ -111,6 +123,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 ## 3. Code Quality Checklist
 
 ### Naming
+
 - [ ] Variable names descriptive and purposeful
 - [ ] Function names describe action
 - [ ] Booleans use is/has/can/should prefixes
@@ -121,6 +134,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] No single-letter variables (except short lambdas/loops)
 
 ### Structure
+
 - [ ] Functions focused, do one thing
 - [ ] Function length reasonable (<30 lines guideline)
 - [ ] Nesting depth limited (≤3 levels)
@@ -131,6 +145,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Consistent formatting
 
 ### DRY
+
 - [ ] Duplicated logic extracted to shared functions
 - [ ] Copy-pasted code refactored
 - [ ] Configuration values centralized
@@ -140,31 +155,37 @@ Comprehensive checklists for systematic code review across five dimensions.
 ### SOLID Principles
 
 **Single Responsibility (SRP)**
+
 - [ ] Each class has one reason to change
 - [ ] Functions perform single task
 - [ ] Modules have focused purposes
 
 **Open/Closed (OCP)**
+
 - [ ] Open for extension, closed for modification
 - [ ] New features without changing existing code
 - [ ] Strategy/plugin patterns where appropriate
 
 **Liskov Substitution (LSP)**
+
 - [ ] Subclasses substitute parents without issues
 - [ ] Derived classes don't throw unexpected exceptions
 - [ ] Consistent method signatures across hierarchy
 
 **Interface Segregation (ISP)**
+
 - [ ] Interfaces small and focused
 - [ ] Classes don't implement unused methods
 - [ ] Large interfaces split
 
 **Dependency Inversion (DIP)**
+
 - [ ] High-level modules don't depend on low-level
 - [ ] Dependencies injected, not created internally
 - [ ] Abstractions over concrete implementations
 
 ### Error Handling
+
 - [ ] Exceptions caught at appropriate levels
 - [ ] Specific exceptions caught, not bare except
 - [ ] Error messages informative and actionable
@@ -173,6 +194,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Graceful degradation for recoverable
 
 ### Readability
+
 - [ ] Complex logic has explanatory comments
 - [ ] Code understandable without running
 - [ ] Straightforward control flow
@@ -184,6 +206,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 ## 4. Testing Checklist
 
 ### Coverage
+
 - [ ] New code has corresponding tests
 - [ ] Critical paths covered
 - [ ] Public API methods tested
@@ -192,6 +215,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Integration points have integration tests
 
 ### Edge Cases
+
 - [ ] Empty inputs tested
 - [ ] Boundary values tested (0, -1, max)
 - [ ] Invalid inputs tested
@@ -200,6 +224,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Concurrent access tested
 
 ### Test Quality
+
 - [ ] Tests independent, any order
 - [ ] Tests deterministic (no flaky)
 - [ ] Test names describe what's tested
@@ -208,6 +233,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Tests don't test implementation details
 
 ### Mocking & Isolation
+
 - [ ] External services mocked in unit tests
 - [ ] Database mocked or uses test DB
 - [ ] Time-dependent code uses injectable clock
@@ -216,6 +242,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Mocks fail on unexpected calls
 
 ### Test Data
+
 - [ ] Realistic but not production data
 - [ ] Fixtures for complex setup
 - [ ] Test data cleaned up
@@ -227,6 +254,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 ## 5. Documentation Checklist
 
 ### Code Comments
+
 - [ ] Complex algorithms explained
 - [ ] Non-obvious business logic documented
 - [ ] Comments explain "why", not "what"
@@ -236,6 +264,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] External reference links included
 
 ### Docstrings & API Docs
+
 - [ ] Public functions have docstrings
 - [ ] Docstrings follow project convention
 - [ ] Parameters documented with types
@@ -245,6 +274,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Deprecated functions marked
 
 ### Type Annotations
+
 - [ ] Function signatures have type hints
 - [ ] Return types specified
 - [ ] Complex types use aliases
@@ -252,6 +282,7 @@ Comprehensive checklists for systematic code review across five dimensions.
 - [ ] Generics used appropriately
 
 ### Project Docs
+
 - [ ] README updated for new features
 - [ ] Installation instructions current
 - [ ] Configuration options documented

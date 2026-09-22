@@ -67,8 +67,9 @@ in [agents.md](agents.md) (the auto-loaded instruction layer); full text in
 [rules/](rules/). Two optional rules (`design-docs`, `writing-voice`) are opt-in
 per repo. The kit carries **no language rules** (ADR-0002) — per-language lint,
 type, docstring, and coverage enforcement lives in the
-[67-sus-95-clean](https://github.com/PhillipChaffee/67-sus-95-clean) reference
-repo, applied per project by its `init-<lang>` skills.
+[full-lint](https://github.com/PhillipChaffee/full-lint) reference
+repo, applied per project by its `init-<lang>` skills; the kit's own repo-wide
+hygiene gates are copied from that repo (ADR-0006).
 
 ### Domain docs
 

@@ -1,0 +1,21 @@
+# Spell-check configuration. Default dictionary on; every non-default entry
+# carries its reason. The root file is the union this repo needs (it scans
+# all four languages); the python/ and typescript/ folder canonicals carry
+# the trimmed subsets their bootstrapped repos can actually hit, and the
+# go/ and rust/ template copies carry the shared entries only.
+[default.extend-identifiers]
+# ruff's copyright rule family, not the word "copy"
+CPY001 = "CPY001"
+# the seeded-misspelling proof quotes in the folder READMEs quote the
+# finding the typos gate caught, they do not make one
+recieve = "recieve"
+calender = "calender"
+# the deliberate mistyped-tag example in the typescript folder's docs; it
+# quotes the bug the jsdoc rule catches, it does not make one
+retruns = "retruns"
+
+# Words and flag tokens that are not identifiers
+[default.extend-words]
+# GNU grep's PCRE flags in the typescript folder's bidi-hygiene step
+# (grep -rPn); typos reads it as a misspelling of "On"
+Pn = "Pn"

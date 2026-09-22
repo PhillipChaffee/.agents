@@ -13,7 +13,7 @@ Run lint and test steps from the CI pipeline files locally to verify CI will pas
 
 Copy this checklist and track progress:
 
-```
+```text
 Task Progress:
 - [ ] Step 1: Find and parse CI pipeline file
 - [ ] Step 2: Identify lint/test jobs
@@ -36,7 +36,7 @@ ls .github/workflows/
 Parse each `.yml`/`.yaml` workflow file. Jobs are the `jobs:` entries; each job's
 `steps:` with `run:` keys hold the commands.
 
-2. **GitLab CI** (fallback for GitLab-hosted projects):
+1. **GitLab CI** (fallback for GitLab-hosted projects):
 
 ```bash
 ls -la .gitlab-ci.yml
@@ -47,12 +47,14 @@ Read the file to understand the pipeline structure.
 ## Step 2: Identify Lint/Test Jobs
 
 Look for jobs in stages like:
+
 - `lint`, `lint-test`, `test`, `check`, `validate`
 - Jobs with names containing: `lint`, `test`, `check`, `format`, `type`
 
 Focus on jobs that run code quality checks, NOT build/deploy jobs.
 
 **Common patterns to identify:**
+
 - Jobs using `pytest`, `ruff`, `mypy`, `black`, `flake8`, `eslint`, `jest`
 - Jobs in early pipeline stages
 - Jobs that don't require CI-specific services (docker, kubernetes, etc.)
@@ -62,7 +64,7 @@ Focus on jobs that run code quality checks, NOT build/deploy jobs.
 From each lint/test job, extract the `script:` section. Filter out:
 
 | Skip These | Reason |
-|------------|--------|
+| ------------ | -------- |
 | `pip install` / `poetry install` | Assume dependencies already installed |
 | `apt-get`, `yum` | System package managers |
 | `git config` | CI-specific git configuration |
@@ -71,6 +73,7 @@ From each lint/test job, extract the `script:` section. Filter out:
 | CI variable references like `$CI_*` | Not available locally |
 
 **Keep these commands** (common lint/test commands):
+
 - `poetry run pytest` / `pytest`
 - `poetry run ruff check` / `ruff check`
 - `poetry run ruff format --check` / `ruff format --check`
@@ -106,23 +109,29 @@ npm test
 ## Step 5: Fix Failures
 
 ### Ruff Check Failures
+
 ```bash
 poetry run ruff check --fix .
 ```
+
 Then review remaining errors and fix manually.
 
 ### Ruff Format Failures
+
 ```bash
 poetry run ruff format .
 ```
+
 This auto-fixes formatting issues.
 
 ### Mypy Failures
+
 - Add type annotations
 - Fix type mismatches
 - Use `# type: ignore[error-code]` as last resort
 
 ### Pytest Failures
+
 - Read the test output carefully
 - Fix failing assertions or update tests if behavior intentionally changed
 - Check mock setups match function signatures
@@ -141,7 +150,7 @@ Only push when all commands pass.
 ## Quick Reference
 
 | Framework | Lint Command | Test Command |
-|-----------|--------------|--------------|
+| ----------- | -------------- | -------------- |
 | Poetry/Python | `poetry run ruff check . && poetry run mypy .` | `poetry run pytest` |
 | npm/Node | `npm run lint` | `npm test` |
 | Make | `make lint` | `make test` |
@@ -151,27 +160,35 @@ Only push when all commands pass.
 ## Handling Special Cases
 
 ### GitHub Actions: `uses:` composite/shared actions
+
 A step with `uses:` runs a shared action whose internals aren't in the file. If the underlying commands are evident (e.g. a lint action wrapping `ruff check`), run the equivalent command directly; otherwise skip the step and note why.
 
 ### GitHub Actions: `strategy.matrix`
+
 Matrix jobs fan out across versions/configs. Run the step once locally with the project's default toolchain — the point is catching lint/test failures, not reproducing the matrix.
 
 ### GitHub Actions: `env:` and `secrets:`
+
 Steps requiring `secrets.*` or CI-only env cannot run locally. Skip them with a note; do not invent placeholder secrets.
 
 ### GitHub Actions: `if:` conditions, `services:`
+
 Skip jobs that only run on specific events (deploy-on-tag, nightly) or require service containers (databases, etc.) unless the user has them running.
 
 ### Jobs with `extends:`
+
 Follow the inheritance chain to get the full job definition.
 
 ### Jobs with `include:`
+
 Note that external files may define additional jobs. Check for local includes.
 
 ### Jobs with `needs:` or `dependencies:`
+
 Skip jobs that depend on build artifacts - these can't run locally.
 
 ### Jobs with `services:`
+
 Skip jobs requiring docker services (databases, etc.) unless user has them running.
 
 ## Self-Improvement
@@ -185,7 +202,7 @@ After running this skill, reflect on the execution:
 
 If you identified gaps or learned new patterns during execution, ask the user:
 
-```
+```text
 I noticed [specific pattern/gap] while running the CI lint/test workflow.
 Would you like me to update this skill to include guidance on [improvement]?
 ```

@@ -45,12 +45,14 @@ Imports belong at the top of the file. Flag any `import` or `from ... import` st
 inside a function, method, or conditional block.
 
 **Exceptions** (do not flag these):
+
 - `TYPE_CHECKING` blocks (`if TYPE_CHECKING:`)
 - Documented circular-import workarounds (comment must explain why)
 - Deferred expensive imports with an explaining comment
 
 **Example finding:**
-```
+
+```text
 blocker: [service/src/foo.py:42] Inline import `from bar import Baz` inside `do_thing()`.
 Move to top of file.
 ```
@@ -108,7 +110,8 @@ models, or similar):
 - Flag if the variable is missing from any of those files.
 
 **Example finding:**
-```
+
+```text
 blocker: [service/src/main.py:8] New env var `TRANSFER_TIMEOUT` referenced but not found
 in service/helm/values.dev.yaml or service/helm/values.prod.yaml. Missing values = crash on deploy.
 ```
@@ -119,11 +122,13 @@ Every new or modified function (including test functions) must have argument and
 annotations. Flag any that are missing.
 
 Do **not** flag:
+
 - Decorators or lambdas
 - Functions that already had missing annotations and were not modified in this branch
 
 **Example finding:**
-```
+
+```text
 blocker: [service/src/utils.py:55] Function `calculate_delay` is missing return type annotation.
 ```
 
@@ -137,7 +142,8 @@ Inside `except` blocks, prefer `logger.exception(...)` over `logger.error(...)` 
 automatically includes the traceback.
 
 **Example finding:**
-```
+
+```text
 blocker: [service/src/service.py:73] f-string in logging call:
 `logger.info(f"Processed {count} records")`. Use `logger.info("Processed %s records", count)`.
 ```
@@ -152,13 +158,15 @@ If the change modifies business logic, adds a new code path, or changes error ha
 3. Only flag missing coverage if no existing or new tests reference the changed symbols.
 
 Do **not** flag:
+
 - Pure refactors that don't change behavior (renames, moves, formatting)
 - Configuration-only changes (Helm values, CI files)
 - Changed code that is already covered by existing tests (even if the test file was not modified
   in this branch)
 
 **Example finding:**
-```
+
+```text
 suggestion: [service/src/transfers/store.py:120] New method `handle_transfer_timeout` added
 but no tests in test_store.py or other test files reference `handle_transfer_timeout` or
 exercise the TransferTimeout path.
@@ -171,12 +179,14 @@ API response, or structured data container, flag it and suggest using `pydantic.
 instead.
 
 **Exceptions** (do not flag):
+
 - `TypedDict` used for interop with libraries that require plain dicts
 - `dataclass` for small internal containers where validation is unnecessary (must be clearly
   internal-only)
 
 **Example finding:**
-```
+
+```text
 suggestion: [service/src/models/booking.py:15] New `TypedDict` `BookingResponse` should be a
 `pydantic.BaseModel` for validation and serialization.
 ```
@@ -190,7 +200,8 @@ Check that error messages and exception strings do not expose internal details (
 database schemas, internal hostnames).
 
 **Example finding:**
-```
+
+```text
 blocker: [service/src/clients.py:12] Hardcoded API key `sk-abc123...`. Move to environment
 variable and reference via settings.
 ```

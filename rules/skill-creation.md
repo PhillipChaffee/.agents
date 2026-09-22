@@ -1,11 +1,11 @@
 ---
-description: When creating or updating Cursor skills, follow /create-skill.
+description: When creating or updating any skill, follow your platform's skill-creation skill.
 alwaysApply: true
 ---
 
 # Skill Creation
 
-Whenever you create or update a Cursor skill (`SKILL.md` or skill folder), you must use the built-in `/create-skill` skill first.
+Whenever you create or update a skill (`SKILL.md` or skill folder), you must use your platform's built-in skill-creation skill first.
 
 ## Mandatory workflow
 
@@ -15,7 +15,7 @@ Whenever you create or update a Cursor skill (`SKILL.md` or skill folder), you m
 
 ## Frontmatter (required and fragile)
 
-Cursor loads skills from YAML frontmatter. Invalid YAML means the skill does not load (slash command and auto-invoke both fail).
+Harnesses load skills from YAML frontmatter. Invalid YAML means the skill does not load (slash command and auto-invoke both fail).
 
 ```yaml
 ---
@@ -29,7 +29,7 @@ description: >-
 - `name`: lowercase letters, numbers, hyphens only; must match the parent folder name; max 64 chars.
 - `description`: non-empty; max 1024 characters; third person; WHAT the skill does and WHEN to use it. Discovery text only, not a design doc.
 - Prefer `description: >-` for anything longer than one short line, or whenever the text contains colons.
-- Optional fields only as documented (`paths`, `disable-model-invocation`, `metadata`). See https://cursor.com/docs/context/skills
+- Optional fields only as your platform documents them (e.g. `paths`, `disable-model-invocation`, `metadata`); check your harness's skill docs.
 
 ## Never do this
 

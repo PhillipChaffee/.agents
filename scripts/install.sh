@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Sync kit content from this repo (canonical) into a target location.
-# Targets: agents (default, ~/.agents protocol layout) and cursor (~/.cursor
-# kit layout). Non-destructive by default; manages only paths listed in its
-# own stamp manifest.
+# Sync kit content from this repo (canonical) into ~/.agents (the .agents
+# protocol layout). Non-destructive by default; manages only paths listed in
+# its own stamp manifest.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -10,8 +9,6 @@ REPO_ROOT=$(pwd)
 KIT_REPO="PhillipChaffee/.agents"
 KIT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-TARGET="agents"
-ADOPT=0
 FORCE=0
 DRY_RUN=0
 PRUNE=0
@@ -23,8 +20,6 @@ usage() {
 Usage: scripts/install.sh [flags]
 
   --target agents   Install into ~/.agents (protocol layout, default)
-  --target cursor   Install into ~/.cursor (Cursor kit layout)
-  --adopt           One-time: bind an existing ~/.cursor kit to this repo
   --force           Overwrite unstamped files that differ
   --dry-run         Print actions without writing anything
   --prune           Also remove stamped files whose source disappeared
@@ -32,16 +27,15 @@ Usage: scripts/install.sh [flags]
   --pull            Reverse-sync kit-managed files from the target into the repo
   --help            This text
 
-Safety: never touches mcp.json/models.json (repo templates) or any
-un-managed file in the target home. The cursor target refuses to run
-against a ~/.cursor that has no kit stamp unless --adopt is passed.
+Safety: never touches any un-managed file in the target home. The kit pins no
+models (docs/adr/0001): the installer asks for your fast/main/deep choices and
+writes a consumer-local models.json beside the installed kit.
 USAGE
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --target) TARGET="${2:?}"; shift 2 ;;
-    --adopt) ADOPT=1; shift ;;
     --force) FORCE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --prune) PRUNE=1; shift ;;
@@ -52,35 +46,20 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-case "$TARGET" in
-  agents) STAMP_DIR="${HOME:?}/.agents" ;;
-  cursor) STAMP_DIR="${HOME:?}/.cursor" ;;
-  *) echo "Unknown target: $TARGET (agents|cursor)" >&2; exit 2 ;;
-esac
+TARGET="${TARGET:-agents}"
+if [ "$TARGET" != "agents" ]; then
+  echo "Unknown target: $TARGET (only 'agents' is supported)" >&2
+  exit 2
+fi
+STAMP_DIR="${HOME:?}/.agents"
 STAMP_FILE="$STAMP_DIR/.kit-stamp"
 
-# The adopt gate protects a pre-existing native ~/.cursor from being
-# clobbered by a first run that has no record of what it owns.
-if [ "$TARGET" = "cursor" ] && [ -d "$STAMP_DIR" ] && [ ! -f "$STAMP_FILE" ] && [ "$ADOPT" -eq 0 ]; then
-  cat >&2 <<ERR
-Refusing to install into $STAMP_DIR: it exists but has no kit stamp.
-If this is your existing kit, re-run with --adopt to bind it to this repo
-(one-time). The script only manages paths it records in its own stamp.
-ERR
-  exit 3
-fi
-
 # Build the source->dest mapping (tab-separated, relative paths).
-# Field 3: copy | cursor-agent (frontmatter filtered to Cursor keys).
 build_mapping() {
   local skill_dir id f rel
   for skill_dir in skills/*/; do
     id=$(basename "$skill_dir")
-    if [ "$TARGET" = "agents" ]; then
-      printf 'skills/%s/SKILL.md\tskills/%s/skill.md\tcopy\n' "$id" "$id"
-    else
-      printf 'skills/%s/SKILL.md\tskills/%s/SKILL.md\tcopy\n' "$id" "$id"
-    fi
+    printf 'skills/%s/SKILL.md\tskills/%s/skill.md\tcopy\n' "$id" "$id"
     while IFS= read -r f; do
       rel=${f#./}
       case "$rel" in
@@ -91,22 +70,13 @@ build_mapping() {
   done
   for f in agents/*/; do
     id=$(basename "$f")
-    if [ "$TARGET" = "agents" ]; then
-      printf 'agents/%s/agent.md\tagents/%s/agent.md\tcopy\n' "$id" "$id"
-    else
-      printf 'agents/%s/agent.md\tagents/%s.md\tcursor-agent\n' "$id" "$id"
-    fi
+    printf 'agents/%s/agent.md\tagents/%s/agent.md\tcopy\n' "$id" "$id"
   done
   for f in rules/*.md; do
-    if [ "$TARGET" = "agents" ]; then
-      printf '%s\t%s\tcopy\n' "$f" "$f"
-    else
-      printf '%s\t%s\tcopy\n' "$f" "${f%.md}.mdc"
-    fi
+    printf '%s\t%s\tcopy\n' "$f" "$f"
   done
-  if [ "$TARGET" = "agents" ] && [ -f agents.md ]; then
-    printf 'agents.md\tagents.md\tcopy\n'
-  fi
+  # Deliberately no agents.md mapping: it would collide with the consumer's
+  # own ~/.agents/AGENTS.md on case-insensitive filesystems.
 }
 
 MAPPING=$(build_mapping)
@@ -122,38 +92,40 @@ is_stamped() {
   stamp_paths | grep -Fxq -- "$1"
 }
 
-# Cursor agents keep only the frontmatter keys Cursor understands;
-# protocol keys (id/enabled/role/connection-type) would be noise there.
-filter_cursor_agent() {
-  python3 - "$1" "$2" <<'PY'
-import sys
-
-with open(sys.argv[1]) as f:
-    text = f.read()
-if not text.startswith("---\n"):
-    sys.exit(0)
-end = text.find("\n---", 4)
-if end == -1:
-    sys.exit(0)
-fm, body = text[4:end], text[end + 4:]
-keep = ("name:", "description:", "model:", "readonly:")
-out = []
-for line in fm.split("\n"):
-    if line.split(":", 1)[0] + ":" in keep or (out and line[:1] in (" ", "\t") and line.strip()):
-        out.append(line)
-with open(sys.argv[2], "w") as f:
-    if not body.startswith("\n"):
-        body = "\n" + body
-    f.write("---\n" + "\n".join(out) + "\n---" + body)
-PY
+# Consumer-local models config: the installer asks once and writes the
+# answers beside the installed kit. Never written into the repo; never
+# carries anything but the consumer's own tier choices.
+write_models_config() {
+  local file="$STAMP_DIR/models.json"
+  if [ ! -t 0 ]; then
+    echo "models: not interactive — skipping tier prompt (configure your harness manually)"
+    return 0
+  fi
+  echo "Choose your harness's model for each tier (the kit pins none — ADR-0001)."
+  read -rp "fast subagent model: " fast
+  read -rp "main subagent model: " main
+  read -rp "deep model (optional, blank = same as main): " deep
+  deep=${deep:-$main}
+  [ "$DRY_RUN" -eq 1 ] && { echo "DRY-RUN would write $file"; return 0; }
+  cat > "$file" <<JSON
+{
+  "_note": "Consumer-local model choices. Configure your harness to use these tiers; never commit provider keys or tokens.",
+  "presets": {
+    "fast": "$fast",
+    "main": "$main",
+    "deep": "$deep"
+  }
+}
+JSON
+  echo "wrote $file"
 }
 
 copy_one() {
-  # $1 src (repo-relative), $2 dest (target-relative), $3 mode
+  # $1 src (repo-relative), $2 dest (target-relative)
   # Returns: 0 written/managed, 1 skipped, 2 no source
-  local src="$1" dest="$2" mode="$3"
+  local src="$1" dest="$2"
   local dest_abs="$STAMP_DIR/$dest" src_abs="$REPO_ROOT/$src"
-  local action="" managed=0 cmp_src="$src_abs" cmp_tmp=""
+  local action="" managed=0
 
   if [ ! -f "$src_abs" ]; then
     return 2
@@ -162,42 +134,28 @@ copy_one() {
     if is_stamped "$dest"; then
       action=UPDATE
       managed=1
+    elif cmp -s "$src_abs" "$dest_abs"; then
+      # Unstamped but byte-identical to the source: adopt it as managed so
+      # future updates and --prune own it.
+      action=IDENTICAL
+      managed=1
+    elif [ "$FORCE" -eq 1 ]; then
+      action=FORCE
+      managed=1
     else
-      # Filtered installs can never byte-match the repo source, so the
-      # identity check must compare against the filtered form — otherwise
-      # --adopt can never bind an existing kit's agent files.
-      if [ "$mode" = "cursor-agent" ]; then
-        cmp_tmp=$(mktemp)
-        filter_cursor_agent "$src_abs" "$cmp_tmp"
-        cmp_src="$cmp_tmp"
-      fi
-      if cmp -s "$cmp_src" "$dest_abs"; then
-        action=IDENTICAL
-        managed=1
-      elif [ "$FORCE" -eq 1 ]; then
-        action=FORCE
-        managed=1
-      else
-        echo "SKIP $dest (unstamped, differs — use --force to overwrite)"
-        [ -n "$cmp_tmp" ] && rm -f "$cmp_tmp"
-        return 1
-      fi
+      echo "SKIP $dest (unstamped, differs — use --force to overwrite)"
+      return 1
     fi
   else
     action=ADD
     managed=1
   fi
-  [ -n "$cmp_tmp" ] && rm -f "$cmp_tmp"
 
   if [ "$DRY_RUN" -eq 1 ]; then
     echo "$action $dest"
   else
     mkdir -p "$(dirname "$dest_abs")"
-    if [ "$mode" = "cursor-agent" ]; then
-      filter_cursor_agent "$src_abs" "$dest_abs"
-    else
-      cp "$src_abs" "$dest_abs"
-    fi
+    cp "$src_abs" "$dest_abs"
     echo "$action $dest"
   fi
   return 0
@@ -210,12 +168,13 @@ new_manifest() {
 run_install() {
   local wrote=0 skipped=0 line src dest mode
   local MANIFEST_TMP
+  write_models_config
   MANIFEST_TMP=$(mktemp)
   new_manifest > "$MANIFEST_TMP"
   while IFS=$'\t' read -r src dest mode; do
     [ -n "$src" ] || continue
     local rc=0
-    copy_one "$src" "$dest" "$mode" || rc=$?
+    copy_one "$src" "$dest" || rc=$?
     case $rc in
       0) wrote=$((wrote + 1)); printf '%s\n' "$dest" >> "$MANIFEST_TMP" ;;
       1) skipped=$((skipped + 1)) ;;
@@ -258,8 +217,14 @@ EOF
   else
     rm -f "$MANIFEST_TMP"
   fi
-  echo "mcp.json and models.json are repo templates; the installer never writes them."
-  echo "done: target=$TARGET version=$KIT_VERSION wrote/updated=$wrote skipped=$skipped"
+  cat <<GUIDE
+MCP setup (configure in your harness's own config; the kit never writes MCP files):
+  GitHub   https://github.com/github/github-mcp-server
+  GitLab   https://docs.gitlab.com/ee/user/gitlab_duo/mcp/
+  Linear   https://mcp.linear.app/sse
+Models: the kit pins none; configure your harness's subagent model (see rules/subagents.md).
+done: target=agents version=$KIT_VERSION wrote/updated=$wrote skipped=$skipped
+GUIDE
 }
 
 run_uninstall() {
@@ -288,12 +253,6 @@ run_pull() {
   local changed=0 line src dest mode
   while IFS=$'\t' read -r src dest mode; do
     [ -n "$src" ] || continue
-    if [ "$mode" = "cursor-agent" ]; then
-      # Cursor-installed agents are frontmatter-filtered, so pulling them
-      # would overwrite the repo's protocol files with the filtered form.
-      echo "SKIP-PULL $dest (filtered at install; edit the repo source, or pull via --target agents)"
-      continue
-    fi
     if [ -f "$STAMP_DIR/$dest" ] && ! cmp -s "$STAMP_DIR/$dest" "$REPO_ROOT/$src"; then
       echo "PULL $dest -> $src"
       [ "$DRY_RUN" -eq 1 ] || cp "$STAMP_DIR/$dest" "$REPO_ROOT/$src"

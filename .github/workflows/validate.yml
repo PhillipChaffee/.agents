@@ -16,7 +16,9 @@ jobs:
           SBX=$(mktemp -d)
           HOME="$SBX" ./scripts/install.sh --dry-run --target agents >/dev/null
           HOME="$SBX" ./scripts/install.sh --target agents >/dev/null
-          test -f "$SBX/.agents/skills/ship/skill.md"
+          test -f "$SBX/.agents/skills/code-review/skill.md"
+          test -f "$SBX/.agents/skills/research/skill.md"
           test -f "$SBX/.agents/agents/cr-security/agent.md"
-          test -f "$SBX/.agents/rules/engineering.md"
+          test -f "$SBX/.agents/rules/pull-requests.md"
+          test ! -f "$SBX/.agents/agents.md"
           rm -rf "$SBX"

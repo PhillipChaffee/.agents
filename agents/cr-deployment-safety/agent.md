@@ -4,7 +4,6 @@ description: >
   Assess operational and rollout risk of git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-deployment-safety
-model: cursor-grok-4.6-high-fast
 name: Deployment Safety Reviewer
 readonly: true
 role: delegation-target

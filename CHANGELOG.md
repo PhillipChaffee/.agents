@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+Realigned to the personal workflow only (ADR-0003) and the Matt Pocock main flow (ADR-0004).
+
+- Skills cut from 13 to 4: threw `ship`, `plan-review`, `looping-plan-review`,
+  `looping-code-review`, `clean-plan`, `ultracode`, `mr-review`,
+  `setup-agent-kit`, `refactor-planner`; renamed `deep-research` → `research`
+  with a cited `docs/research/<topic>.md` output mode; rewrote `code-review`
+  as one two-tier skill (ADR-0005); GitHub Actions support in `ci-lint-test`;
+  `pre-mr-checklist` reworded forge-neutral
+- Sub-agents cut from 30 to 16: threw the 12 `pr-*` and the two refactor
+  scouts; stripped every vendor model pin (ADR-0001)
+- Rules cut from 20 to 9: threw the Python stack, Django/work conventions,
+  Linear, dual-forge routing, `autopilot`, `plan-steps`; `merge-requests`
+  rewritten as forge-neutral `pull-requests`; `subagents` rewritten
+  harness-neutral
+- `mcp.json`/`models.json` templates deleted; the installer now prompts for
+  model tiers and writes a consumer-local `models.json`; cursor target and
+  `agents.md` mapping removed
+- Added `CONTEXT.md` and ADRs 0001–0005; `docs/agents/` (tracker, labels,
+  domain docs); README rewritten to match
+
 ## 0.1.0
 
 Initial release: the agent kit published as an .agents Protocol repo.

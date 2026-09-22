@@ -4,7 +4,6 @@ description: >
   Find logic bugs and edge-case gaps in git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-correctness
-model: cursor-grok-4.6-high-fast
 name: Correctness & Edge Cases
 readonly: true
 role: delegation-target

@@ -4,7 +4,6 @@ description: >
   Assess complexity, indirection, and change scope in git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-simplification
-model: cursor-grok-4.6-high-fast
 name: Simplification & Maintainability
 readonly: true
 role: delegation-target

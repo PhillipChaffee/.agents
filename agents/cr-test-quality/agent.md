@@ -4,7 +4,6 @@ description: >
   Review test design and coverage gaps in git diffs. Use as part of multi-agent code review.
 enabled: true
 id: cr-test-quality
-model: cursor-grok-4.6-high-fast
 name: Test Quality Reviewer
 readonly: true
 role: delegation-target

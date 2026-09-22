@@ -3,7 +3,6 @@ connection-type: internal
 description: Use as part of multi-agent code review. Receives a diff + a list of verified, user-approved fixes and edits the source files in place to address each one. Pure execution — no judgment about whether a fix deserves applying.
 enabled: true
 id: cr-implementer
-model: cursor-grok-4.6-high-fast
 name: Code Review Implementer
 role: delegation-target
 ---

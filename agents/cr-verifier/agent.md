@@ -3,13 +3,12 @@ connection-type: internal
 description: >-
   Use as part of multi-agent code review. Filters reviewer findings before any
   walkthrough or fix runs by re-examining each finding as a finding (confirmed /
-  false_positive / needs_rephrase). Defaults to grok (may read the diff and one hop
-  of context). Optional Fable upgrade when verifying a large, conflicting, or
-  high-stakes finding set — Fable is thinking-only on the supplied diff and finding
+  false_positive / needs_rephrase). May read the diff and one hop of context. On a
+  large, conflicting, or high-stakes finding set, the harness's configured
+  deep-thinking tier may be used — thinking-only on the supplied diff and finding
   packet, with no further source lookup.
 enabled: true
 id: cr-verifier
-model: cursor-grok-4.6-high-fast
 name: Code Review Verifier
 readonly: true
 role: delegation-target

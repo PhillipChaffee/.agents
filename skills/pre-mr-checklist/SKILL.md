@@ -1,18 +1,18 @@
 ---
 description: >-
-  Run a pre-merge-request checklist on code changes to catch common issues before
-  creating an MR. Checks inline imports, feature gate metrics, Helm values, type
-  annotations, logging format, test coverage, Pydantic usage, and secrets. Use when
-  the user wants to check code before an MR, asks for a pre-push review, or mentions
-  "pre-MR checklist".
+  Run a pre-push checklist on code changes to catch common issues before opening
+  a pull request. Checks inline imports, feature gate metrics, env var wiring,
+  type annotations, logging format, test coverage, Pydantic usage, and secrets.
+  Use when the user wants to check code before a PR, asks for a pre-push review,
+  or mentions "pre-MR checklist".
 enabled: true
 id: pre-mr-checklist
 name: pre-mr-checklist
 ---
 
-# Pre-MR Checklist
+# Pre-Push Checklist
 
-Scan changed files for common issues that should be resolved before creating a merge request.
+Scan changed files for common issues that should be resolved before opening a pull request.
 
 ## Prerequisites
 
@@ -32,7 +32,7 @@ and operational metrics from the gated behavior.
    line numbers
 5. Suggest fixes for each finding
 6. Run the `ci-lint-test` skill (at `skills/ci-lint-test/SKILL.md`) to execute lint and
-   test steps locally and verify CI will pass before the MR is created
+   test steps locally and verify CI will pass before the PR is opened
 
 ## Checks
 
@@ -198,7 +198,7 @@ variable and reference via settings.
 ## Output Format
 
 ```markdown
-## Pre-MR Checklist Results
+## Pre-Push Checklist Results
 
 **Branch**: `feature/my-branch` (vs `main`)
 **Files scanned**: 12
@@ -233,6 +233,6 @@ After running the checklist, reflect on whether it should be updated:
 If you identified improvements, ask the user:
 
 > "I noticed [specific observation] while running this checklist. Would you like me to update
-> the pre-MR checklist skill to cover this?"
+> the pre-push checklist skill to cover this?"
 
 Do NOT apply changes automatically — let the user review and decide.

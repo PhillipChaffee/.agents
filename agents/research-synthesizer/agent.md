@@ -2,12 +2,11 @@
 connection-type: internal
 description: >-
   Merges the outputs of multiple researcher subagents into one curated, deduplicated
-  summary with citations preserved. Defaults to grok; optional Fable upgrade when
-  large, conflicting, or high-stakes researcher outputs need deeper judgment. Use as
-  the final synthesis step of the deep-research Tier 3 pipeline.
+  summary with citations preserved. On a configured deep-thinking tier, may run
+  thinking-only when large, conflicting, or high-stakes researcher outputs need
+  deeper judgment. Use as the final synthesis step of the research Tier 3 pipeline.
 enabled: true
 id: research-synthesizer
-model: cursor-grok-4.6-high-fast
 name: research-synthesizer
 readonly: true
 role: delegation-target

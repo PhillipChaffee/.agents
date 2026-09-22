@@ -76,7 +76,7 @@ for d in agents:
         fail(f"{rel}: missing or malformed frontmatter")
         continue
     keys, order = top_keys(fm)
-    for k in ("connection-type", "description", "enabled", "id", "model", "name", "role"):
+    for k in ("connection-type", "description", "enabled", "id", "name", "role"):
         if k not in keys:
             fail(f"{rel}: missing frontmatter key '{k}'")
     if keys.get("id", "").split("id:", 1)[-1].strip() != d.name:
@@ -88,14 +88,22 @@ if not agents:
     warn("agents/ tree absent — agent-reference checks skipped")
 
 AGENT_REF = re.compile(
-    r"\b((?:cr|pr)-[a-z][a-z-]*|researcher-(?:lite|mid|deep)|"
-    r"research-(?:planner|synthesizer)|refactor-(?:code|placement)-scout)\b"
+    r"\b((?:cr)-[a-z][a-z-]*|researcher-(?:lite|mid|deep)|"
+    r"research-(?:planner|synthesizer))\b"
 )
 SKILL_CMD = re.compile(r"`/([a-z][a-z0-9-]*)`")
 SLASH_REF = re.compile(r"(?<![`\w:./>-])/([a-z][a-z0-9-]+)")
 SKILL_PATH = re.compile(r"skills/([a-z][a-z0-9-]*)/SKILL\.md")
 RULE_REF = re.compile(r"rules/([a-z][a-z0-9-]*)\.md")
-EXTERNAL = {"autopilot", "create-skill", "create-rule", "canvas"}
+# Matt Pocock skills and authoring tools are external environment the kit
+# legitimately points at; they resolve outside this repo.
+EXTERNAL = {
+    "canvas", "create-rule", "create-skill",
+    "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs",
+    "grilling", "handoff", "implement", "improve-codebase-architecture",
+    "setup-matt-pocock-skills", "tdd", "to-spec", "to-tickets", "triage",
+    "wayfinder",
+}
 
 md_files = sorted(Path("skills").rglob("*.md")) if Path("skills").is_dir() else []
 for md in md_files:

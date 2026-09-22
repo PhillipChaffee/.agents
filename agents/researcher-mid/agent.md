@@ -1,14 +1,13 @@
 ---
 connection-type: internal
 description: >-
-  Mid-tier researcher for one subtask of a deep-research investigation. Use for
+  Mid-tier researcher for one subtask of a research investigation. Use for
   moderate-reasoning work: tracing data flows, summarizing how a subsystem works,
-  gathering and reconciling information across several sources. Always runs on grok
-  — never Fable; if thinking-only Fable reasoning is needed, use researcher-deep
-  instead. Reads the codebase, the web, and MCP tools; never edits files.
+  gathering and reconciling information across several sources. The deep-thinking
+  tier, when configured, is reserved for researcher-deep. Reads the codebase, the
+  web, and MCP tools; never edits files.
 enabled: true
 id: researcher-mid
-model: cursor-grok-4.6-high-fast
 name: researcher-mid
 readonly: false
 role: delegation-target

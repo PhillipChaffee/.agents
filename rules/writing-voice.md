@@ -5,9 +5,9 @@ alwaysApply: false
 
 # Writing Voice (template)
 
-This is a **fill-in template**. Replace every `<...>` placeholder with your own preferences, then set `alwaysApply: true` (or enable the rule in Cursor Settings) when you are ready to use it.
+This is a **fill-in template**. Replace every `<...>` placeholder with your own preferences, then set `alwaysApply: true` (or enable the rule in your harness's rule settings) when you are ready to use it.
 
-This rule governs MR comments, code review feedback, discussion replies, Slack messages, and research/verification writeups. MR descriptions, design docs, tickets, and code comments/docstrings usually have their own structural rules — say here whether this voice applies to them or not: `<scope note>`.
+This rule governs PR comments, code review feedback, discussion replies, chat messages, and research/verification writeups. PR descriptions, design docs, tickets, and code comments/docstrings usually have their own structural rules — say here whether this voice applies to them or not: `<scope note>`.
 
 ## Clarity principles
 

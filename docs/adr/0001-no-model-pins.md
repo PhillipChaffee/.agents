@@ -1,0 +1,3 @@
+# The kit pins no models
+
+The kit publishes to any harness on any provider, so nothing in it pins a vendor model: no presets in `models.json`, no `model` slug in agent frontmatter, no per-tier model prose in skills. The installer makes the consumer choose fast/main/deep defaults for their own harness instead. The old pins (`cursor-grok-4.6-high-fast`, `claude-fable-5-thinking-high`, `composer-2.5-fast`) rotted immediately — the owner's live setup had already moved to a different provider on every tier — and a public kit has no business dictating provider choice.

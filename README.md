@@ -1,5 +1,7 @@
 # .agents
 
+[![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 My personal agent kit — add-ons for my everyday coding workflow. The main
 flow is [Matt Pocock's skills](https://github.com/mattpocock/skills),
 installed separately; this kit layers on top of it: a combined two-tier code

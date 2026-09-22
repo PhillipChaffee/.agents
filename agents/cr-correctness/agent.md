@@ -40,8 +40,8 @@ If your only concern falls in an out-of-scope bucket, **omit it**.
 1. **Read every changed file in full** (not just the diff hunks). Understand the surrounding context, class structure, and how the changed code fits into the file.
 2. **Trace callers**: for each changed function/method, search for all call sites. Read them. Understand what arguments they pass and what they do with the return value.
 3. **Trace callees**: for each function/method called by the changed code, read its implementation. Understand its contract: what it returns, what exceptions it raises, what side effects it has, and what happens when inputs are None/empty/unexpected.
-4. **Follow the data flow end-to-end**: start from where data enters (API request, Celery task argument, database query) and trace it through the changed code to where it exits (database write, API response, external API call, log). Note every transformation, guard, and assumption along the way.
-5. **Read related models and schemas**: if the change touches Django models, serializers, Pydantic models, or shared types, read them to understand field types, nullability, defaults, and constraints.
+4. **Follow the data flow end-to-end**: start from where data enters (HTTP request, background-task argument, database query) and trace it through the changed code to where it exits (database write, API response, external API call, log). Note every transformation, guard, and assumption along the way.
+5. **Read related models and schemas**: if the change touches data models, schemas, serializers, or shared types, read them to understand field types, nullability, defaults, and constraints.
 
 Only after you have traced the full paths should you proceed to review.
 
@@ -52,8 +52,8 @@ With full code path understanding, evaluate each change:
 1. **Infer intent** from the diff in one sentence (what behavior changed).
 2. For each changed function/method/path, simulate **at least**: happy path, **empty/None/missing**, **zero/negative**, **max-size / duplicate**, **wrong type** (e.g. str vs int), **partial failure** (external call fails, timeout, empty JSON).
 3. For **async/concurrent** code: ask about **interleavings**, **stale reads**, **lost updates**, **cleanup on cancel**, **await missing**.
-4. For **Django/ORM**: wrong `.get()` vs `.filter()`, saving with invalid FK/state, relying on default ordering when not guaranteed, signals/side effects ordering — only when it changes **correctness**, not query efficiency.
-5. For **API boundaries** (service-b <-> service-a <-> shared): flag **shape/assumption** bugs (missing key, wrong type, list vs dict) that cause **runtime errors or silent wrong behavior** in the consumer. Use what you learned from tracing callers/callees to verify assumptions.
+4. For **database access**: wrong single-record vs multi-match fetch semantics, saving with invalid references/state, relying on default ordering when not guaranteed, hooks/side-effect ordering — only when it changes **correctness**, not query efficiency.
+5. For **service/API boundaries**: flag **shape/assumption** bugs (missing key, wrong type, list vs dict) that cause **runtime errors or silent wrong behavior** in the consumer. Use what you learned from tracing callers/callees to verify assumptions.
 
 ## Evidence bar (reduce false positives)
 
@@ -65,15 +65,15 @@ Internal checklist (do not output):
 - What happens incorrectly (exception, wrong branch, wrong persisted data)?
 - Why would that occur in prod (real data is messier than tests)?
 
-## Python-focused patterns to prioritize
+## Patterns to prioritize
 
-- Missing guards for **None**, empty string/list/dict, missing dict keys, optional model fields.
-- **Exception handling** that hides bugs: bare `except`, broad `except Exception` with pass/log-only and no re-raise where invariants break.
+- Missing guards for **null values**, empty string/list/dict, missing keys, optional fields.
+- **Exception handling** that hides bugs: catch-all handlers with pass/log-only and no re-raise where invariants break.
 - **Async/await** misuse, blocking calls in async contexts **when they change correctness** (e.g. deadlock, wrong ordering).
 - **Resource lifecycle** bugs affecting correctness (file/connection not closed leading to partial writes).
-- **Mutable default arguments**, wrong comparisons (`is` vs `==` for literals), off-by-one, inclusive/exclusive ranges.
+- **Shared mutable default state**, wrong comparisons (identity vs equality for literals), off-by-one, inclusive/exclusive ranges.
 - **Timezones**: naive vs aware mixing, "today" in wrong TZ.
-- **Integer/str** coercion surprises; division (`/` vs `//`).
+- **Numeric/string** coercion surprises; integer vs float division.
 - **Idempotency** mistakes (retries double-apply side effects).
 
 ## Output format

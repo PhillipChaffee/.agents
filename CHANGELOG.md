@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+Stripped the owner's work stack from the review Agents (#22).
+
+- The seven domain-review Agents (`cr-architecture`, `cr-correctness`,
+  `cr-deployment-safety`, `cr-performance`, `cr-security`, `cr-simplification`,
+  `cr-test-quality`) now infer the stack from the diff they receive instead of
+  describing the owner's environment: the fixed workspace preamble is replaced
+  with diff-driven context, framework-named checklist sections are renamed by
+  concern (database migrations, web-framework conventions, deployment
+  manifests), and stack-specific checklist guidance is generalized to
+  concern-level checks
+- Roster, frontmatter, pipeline, and the findings contract (field structure,
+  severity scales, verdicts) untouched; example hint text inside three output
+  templates reworded; the review Agents stay silent about the owner's work
+  setup per ADR-0007
+
 Shipped the distilled instruction layer and separated the repo's own agents.md (#20).
 
 - `agents.kit.md` (new) carries the consumer-facing distilled conventions and

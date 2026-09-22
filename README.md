@@ -1,24 +1,44 @@
 # .agents
 
-My personal agent kit — a small, composable set of skills, sub-agents, and
-always-applied rules that power my GitHub-based workflow, published as an
-[.agents Protocol](https://dotagentsprotocol.com) repo: the layout is
+My personal agent kit — add-ons for my everyday coding workflow. The main
+flow is [Matt Pocock's skills](https://github.com/mattpocock/skills),
+installed separately; this kit layers on top of it: a combined two-tier code
+review, tiered research, CI hygiene, and always-applied rules. Published as
+an [.agents Protocol](https://dotagentsprotocol.com) repo: the layout is
 vendor-neutral, version-controllable, and installable into any conformant
 consumer.
 
 ## The workflow
 
-The kit powers the [Matt Pocock main flow](https://github.com/mattpocock/skills):
+My main flow is Matt Pocock's skills, not part of this kit:
 
 1. **Grill the idea** (`/grill-with-docs`) — interview it sharp, record decisions in `CONTEXT.md` and ADRs
 2. **Spec it** (`/to-spec`), **split tickets** (`/to-tickets`) with blocking edges
 3. **Implement** each ticket (`/implement` driving `/tdd`), fresh context per ticket
-4. **Close with `/code-review`** — this kit's combined two-tier review (see below)
+4. **Close with `/code-review`** — served by this kit's combined two-tier review (see below)
 
 `/triage` is the on-ramp for incoming issues; `/wayfinder` charts efforts too large
-for one session. The wrapper skills are external and configured per repo by
-`/setup-matt-pocock-skills`; this repo's own `CONTEXT.md` and `docs/adr/` record
-the kit's own domain decisions.
+for one session.
+
+### Install the main flow first
+
+```sh
+npx skills@latest add mattpocock/skills
+```
+
+Pick the skills you want; run `/setup-matt-pocock-skills` once per repo to
+record the issue tracker, triage labels, and domain-doc layout in
+`docs/agents/`. Two names overlap deliberately: this kit's `code-review`
+(combined two-tier) and `research` (tiered, repo-file output) replace his
+two-axis `code-review` and `research` — skip those two when picking, or
+uninstall his copies after, so the kit's versions own the names.
+
+### What this kit adds
+
+The pieces his set doesn't ship: the specialist deep-review tier, the tiered
+research pipeline with repo-file output, CI and pre-push hygiene skills, and
+the always-applied rules distilled in [agents.md](agents.md). This repo's own
+`CONTEXT.md` and `docs/adr/` record the kit's own domain decisions.
 
 ## What's inside
 
@@ -71,17 +91,10 @@ On install you choose your harness's fast/main/deep models and the installer
 writes a consumer-local `models.json` beside the kit — the kit itself pins no
 models (ADR-0001). MCP setup is printed as guidance, never written.
 
-## Per-repo setup
-
-Run Matt Pocock's `/setup-matt-pocock-skills` once per repo to record the
-issue tracker, triage labels, and domain-doc layout in `docs/agents/`. The
-kit's skills read those files; no separate kit config exists.
-
 ## Prerequisites and notes
 
-- The Matt Pocock skills (`grill-with-docs`, `to-spec`, `to-tickets`,
-  `implement`, `tdd`, `triage`, `wayfinder`, `code-review` — replaced by this
-  kit's version) are the assumed workflow environment; install them separately.
+- The Matt Pocock skills listed above are the assumed workflow environment;
+  install them separately (see [the workflow](#the-workflow)).
 - This kit targets GitHub issues and PRs. GitLab, Linear, and Django-process
   conventions are work-side and out of scope (ADR-0003).
 - Sub-agents run on whatever subagent model your harness configures; swap in

@@ -20,7 +20,7 @@ An always-applied convention loaded into every session; full text in `rules/`, d
 A named specialist the harness dispatches into an isolated context; defined in `agents/`, driven by skills. _Avoid_: reviewer, worker
 
 **Forge**:
-A code host with issues and PRs/MRs. This kit targets GitHub only; GitLab and Linear are work-side and out of scope. _Avoid_: code host, remote
+A code host with issues and PRs/MRs. The kit is forge-neutral — nothing in `skills/`, `rules/`, or `agents/` targets a host; this repo's own tracker is GitHub. GitLab and Linear are work-side and out of scope. _Avoid_: code host, remote
 
 **Main flow**:
 The canonical path for feature work: grill the idea, spec it, split tickets, implement test-first, close with the two-tier code review. _Avoid_: pipeline, shipping flow

@@ -69,7 +69,7 @@ The pieces his set doesn't ship, by what they get you in the flow:
 | Code review | `cr-planner`, `cr-security`, `cr-correctness`, `cr-performance`, `cr-architecture`, `cr-organization`, `cr-test-quality`, `cr-deployment-safety`, `cr-simplification`, `cr-verifier`, `cr-implementer` |
 | Research | `researcher-lite`, `researcher-mid`, `researcher-deep`, `research-planner`, `research-synthesizer` |
 
-#### Rules (9)
+#### Rules (7)
 
 | Rule | What it covers |
 | --- | --- |
@@ -78,9 +78,7 @@ The pieces his set doesn't ship, by what they get you in the flow:
 | `git-worktrees` | Mutating agent sessions work in a worktree under `~/worktrees/`; the main checkout stays unedited |
 | `look-it-up` | Look up what can be looked up — official docs first, then primary sources, cited |
 | `minimal-changes` | Smallest change that works; delete over work around |
-| `skill-creation` | Author skills with the platform's creation skill; validate frontmatter on every edit |
 | `subagents` | Inline only for narrow checks; delegate the rest in parallel; self-contained prompts, curated output |
-| `design-docs` | Opt-in: fixed eight-heading template for design docs |
 | `writing-voice` | Opt-in: fill-in template for your own writing voice |
 
 Distilled into [agents.md](agents.md) (the auto-loaded instruction layer); full
@@ -116,8 +114,10 @@ models (ADR-0001). MCP setup is printed as guidance, never written.
 
 - The Matt Pocock skills listed above are the assumed workflow environment;
   install them separately (see [the workflow](#the-workflow)).
-- This kit targets GitHub issues and PRs. GitLab, Linear, and Django-process
-  conventions are work-side and out of scope (ADR-0003).
+- The kit is forge-neutral: its skills, rules, and agents reference no
+  specific code host; this repo's own issues and PRs run on GitHub
+  (`docs/agents/issue-tracker.md`). Work-stack conventions — GitLab, Linear,
+  Django process — stay out of scope (ADR-0003).
 - Sub-agents run on whatever subagent model your harness configures; swap in
   your own tiers — nothing here references a vendor model.
 - Never commit provider keys or tokens anywhere in this kit.

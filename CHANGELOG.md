@@ -9,8 +9,8 @@ Restructured the README around workflow value and slimmed the kit (#18).
   research, specific subagent behavior, the look-it-up policy — and
   "What's inside" keeps the reference inventory under it
 - Deleted the `ci-lint-test` and `pre-mr-checklist` skills; skills 4 → 2
-- Deleted the `pull-requests` rule (PR-description guidance); rules 10 → 9;
-  `agents.md` and the install smoke test updated to match
+- Deleted the `pull-requests`, `skill-creation`, and `design-docs` rules;
+  rules 10 → 7; `agents.md` and the install smoke test updated to match
 
 Adopted the reference repo's hygiene gates and retired the `67-sus-95-clean` name (ADR-0006).
 

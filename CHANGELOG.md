@@ -12,10 +12,11 @@ Realigned to the personal workflow only (ADR-0003) and the Matt Pocock main flow
   `pre-mr-checklist` reworded forge-neutral
 - Sub-agents cut from 30 to 16: threw the 12 `pr-*` and the two refactor
   scouts; stripped every vendor model pin (ADR-0001)
-- Rules cut from 20 to 9: threw the Python stack, Django/work conventions,
+- Rules cut from 20 to 10: threw the Python stack, Django/work conventions,
   Linear, dual-forge routing, `autopilot`, `plan-steps`; `merge-requests`
   rewritten as forge-neutral `pull-requests`; `subagents` rewritten
-  harness-neutral
+  harness-neutral; added `git-worktrees` (mutating agent sessions work in a
+  worktree under `~/worktrees/`, removed after merge or abandonment)
 - `mcp.json`/`models.json` templates deleted; the installer now prompts for
   model tiers and writes a consumer-local `models.json`; cursor target and
   `agents.md` mapping removed

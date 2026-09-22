@@ -19,6 +19,12 @@ Comments add context the code cannot convey — why, not what; delete comments t
 
 Full text: [rules/comment-style.md](rules/comment-style.md)
 
+### git-worktrees
+
+Every session that mutates a repo — code, docs, skills, config — works in a Git worktree at `~/worktrees/<clone-dir-basename>/<branch>`; the main checkout is never edited, and read-only sessions need none. Starting in the main checkout, announce the path, create the worktree on a new branch (`<issue#>-<slug>` with an issue, bare slug otherwise), and continue there; resume existing work in its existing worktree. After merge or abandonment, remove the worktree and delete its branch — ask first when uncommitted changes exist.
+
+Full text: [rules/git-worktrees.md](rules/git-worktrees.md)
+
 ### look-it-up
 
 Do not answer from memory when the answer can be looked up (APIs, tools, flags, config, error messages, version-specific behavior). Source order: official docs, then primary sources (code, changelogs, maintainer issues), then proven writeups only when official docs are missing. Cite the source; prefer official docs on conflict and say so; state explicitly when no reliable source exists.

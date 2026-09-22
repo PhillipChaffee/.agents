@@ -58,10 +58,11 @@ the always-applied rules distilled in [agents.md](agents.md). This repo's own
 | Code review | `cr-planner`, `cr-security`, `cr-correctness`, `cr-performance`, `cr-architecture`, `cr-organization`, `cr-test-quality`, `cr-deployment-safety`, `cr-simplification`, `cr-verifier`, `cr-implementer` |
 | Research | `researcher-lite`, `researcher-mid`, `researcher-deep`, `research-planner`, `research-synthesizer` |
 
-### Rules (9)
+### Rules (10)
 
 Always-applied conventions — minimal changes, code organization, comment and
-subagent discipline, PR descriptions, delegation and look-it-up policy — distilled
+subagent discipline, PR descriptions, worktree discipline, delegation and
+look-it-up policy — distilled
 in [agents.md](agents.md) (the auto-loaded instruction layer); full text in
 [rules/](rules/). Two optional rules (`design-docs`, `writing-voice`) are opt-in
 per repo. The kit carries **no language rules** (ADR-0002) — per-language lint,

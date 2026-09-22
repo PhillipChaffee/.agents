@@ -1,11 +1,8 @@
 # Agent Guidelines
 
-This file is this repo's own instruction layer: the distilled conventions
-below govern sessions working on this repo, and the Agent skills section
-configures this repo's own tooling. The kit ships the consumer copy — the
-same distillation without the repo sections — from `agents.kit.md`, installed
-as `~/.agents/agents.md` (the protocol home). Full rule texts live in
-`rules/`.
+The kit's always-applied convention layer (AGENTS.md-standard compatible).
+Consumers that auto-load this file get the distilled rules below; full rule
+texts live in `rules/`.
 
 ## Always-applied conventions
 
@@ -48,17 +45,3 @@ Full text: [rules/subagents.md](rules/subagents.md)
 ## Optional rules
 
 - [writing-voice](rules/writing-voice.md) — fill-in template for your own writing voice; replace placeholders and enable `alwaysApply` before use.
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in GitHub Issues on this repo, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage roles use their default label strings. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context layout: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

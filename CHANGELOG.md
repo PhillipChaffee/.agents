@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Shipped the distilled instruction layer and separated the repo's own agents.md (#20).
+
+- `agents.kit.md` (new) carries the consumer-facing distilled conventions and
+  installs as `~/.agents/agents.md` per the .agents Protocol layout; the
+  repo's own `agents.md` keeps its repo-specific Agent skills section and
+  evolves separately
+- Installer maps `agents.kit.md` → `~/.agents/agents.md`; the stamp system
+  protects a consumer's pre-existing instruction file (unstamped and
+  differing means SKIP unless `--force`)
+
 Restructured the README around workflow value and slimmed the kit (#18).
 
 - README: "What this kit adds" now pitches what the kit gets you in the

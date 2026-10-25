@@ -10,6 +10,11 @@
 #   Without it the base is origin/HEAD, then origin/main, then origin/master.
 #   origin/HEAD is the remote's default branch, not necessarily the branch PRs
 #   merge into; pass -b when they differ.
+#   WORKTREE_AUDIT_PR_CMD, when set, is a command that prints the user's PRs
+#   as JSON [{number, state, head}] (forge operation "list PRs", resolved per
+#   the repo's docs/agents/issue-tracker.md). Unset, the PR column reads "-".
+#   WORKTREE_AUDIT_TRANSCRIPTS, when set, is the active workspace's transcript
+#   store (the harness adapter names it). Unset, LAST_CHAT reads "-".
 set -u
 
 base=""
@@ -86,22 +91,16 @@ else
 fi
 
 # PR state by branch, fetched once as [{number, state, head}] with a lowercase
-# state. Origin when its CLI can read this repo's PRs, otherwise gh. Empty when
-# neither can.
+# state. The kit is forge-agnostic, so the caller supplies the command.
 prs=$(mktemp)
-if command -v origin >/dev/null 2>&1 &&
-	raw=$(origin pr list --author "@me" --state all --limit 1000 \
-		--json number,status,headRef 2>/dev/null); then
-	printf '%s' "$raw" | jq '[.[] | {number, state: .status, head: .headRef}]' >"$prs" 2>/dev/null
-elif raw=$(gh pr list --author "@me" --state all --limit 1000 \
-	--json number,state,headRefName 2>/dev/null); then
-	printf '%s' "$raw" | jq '[.[] | {number, state: (.state | ascii_downcase), head: .headRefName}]' >"$prs" 2>/dev/null
+if [ -n "${WORKTREE_AUDIT_PR_CMD:-}" ] && raw=$(sh -c "$WORKTREE_AUDIT_PR_CMD" 2>/dev/null); then
+	printf '%s' "$raw" | jq '[.[] | {number, state: (.state | ascii_downcase), head}]' >"$prs" 2>/dev/null
 fi
 [ -s "$prs" ] || echo "[]" >"$prs"
 
-# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.
-slug=$(printf '%s' "$main_wt" | sed 's#^/##; s#/#-#g')
-transcripts="$HOME/.cursor/projects/$slug/agent-transcripts"
+# Transcript store, supplied by the caller because each harness keeps it
+# somewhere else.
+transcripts="${WORKTREE_AUDIT_TRANSCRIPTS:-}"
 now=$(date +%s)
 
 echo "# base: $base"
@@ -144,7 +143,7 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	# followed by "/" or a quote so glint-482 does not match glint-482-r37.
 	last="-"
 	last_ts=0
-	if [ -d "$transcripts" ]; then
+	if [ -n "$transcripts" ] && [ -d "$transcripts" ]; then
 		f=$(rg -l -e "${wt}/" -e "${wt}\"" "$transcripts" 2>/dev/null |
 			xargs stat "${stat_fmt[@]}" 2>/dev/null | sort -rn | head -1)
 		if [ -n "$f" ]; then

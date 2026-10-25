@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+Ported pstack 0.15.32 into the kit as harness-, model-, and forge-neutral skills (ADR-0008).
+
+- 55 skills from [pstack](https://github.com/cursor/plugins/tree/main/pstack)
+  (Lauren Tan, MIT; notice in `THIRD-PARTY-NOTICES.md`): `poteto-mode` with
+  its 23 playbooks, 24 `principle-*` skills, and the situational skills
+  (`how`, `why`, `architect`, `arena`, `swarm`, `interrogate`, `reflect`,
+  `correct`, `statechart`, the verification-skill generators, and the rest);
+  skills 2 → 57
+- Two new sub-agents, `poteto-agent` and `comment-sicko`; sub-agents 16 → 18
+- The pstack guide under `docs/pstack-guide/`
+- Three references under `poteto-mode` carry the neutral vocabulary: model
+  roles resolving to the installer's fast/main/deep tiers plus an optional
+  `pstack-models` role file written by `/setup-pstack` (ADR-0001); a harness
+  adapter mapping each neutral term to Cursor, Claude Code, and protocol
+  consumers; and forge operations resolved through the repo's
+  `docs/agents/issue-tracker.md` (ADR-0007), which this repo's copy now maps
+  to `gh`
+- Not ported: `tdd` (routes to the Matt Pocock skill), `typescript-best-practices`
+  (ADR-0002), `make-bot-ui`, the `benny` automation pack, and the GitHub-bound
+  `watch-pr` and `orch` TypeScript tools
+- Installer ships every file under a skill (the statechart, check-plan,
+  worktree-audit, and decision-log scripts), keeping executable bits;
+  validator knows the new agents, accepts `/loop` as a harness built-in, and
+  refuses vendor model slugs, Cursor subagent fields, and forge CLIs in kit
+  content
+- Review aid: the first port commit is a verbatim import, so
+  `git diff <that commit> -- <file>` shows every wording change against
+  upstream and `git checkout` of it restores upstream's text per file
+
 Stripped the owner's work stack from the review Agents (#22).
 
 - The seven domain-review Agents (`cr-architecture`, `cr-correctness`,

@@ -33,3 +33,18 @@ The repo's primary working directory, left unedited by agents; new work goes in 
 
 **Reference repo**:
 full-lint — the strictest-setups repo that owns per-language lint, type, docstring, and coverage enforcement, applied per project by its `init-<lang>-repo` skills, plus the repo-wide hygiene gates this kit self-lints with. _Avoid_: lint repo, standards repo
+
+**Playbook**:
+A step list under `skills/poteto-mode/playbooks/` that `/poteto-mode` matches a task to and copies into the todo list verbatim. _Avoid_: recipe, workflow (when meaning the file)
+
+**Principle skill**:
+One of the 24 `principle-*` skills, each a single engineering rule that `poteto-mode` indexes and cites by name. _Avoid_: guideline, value
+
+**Role**:
+A named model slot a pstack skill spawns a subagent on (`code`, `judgment and prose`, `arena runners`, ...), resolved through the consumer's `pstack-models` role file and then the kit's fast/main/deep tiers; defined in `skills/poteto-mode/references/model-roles.md`. _Avoid_: model slug, preset
+
+**Forge operation**:
+A named action on the code host (open PR, list checks, reply to thread, ...) that a pstack playbook asks for and the repo's `docs/agents/issue-tracker.md` maps to a command; defined in `skills/poteto-mode/references/forge-operations.md`. _Avoid_: gh command, API call
+
+**Harness adapter**:
+The table at `skills/poteto-mode/references/harness-adapter.md` that maps the pstack skills' neutral terms (subagent kinds, the loop command, the transcript store, rule and skill directories) to each harness. _Avoid_: compatibility shim, Claude Code adapter

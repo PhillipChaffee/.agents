@@ -12,7 +12,10 @@ Where the harness exposes no model field for subagents, every role runs on the p
 
 | Role | Who uses it | Default tier |
 | --- | --- | --- |
-| `code` | Code-writing delegates in **poteto-mode**. The role lines `feature, refactoring`, `bug-fix`, `perf-issue`, and `hillclimb` split it per playbook; each defaults to `code`. | `main` |
+| `feature, refactoring` | The Feature and Refactoring playbooks' code delegates. | `main` |
+| `bug-fix` | The Bug fix playbook's code delegate. | `main` |
+| `perf-issue` | The Perf issue playbook's code delegate. | `main` |
+| `hillclimb` | The Hillclimb playbook's code delegate. | `main` |
 | `hardest tasks` | Cross-cutting design, gnarly concurrency, subtle algorithms, and precisely specified long step sequences. | `deep` |
 | `judgment and prose` | Replies, docs, reviews of intent, synthesis. | `deep` |
 | `how explorer` | The **how** skill's explorers. | `main` |
@@ -45,7 +48,7 @@ Where the harness exposes a reasoning-effort setting, the ladder is `max` > `xhi
 # pstack model configuration. One line per role. Delete a line to fall back to the default tier.
 # `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit the model field).
 # budget: large (xhigh)
-code: main
+feature, refactoring: main
 judgment and prose: deep
 arena runners: deep, <a model from another family>
 swarm workers: inherit-parent

@@ -86,7 +86,7 @@ The 55 pstack skills are listed under [pstack](#pstack-rigor-mode-and-playbooks)
 | --- | --- |
 | Code review | `cr-planner`, `cr-security`, `cr-correctness`, `cr-performance`, `cr-architecture`, `cr-organization`, `cr-test-quality`, `cr-deployment-safety`, `cr-simplification`, `cr-verifier`, `cr-implementer` |
 | Research | `researcher-lite`, `researcher-mid`, `researcher-deep`, `research-planner`, `research-synthesizer` |
-| pstack | `poteto-agent` (the delegate wrapper for `/poteto-mode` runs), `comment-sicko` (the read-only comment reviewer behind `/no-comments`) |
+| pstack | `poteto-agent` (the delegate wrapper for `/poteto-mode` runs), `comment-sicko` (the comment reviewer behind `/no-comments`) |
 
 #### Rules (7)
 

@@ -92,7 +92,9 @@ AGENT_REF = re.compile(
     r"research-(?:planner|synthesizer)|poteto-agent|comment-sicko)\b"
 )
 SKILL_CMD = re.compile(r"`/([a-z][a-z0-9-]*)`")
-SLASH_REF = re.compile(r"(?<![`\w:./>~-])/([a-z][a-z0-9-]+)")
+# A /name followed by "/" or "<" is a path or a placeholder such as
+# /verify-<app>, not a skill; "=" or "$" before it is a shell assignment.
+SLASH_REF = re.compile(r"(?<![`\w:./>~=$-])/([a-z](?:[a-z0-9-]*[a-z0-9])?)(?![a-z0-9/<-])")
 SKILL_PATH = re.compile(r"skills/([a-z][a-z0-9-]*)/SKILL\.md")
 RULE_REF = re.compile(r"rules/([a-z][a-z0-9-]*)\.md")
 # Matt Pocock skills and authoring tools are external environment the kit

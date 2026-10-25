@@ -39,6 +39,10 @@ Two rules hold on every forge:
 
 A stack is a base-branch chain. The root PR targets trunk; each child branch is rebased onto its parent's exact tip and its PR targets the parent branch (**open PR** with that base). When a parent merges, the child is retargeted to trunk (**edit PR**), its patch is moved onto the merge result, and it is pushed with `--force-with-lease`. On most forges a PR whose base is still its parent's branch merges into that branch, not trunk, so a landed PR reads merged with trunk as its base.
 
+## Upstream commands
+
+Upstream pstack writes these operations as `gh` commands, `origin pr` commands (Cursor's Origin forge), or calls to its GitHub-only `scripts/watch-pr/watch-pr` tool. If a skill you restored to upstream wording names one, perform the operation it stands for on the resolved forge. A watcher verdict of `READY` means merge-ready as defined below.
+
 ## Merge-ready
 
 A PR is **merge-ready** when all of these hold on its current head:

@@ -15,7 +15,6 @@ Where the harness exposes no model field for subagents, every role runs on the p
 | `code` | Code-writing delegates in **poteto-mode**. The role lines `feature, refactoring`, `bug-fix`, `perf-issue`, and `hillclimb` split it per playbook; each defaults to `code`. | `main` |
 | `hardest tasks` | Cross-cutting design, gnarly concurrency, subtle algorithms, and precisely specified long step sequences. | `deep` |
 | `judgment and prose` | Replies, docs, reviews of intent, synthesis. | `deep` |
-| `trivial edits` | Mechanical one-line edits and renames. | `fast` |
 | `how explorer` | The **how** skill's explorers. | `main` |
 | `how explainer` | The **how** skill's explainer. | `deep` |
 | `why investigators` | The **why** skill's investigators. | `main` |
@@ -29,6 +28,10 @@ Where the harness exposes no model field for subagents, every role runs on the p
 | `interrogate reviewers` | The **interrogate** skill's reviewers. A panel. | `deep, main` |
 
 A panel role's value is a list. One subagent runs per entry, alias entries included, so the list length sets the fan-out.
+
+## Upstream model names
+
+Upstream pstack writes Cursor model slugs. If a skill you restored to upstream wording names one, read it as a tier: `claude-opus-5-5-xhigh` is the `deep` tier, `grok-4.7-xhigh-fast` is the `main` tier, and the `pstack-models.mdc` rule is the role file below.
 
 ## Reasoning level and speed
 

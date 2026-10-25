@@ -110,9 +110,14 @@ EXTERNAL = {
 # the installer-era models.json has a role-file sibling written by
 # /setup-pstack into the consumer's rules directory.
 CONSUMER_RULES = {"pstack-models"}
-# The harness adapter maps neutral terms to each harness's own paths, so
-# it names Cursor paths and vendor model families by design.
-ADAPTER = "skills/poteto-mode/references/harness-adapter.md"
+# The three pstack mapping references translate upstream names (Cursor
+# paths, vendor model slugs, forge commands) into the kit's neutral terms,
+# so they name those terms by design.
+MAPPING_DOCS = {
+    "skills/poteto-mode/references/harness-adapter.md",
+    "skills/poteto-mode/references/model-roles.md",
+    "skills/poteto-mode/references/forge-operations.md",
+}
 # ADR-0001 and ADR-0007 guard: no vendor model slug, Cursor subagent
 # field, or forge CLI in kit skills and agents.
 BANNED = re.compile(
@@ -152,12 +157,12 @@ for md in md_files:
             fail(f"{rel}: references unknown rule 'rules/{ref}.md'")
     # ~/.cursor/<x> mentions document an installed-kit location and are
     # legitimate; repo-relative .cursor/ paths are stale migration leftovers.
-    if rel != ADAPTER and (
+    if rel not in MAPPING_DOCS and (
         re.search(r"(?<!~/)\.cursor/(?:rules|skills|agents|plans)", text) or "RULE.mdc" in text
     ):
         fail(f"{rel}: stale Cursor-era rule path")
     # 6. No vendor model, Cursor field, or forge CLI in kit content
-    if rel != ADAPTER:
+    if rel not in MAPPING_DOCS:
         for hit in sorted(set(BANNED.findall(text))):
             fail(f"{rel}: harness-, model-, or forge-specific term {hit!r} (ADR-0001, ADR-0007)")
 

@@ -29,7 +29,7 @@ pstack skills are written in a neutral vocabulary. This file maps each neutral t
 | --- | --- | --- | --- |
 | Ask the user one multiple-choice question | `AskQuestion` | `AskUserQuestion`. Absent in `-p` mode, so ask in plain text. | Plain text |
 | Open a todo list | The built-in todo list | `TodoWrite` when the session offers it; otherwise keep the list in your reply and update it at each phase | A list in your reply, updated at each phase |
-| Run the **name** skill or `/<name>` | Attach `/name`, or read the sibling `SKILL.md` and follow it | The `Skill` tool when it lists the skill; otherwise `Read` the sibling `SKILL.md` and follow it | Read `<kit>/skills/<name>/skill.md` and follow it |
+| Run the **name** skill or `/<name>` | Attach `/<name>`, or read the sibling `SKILL.md` and follow it | The `Skill` tool when it lists the skill; otherwise `Read` the sibling `SKILL.md` and follow it | Read `<kit>/skills/<name>/skill.md` and follow it |
 | Keep a skill attached for the whole session | Pick it from the `/` menu with Option+Enter (Mac) or Alt+Enter (Windows) to make it a custom mode | Name it in the first message of each task, or add a line to `CLAUDE.md` | Add a line to `agents.md` |
 | The loop command | `/loop` | `/loop` | A scheduled re-prompt, or the harness's loop feature |
 | The harness's plan mode | Plan Mode | Plan mode | Where offered |

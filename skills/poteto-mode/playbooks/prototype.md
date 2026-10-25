@@ -1,4 +1,4 @@
-### Prototype
+# Prototype
 
 **You own the design decision, not the code. The prototype is a throwaway instrument. The real build follows Feature.**
 

@@ -28,7 +28,7 @@ Before spawning reviewers, state the intent in one clear paragraph from the user
 Launch all reviewers in a single message with the Task tool, one per entry on the `interrogate reviewers` line in `~/.cursor/rules/pstack-models.mdc`, labeled Reviewer A, B, and so on to match the entry count. If the rule or that line is missing, use the table defaults.
 
 | Subagent | Default model |
-|----------|---------------|
+| --- | --- |
 | Reviewer A | `claude-opus-5-5-xhigh` |
 | Reviewer B | `grok-4.7-xhigh-fast` |
 
@@ -54,22 +54,29 @@ You are the lead reviewer, a pragmatic senior engineer, not a neutral aggregator
 ## Output Format
 
 ### Intent
+>
 > [The stated intent paragraph from Step 2]
 
 ### Reviewers
+
 - Reviewer [label]: [model name], [N findings] (one bullet per reviewer)
 
 ### Act On
+
 [Each: description, which models raised it, why it matters.]
 
 ### Consider
+
 [Each: description, which models raised it, the tradeoff.]
 
 ### Noted
+
 [Brief list.]
 
 ### Dismissed
+
 [Each with a brief rationale.]
 
 ### Agreement Map
+
 [Where models agreed and diverged, and what that pattern tells us.]

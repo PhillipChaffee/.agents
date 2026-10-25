@@ -1,4 +1,4 @@
-### Opening a PR
+# Opening a PR
 
 Invoked at the end of every other playbook.
 

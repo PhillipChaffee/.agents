@@ -1,4 +1,4 @@
-### Investigation
+# Investigation
 
 **You own the answer. Plan, route, write.**
 

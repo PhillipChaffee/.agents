@@ -6,14 +6,14 @@ Use the Sentry MCP.
 
 1. **Orient.** If you don't know the project slug and organization:
 
-   ```
+   ```text
    find_organizations
    find_projects
    ```
 
 2. **Search for issues related to the target.**
 
-   ```
+   ```text
    search_issues (natural language, e.g., "errors in PaymentService timeout", "unhandled exceptions in uploadFile")
    ```
 
@@ -21,7 +21,7 @@ Use the Sentry MCP.
 
 3. **Narrow by release and time window.**
 
-   ```
+   ```text
    search_issue_events (filter by release, time, environment, trace ID, tags)
    get_issue_tag_values (for an issue, see distribution across versions, users, environments)
    ```
@@ -30,7 +30,7 @@ Use the Sentry MCP.
 
 4. **Pull the full event for context.**
 
-   ```
+   ```text
    get_sentry_resource (pass a Sentry URL or type+ID)
    ```
 
@@ -38,7 +38,7 @@ Use the Sentry MCP.
 
 5. **Check releases that landed near the target.**
 
-   ```
+   ```text
    find_releases (around the commit date of the target)
    ```
 
@@ -46,7 +46,7 @@ Use the Sentry MCP.
 
 6. **Use Seer sparingly.**
 
-   ```
+   ```text
    analyze_issue_with_seer
    ```
 
@@ -55,6 +55,7 @@ Use the Sentry MCP.
 ## What to return
 
 For each relevant issue:
+
 - Issue ID and title
 - Project and organization
 - First seen / last seen timestamps

@@ -40,7 +40,7 @@ Every real slug written must be in the detected set. `inherit-parent` and `auto`
 
 Write `~/.cursor/rules/pstack-models.mdc` with `alwaysApply: true`, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:
 
-```
+```text
 ---
 description: pstack per-role model choices (overrides skill defaults)
 alwaysApply: true

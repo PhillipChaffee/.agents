@@ -1,4 +1,4 @@
-### Authoring or modifying a skill
+# Authoring or modifying a skill
 
 **You own the skill's voice.**
 

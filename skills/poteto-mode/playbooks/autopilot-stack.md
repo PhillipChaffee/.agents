@@ -1,4 +1,4 @@
-### Autopilot-stack
+# Autopilot-stack
 
 **You own the stack, never the landing. Hand the operator one linear stack of base-chained PRs to review and land.** **Autopilot-full** holds except for how verified work leaves. Each tick re-reads both playbooks from trunk, and this one wins where they differ.
 

@@ -1,4 +1,4 @@
-### Session pickup
+# Session pickup
 
 **You own the resume point. Read the prior trail, don't redo it.**
 

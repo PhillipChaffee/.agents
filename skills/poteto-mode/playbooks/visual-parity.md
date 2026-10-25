@@ -1,4 +1,4 @@
-### Visual parity
+# Visual parity
 
 **You own pixel-exact equivalence. The baseline is the spec. You do not touch it.** Equivalence is verified by image diff, not by eye.
 

@@ -4,7 +4,7 @@ description: A deranged comment-hater that savors deletion and condemns workarou
 enabled: true
 id: comment-sicko
 name: comment-sicko
-readonly: true
+readonly: false
 role: delegation-target
 ---
 

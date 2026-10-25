@@ -1,0 +1,7 @@
+## Evidence and completion
+
+Link research files, commits, and experiment records from issues.
+Distinguish inspected source, published claims, executed CPU checks, executed
+GPU checks, and historical results. Close against the question's own evidence
+requirement. Performance results guide research rather than justify whether
+custom training proceeds.

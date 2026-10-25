@@ -14,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: ./scripts/validate.sh
+      - run: python3 -m unittest discover -s tests -v
       - name: Install smoke test (sandboxed)
         run: |
           SBX=$(mktemp -d)
@@ -22,8 +23,12 @@ jobs:
           test -f "$SBX/.agents/skills/code-review/skill.md"
           test -f "$SBX/.agents/skills/research/skill.md"
           cmp skills/setup-repository/SKILL.md "$SBX/.agents/skills/setup-repository/skill.md"
-          cmp skills/setup-repository/references/working-rules.md "$SBX/.agents/skills/setup-repository/references/working-rules.md"
+          cmp skills/setup-repository/references/rule-sources.md "$SBX/.agents/skills/setup-repository/references/rule-sources.md"
           cmp skills/setup-repository/references/research.md "$SBX/.agents/skills/setup-repository/references/research.md"
+          cmp skills/setup-repository/templates/coding.txt "$SBX/.agents/skills/setup-repository/templates/coding.txt"
+          cmp skills/setup-repository/templates/domain.txt "$SBX/.agents/skills/setup-repository/templates/domain.txt"
+          cmp skills/setup-repository/templates/agent-rules.txt "$SBX/.agents/skills/setup-repository/templates/agent-rules.txt"
+          cmp skills/setup-repository/templates/issue-tracker-evidence.txt "$SBX/.agents/skills/setup-repository/templates/issue-tracker-evidence.txt"
           test -f "$SBX/.agents/agents/cr-security/agent.md"
           test -f "$SBX/.agents/rules/look-it-up.md"
           test -f "$SBX/.agents/agents.md"

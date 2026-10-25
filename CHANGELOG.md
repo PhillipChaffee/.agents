@@ -2,12 +2,14 @@
 
 ## Unreleased
 
-Added `setup-repository` for repository initialization and working-rule adoption.
+Added `setup-repository` for repository initialization and literal rule installation.
 
-- Reuses canonical language initializers and tracker/domain skills, with bundled
-  working rules, public source rationale, and a separate behavioral test record
-- Installer smoke tests compare the installed skill and both nested references
-  against their source files
+- Installs maintained source text word for word, with whole-file and marked-block
+  ownership, conflict approval, and byte-idempotent repeat installation
+- Bundles four TXT payloads with pinned hashes and a source record, replacing
+  the paraphrased working-rules reference
+- Extends skill support-file installation to TXT and tests packaged and installed
+  payload hashes alongside the installer smoke comparisons
 
 Stripped the owner's work stack from the review Agents (#22).
 

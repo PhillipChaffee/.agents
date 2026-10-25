@@ -91,7 +91,7 @@ build_mapping() {
 			skills/*/SKILL.md) continue ;;
 			esac
 			printf 'skills/%s/%s\tskills/%s/%s\n' "$id" "$rel" "$id" "$rel"
-		done < <(cd "$skill_dir" && find . -type f -name '*.md' ! -name 'SKILL.md' | sed 's|^\./||')
+		done < <(cd "$skill_dir" && find . -type f \( -name '*.md' -o -name '*.txt' \) ! -name 'SKILL.md' | sed 's|^\./||')
 	done
 	for f in agents/*/; do
 		id=$(basename "$f")

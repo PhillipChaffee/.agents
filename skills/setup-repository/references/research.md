@@ -1,77 +1,55 @@
 # Repository setup rationale and sources
 
-`setup-repository` coordinates language initialization and working rules.
-The [working-rules reference](working-rules.md) gives the adoption procedure.
-This reference explains its source choices and evidence limits.
+`setup-repository` installs maintained rule text word for word.
+The [source record](rule-sources.md) identifies each payload, its source selection,
+hash, and destination. A summary cannot preserve the questions, wording, and
+read conditions that the user chose. Installation therefore copies literal bytes.
 
-## Keep maintained sources authoritative
+## Keep rule updates separate from installation
 
-[full-lint][full-lint] owns the language initializers, templates, and enforcement
-requirements. The inspected revision is
-`4f982ea91585c6607bbba3a6a95da2555b88ded6`. It is a source snapshot, not a claim
-about the latest branch or compatibility with a target environment.
+The TXT payloads are literal data with Markdown content for their destination
+files. They retain the source grammar, wrapping, and paths. Writing review applies
+to installer instructions and notes outside the payloads. Review any rule change
+as a payload update with a new source record and independent expected hashes.
 
-The kit keeps language configuration in that reference repo, as recorded in
-[ADR-0002][language-decision]. Its own hygiene checks follow
-[ADR-0006][hygiene-decision]. Copying exact tool inventories into this skill
-creates another configuration to maintain.
+Preflight every destination before writing rules. Preserve existing project
+configuration and require approval for conflicts. Exact block boundaries allow
+byte comparisons without changing unrelated text. The existing domain guide
+remains project-owned when present.
 
-[Matt Pocock's skills][matt-skills] supply tracker/domain setup and domain
-modeling. Read the dependency instructions available in the target environment.
-Record their source revision or mark it unknown. The kit's
-[ADR-0007][forge-decision] leaves tracker selection to each repository.
+Source assumptions can conflict with another project's layout or language.
+Report those conflicts instead of rewriting the payload during installation.
+A source pin establishes identity, not suitability for every project.
 
-For placement and reuse, consult the kit's [code-organization][organization]
-and [minimal-changes][minimal] rules. For source selection and work ownership,
-consult [look-it-up][lookup] and [git-worktrees][worktrees]. These public links
-also work when the skill directory is installed without the rest of this repo.
+## Reuse public setup dependencies
 
-## Record provenance and execution separately
+[full-lint][full-lint] owns language initializers and enforcement configuration.
+The inspected revision is `4f982ea91585c6607bbba3a6a95da2555b88ded6`.
+Read the selected initializer and templates together, and compare installed copies
+with the recorded source. Earlier research identified source drift and the need
+for separate execution evidence. Preserve sync failures and unresolved deviations.
 
-Provenance records where files came from and which revision supplied them.
-Earlier research identified installed-source drift and the need to separate
-source inspection from execution evidence. An installed skill name does not
-identify its contents. A pinned revision does not prove that its templates agree
-or that its commands work in another environment.
+[ADR-0002][language-decision] keeps language enforcement in the reference repo.
+[ADR-0006][hygiene-decision] records this kit's hygiene baseline.
+The rule payloads do not duplicate those tool configurations.
 
-Before initialization, compare the initializer and templates at the same full
-commit SHA. Compare any installed copy against that source. Preserve failed
-sync checks and record an explicit resolution or accepted deviation.
+[Matt Pocock's skills][matt-skills] supply tracker/domain setup and domain modeling.
+Reuse existing project configuration or request setup through those skills.
+The literal evidence fragment supplies no tracker identity, consistent with
+[ADR-0007][forge-decision].
 
-When updating, compare the old source, new source, and adapted project files.
-Keep justified project changes and rerun applicable checks. Record the new
-revision alongside the commands, environment, results, and remaining gaps.
+## Separate fidelity from application evidence
 
-Execution records support only the environment and revision tested. A configured
-workflow does not establish a successful run. Coverage reporting and merge
-protection require their own evidence. Failed requests and unavailable access
-remain unresolved evidence, even when local checks pass.
-
-## Adopt optional practices when needed
-
-If a project uses external reference implementations, record origins, revisions,
-licenses, and reading paths. Keep reference snapshots separate from executable
-dependencies. A checksum proves file identity, not runtime compatibility.
-
-If a project teaches concepts, define the audience and learning goal before
-choosing presentation tools. Keep one authoritative computation for repeated
-numerical outputs. Assess arithmetic, visual presentation, and learner
-understanding separately. The conditional table in [working rules](working-rules.md#select-optional-research-and-teaching-rules)
-names the corresponding artifacts without prescribing a renderer or model.
-
-## Test behavior and packaging separately
+Hash comparisons establish exact packaged and installed bytes.
+They do not prove that an agent writes the correct target files, preserves
+surrounding text, or handles conflicts. Those claims need actual target-install,
+repeat-install, and conflict scenarios.
 
 [obra/superpowers writing-skills][writing-skills], inspected at
 `2ce8aa15d05bd57213e6f746f953aafb7ded7a8b`, supplies the behavioral testing method.
-It compares fresh-agent responses without and with the skill, then tests varied
-application scenarios. Planning simulations measure proposed actions. They do
-not prove repository creation, command execution, or host discovery.
-
-The public kit adds metadata and this portable reference to the tested procedure.
-The original behavioral results describe the earlier package. Packaging checks
-must separately establish metadata validity and installation of every reference.
-Repeat behavioral cases after instruction changes, and test host discovery before
-claiming that the intended installation is active.
+Earlier handoff-only simulations do not validate literal installation.
+Record new application results separately from source inspection and kit-install
+tests. Runtime readiness still requires checks in the target environment.
 
 [full-lint]: https://github.com/PhillipChaffee/full-lint/tree/4f982ea91585c6607bbba3a6a95da2555b88ded6
 [matt-skills]: https://github.com/mattpocock/skills
@@ -79,7 +57,3 @@ claiming that the intended installation is active.
 [language-decision]: https://github.com/PhillipChaffee/.agents/blob/main/docs/adr/0002-no-language-rules.md
 [hygiene-decision]: https://github.com/PhillipChaffee/.agents/blob/main/docs/adr/0006-hygiene-gates.md
 [forge-decision]: https://github.com/PhillipChaffee/.agents/blob/main/docs/adr/0007-forge-agnostic.md
-[organization]: https://github.com/PhillipChaffee/.agents/blob/main/rules/code-organization.md
-[minimal]: https://github.com/PhillipChaffee/.agents/blob/main/rules/minimal-changes.md
-[lookup]: https://github.com/PhillipChaffee/.agents/blob/main/rules/look-it-up.md
-[worktrees]: https://github.com/PhillipChaffee/.agents/blob/main/rules/git-worktrees.md

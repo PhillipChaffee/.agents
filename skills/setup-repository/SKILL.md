@@ -1,5 +1,5 @@
 ---
-description: Use when bootstrapping a new repository, adopting repository working rules, or transferring an established repository setup to another project.
+description: Use when bootstrapping a new repository, installing repository working rules, or transferring an established repository setup to another project.
 enabled: true
 id: setup-repository
 name: setup-repository
@@ -7,70 +7,64 @@ name: setup-repository
 
 # Set up a repository
 
-Reuse a maintained baseline and give each working rule an owner, a read trigger,
-and completion evidence. Keep project decisions separate from machine preferences.
+Install the maintained rule payloads word for word. Payloads are authoritative
+data: never summarize, reflow, rename, path-substitute, or pass them through prose
+rewriting. Changes belong in reviewed payload updates, not individual installs.
 
 ## Select the scope
 
 | Request | Apply |
 | --- | --- |
-| New repository | Canonical language initializer, then working rules |
+| New repository | Canonical language initializer, then literal rules |
 | Existing repository | Requested changes within existing conventions |
-| Working rules only | Instruction and documentation changes |
-| Several languages | Compose shared files before applying initializers |
+| Rules only | Literal rule installation without replacing enforcement |
+| Several languages | Reconcile shared destinations before initialization |
 
-## Procedure
+## Install
 
 1. Read the project goal, active instructions, Git status, and existing setup.
-   Identify languages, package paths, tracker, and the owned worktree.
-   Resolve an unborn repository's worktree boundary before edits.
-   Completion: record scope, preserved work, and unresolved choices.
+   Confirm worktree ownership and preserve other work.
+   Confirm that root `AGENTS.md` is active before installing its block.
+   Resolve instruction ownership and unborn-repository boundaries before edits.
 
-2. For a new repository, resolve [full-lint](https://github.com/PhillipChaffee/full-lint)
-   and record its full commit SHA. Read the matching `init-<language>-repo`
-   instructions and templates together. Compare installed copies before use.
-   If language support is missing, use its `add-language` skill first.
-   Keep sync defects blocked until resolved or explicitly accepted by the user.
-   Completion: record provenance, substitutions, and deviations without weakening gates.
+2. For a new repository, select [full-lint](https://github.com/PhillipChaffee/full-lint)
+   at a recorded full commit SHA.
+   Read its matching initializer and templates together, comparing installed copies.
+   Use canonical `add-language` for missing language support.
+   Resolve sync defects or obtain explicit acceptance before initialization.
+   Follow the initializer and preserve its required gates.
+   For requested tracker configuration, reuse existing setup or `setup-matt-pocock-skills`.
+   If a dependency is unavailable, report that step blocked.
 
-3. Follow the selected initializer within the agreed scope.
-   For tracker/domain setup, use `setup-matt-pocock-skills`; use `domain-modeling`
-   when terms or architectural decisions need resolution.
-   If a dependency skill is absent, locate its source or report that step blocked.
-   Reuse existing issues. Create glossary entries and decision records when needed.
-   Completion: the setup matches this project, with conditional features justified.
+3. Before any rule write, read [rule sources](references/rule-sources.md) and all four payloads.
+   Check their SHA-256 values and preflight every destination together:
 
-4. Before writing working rules, read [working rules](references/working-rules.md).
-   Give every adopted rule a source, owning file, explicit read condition,
-   and observable completion criterion. Link these from the active instruction file.
-   Completion: preserve caller-focused docstrings and independently established
-   test expectations alongside naming, placement, and reuse rules.
+   | Payload under `templates/` | Destination |
+   | --- | --- |
+   | `coding.txt` | Whole `docs/agents/coding.md` |
+   | `domain.txt` | Whole `docs/agents/domain.md`, only if absent |
+   | `agent-rules.txt` | One marked block in root `AGENTS.md` |
+   | `issue-tracker-evidence.txt` | One marked block in `docs/agents/issue-tracker.md` |
 
-5. Run applicable checks in the target environment and demonstrate below-floor
-   coverage failure. Record wrapper failures and restore the passing state.
-   Completion: each check has a command, environment, result, and evidence location.
-   Distinguish scheduled checks, execution, optional reporting, and merge protection.
+   Preserve an existing domain guide.
+   Identical files or managed blocks are no-ops.
+   For conflicting coding files, differing managed blocks, or same-heading sections,
+   show an explicit diff and obtain approval before writing anything.
+   Stop on malformed or duplicate markers.
+   Surface incompatible `pyproject.toml`, `CONTEXT.md`, or other source assumptions without rewriting them for another language.
 
-6. Write the setup handoff using the required fields below.
-   Apply `writing-for-agents` to instructions and Plain-mode writing review to prose.
-   Completion: report remaining blockers, next actions, and exact readiness.
+4. Use existing file tools or platform copying to install the approved bytes.
+   Follow the exact marker and wrapper rules in the source record.
+   Preserve unrelated prefixes and suffixes byte-for-byte.
+   An absent tracker guide gets a neutral title and literal evidence block, without invented tracker identity.
+   Apply writing review only to new instructions or notes outside payloads.
+
+5. Compare installed whole files and extracted block bytes against their payloads.
+   Confirm that coding links resolve and a repeated install changes no bytes.
+   Run applicable target checks, including the initializer's below-floor coverage proof.
+   Report source pin, destination status, approvals, preserved files, commands,
+   environment, results, blockers, and next action.
+   Distinguish installation from runtime readiness.
    Commit or publish only when requested.
 
-## Required handoff fields
-
-- Scope and preserved work.
-- Source URL, full revision, initializer, substitutions, and unresolved deviations.
-- Rule ownership: file, read trigger, content, and completion evidence.
-- Validation: commands, runtime/tool versions, platform, results, and missing checks.
-- Blockers, next action, and readiness.
-
-Example rule: before changing, reviewing, or explaining code, read
-`docs/agents/coding.md`. Finish when affected callers, tests, and documentation agree.
-Unknown environment values remain explicitly unknown until measured.
-
-## Common mistakes
-
-Links without read conditions and results without environments leave the handoff
-incomplete. Historical success is evidence about its recorded revision only.
-For rationale, history, optional practices, and known limitations, read the
-[research reference](references/research.md).
+For the maintenance rationale and evidence limits, read [research](references/research.md).

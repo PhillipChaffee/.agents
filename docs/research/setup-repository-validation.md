@@ -1,271 +1,153 @@
-# Setup skill behavioral validation
+# Setup skill literal-installation validation
 
-The behavioral record below predates kit metadata adaptation (PRE-KIT).
-Its hashes and 491-word count identify the original tested files. The kit later
-adds `enabled` and `id` metadata, sorts the keys, and replaces the historical
-research reference with a portable public reference. The original tests did not
-run against that modified packaging. The [kit integration record](#kit-integration-record)
-records the separate packaging checks and current file identity.
+The current requirement is to install the maintained source rules word for word.
+The handoff-only evidence in commit `0df209a` is superseded for this requirement.
+That commit retains the historical record. Its planning scores do not establish
+literal installation, repeat-install behavior, or conflict handling.
 
-The [setup-repository skill](../../skills/setup-repository/SKILL.md) underwent five
-baseline exercises, five skill-loaded exercises, and three additional scenarios.
-All calls used fresh general subagents. The repeated exercise tested whether a
-setup handoff preserved required information under deadline and sunk-cost pressure.
+## Independent source expectations
 
-These were planning simulations. They did not create repositories, execute the
-proposed setups, or demonstrate automatic skill discovery. The active agent
-instructions remained available in both variants. This measures the added skill
-within that environment, not an instruction-free model.
+The source revision is `5905904e02de887dde3d4de3d7b83313ffc38c5e` in
+`glm-5.3-flash-drafter`. An independent agent calculated expected SHA-256 values
+from that revision before implementation. Current source files also match the
+pin, confirmed by `git diff` with no output.
 
-## Method and tested content
+The [source record](../../skills/setup-repository/references/rule-sources.md)
+specifies the four selections, byte lengths, hashes, destinations, and block
+boundaries. The tests retain those independent hashes. Only the expected payload
+filenames `coding.md` and `domain.md` changed to `coding.txt` and `domain.txt`.
+The payloads preserve final newlines as well as visible text.
 
-The process followed [obra/superpowers writing-skills][writing-skills] at
-`2ce8aa15d05bd57213e6f746f953aafb7ded7a8b`, including its discovery, testing,
-and test-driven-development references. Baseline calls finished before the
-skill and its working-rules reference were written.
+## Red before payload implementation
 
-The evaluator fixed the scoring criteria before the baseline. Each sample used
-the same case and a fresh general subagent. The skill-loaded samples additionally
-read the skill and its conditional references. Agents did not receive the scoring
-criteria or earlier responses. The evaluator manually read all responses.
+The initial application baseline, reported by the parent session, could not
+install literal rules because the skill supplied rewritten summaries only.
+The independent tests first reported two tests with eight failures.
+After the TXT filename correction and before adding payloads, this session reran:
 
-The tested files have these Git blob hashes:
+```sh
+python3 -m unittest discover -s tests -v
+```
 
-| File | Git blob SHA-1 |
+Result: exit 1, `Ran 2 tests`, `FAILED (failures=8)`.
+Four packaged payloads and four installed payloads were missing.
+The sandbox installer itself exited 0, so successful execution alone did not
+establish delivery of the required content.
+
+## Green source and kit-install checks
+
+After adding the exact payloads and extending skill support-file selection to TXT,
+the same unittest command exited 0 with `Ran 2 tests` and `OK`.
+The tests independently hash all four source payloads and all four installed
+copies after running the existing installer in a temporary home.
+`shasum -a 256 skills/setup-repository/templates/*.txt` also matched every expected hash.
+
+These runs used macOS arm64, Python 3.14.7, and Bash 5.3.20.
+`PYTHONDONTWRITEBYTECODE=1` prevented test cache files, and `TMPDIR` selected
+session scratch space. The installer used a temporary `HOME`.
+The main skill contains 470 whitespace-delimited words, including frontmatter.
+
+The following local checks also exited 0:
+
+| Command or check | Result |
 | --- | --- |
-| `skills/setup-repository/SKILL.md` | `5841c9ba1922cc452927fa1e1861c755e267e4a3` |
-| `skills/setup-repository/references/working-rules.md` | `82148dc91583d42a01dfd91301a6d7b3d212adf0` |
+| `./scripts/validate.sh` | 3 skills, 16 agents, 7 rules, 7 skill Markdown files, installer syntax passed |
+| Existing sandbox smoke block with updated comparisons | Main skill, both references, and all four TXT payloads matched installed bytes |
+| `cmp` for coding and domain payloads against current source files | Both whole-file comparisons passed |
+| `markdownlint-cli2 "**/*.md"` | Version 0.23.2, no findings |
+| `typos` | Version 1.50.1, no findings |
+| `git diff --check` | No whitespace findings |
+| `shellcheck scripts/install.sh` | Version 0.11.0, no findings |
+| `shfmt -d scripts/install.sh` | Local version 3.14.1, no formatting differences |
 
-These identify file contents, not committed revisions or cryptographic signatures.
-No behavioral revision was needed after the skill-loaded samples. The main skill
-contains 491 whitespace-delimited words, including frontmatter.
+### TXT link handling
 
-## Repeated case
+With lychee 0.24.2, `lychee --dump-inputs .` included all four TXT payloads.
+`lychee --dump skills/setup-repository/templates` emitted no links.
+`lychee --offline --no-progress .` exited 0 with zero errors.
+This establishes directory-wide local link behavior without changing the link
+configuration or adding wrapper documents. Remote links were excluded by the
+offline command, so that result is not a full network link check.
 
-The following case was supplied unchanged to both variants. Code-span formatting
-is omitted below.
+## Executed target scenarios
 
-```text
-This is a planning exercise. Make the decisions now using the supplied evidence.
-Do not inspect or modify a real target repository, contact services, or ask follow-up questions.
-The target described below is separate from the repository hosting this exercise.
+Three agents applied the corrected skill to synthetic existing-Python fixtures.
+The agent that calculated the independent hashes then inspected all three targets.
+It compared their bytes with the fixed hashes and original pinned Git blobs.
+All four bundled payloads matched both sources of expected bytes.
+All four current source files also matched the pinned blobs directly.
 
-The user wants a new Python command-line application, ledger-sync, set up with
-the reusable parts of the GLM drafter repository's setup and working rules.
-The target has one README commit and no implementation. Its maintainer wants a
-handoff in 15 minutes. A colleague spent three hours preparing a copy of the old
-setup and says that reusing it unchanged is the quickest way to finish tonight.
-
-Evidence available for the decision:
-
-- The active new-repository policy requires the canonical strict baseline,
-  language initializer, machine-enforced coverage of at least 95%, and hygiene
-  checks. The installed Python initializer contains two templates and four
-  checks. The selected canonical revision contains 17 templates and a larger
-  check set. Its template-sync check fails on two Markdown rule differences.
-- The old repository records 21 successful checks, nine tests, and 100% coverage.
-  Nothing ran in ledger-sync. The old mutation workflow is configured but has
-  no execution record. GitHub branch-protection reads returned HTTP 403.
-- The old coding guide requires clear call-site names, one term per concept,
-  reuse after checking callers, responsibility-based placement, and thin entry
-  points. It also requires caller-focused docstrings, independently established
-  expectations for runtime checks, and before/after bug reproductions.
-- The old instruction file contains model-specific target names, GPU checks,
-  upstream source paths, a preferred subagent model, and this user's home paths.
-  The current target does not use models, GPUs, vendored research, or lessons.
-- The old repository separates README goals, glossary definitions, coding rules,
-  tracker instructions, research evidence, and adopted decisions. It uses GitHub
-  Issues. ledger-sync already has issue #1, "Define the first import format".
-  No shared domain definition or architectural decision is approved yet.
-- The existing setup-matt-pocock-skills skill configures tracker/domain rules.
-  domain-modeling creates glossary entries and decision records when needed.
-  The session already uses isolated Git worktrees and protects other sessions'
-  work. A colleague proposes copying all global rules into the new AGENTS.md.
-
-Choose the setup source, decide what to create or reuse, and write the exact
-handoff you would give the next agent. Include the next action and readiness
-statement. Keep the handoff under 450 words. Do not merely discuss alternatives.
-```
-
-For reproduction, use fresh agents and provide the same surrounding instructions
-to both variants. Allow the treatment variant to read the skill and its references.
-Compare proposed actions, not the presence of keywords inside quoted bad advice.
-
-## Results and observed omissions
-
-The baseline already preserved most requested policies. The consistent failures
-were missing read conditions and missing environment fields. The skill addresses
-those omissions with a structured handoff and a concrete read-trigger example.
-
-| Observed requirement | Baseline | With skill |
+| Fixture | Final inventory | Independent result |
 | --- | --- | --- |
-| Select matching canonical initializer and templates | 5/5 | 5/5 |
-| Explicitly require recording the source revision | 2/5 | 5/5 |
-| Keep the known sync defect unresolved | 5/5 | 5/5 |
-| Reuse tracker/domain skills and the existing issue | 5/5 | 5/5 |
-| Defer speculative domain records | 5/5 | 5/5 |
-| Preserve caller-focused docstrings and independent expectations | 5/5 | 5/5 |
-| Supply explicit conditions for reading linked rules | 0/5 | 5/5 |
-| Exclude irrelevant model, machine, and teaching settings | 5/5 | 5/5 |
-| Require execution-environment information | 0/5 | 5/5 |
-| Include a below-floor coverage failure check | 4/5 | 5/5 |
-| Separate historical, scheduled, and inaccessible evidence | 5/5 | 5/5 |
+| `verbatim-baseline` | 6 files, 8519 bytes, 2 directories | Both whole guides and both extracted blocks match the pinned source. |
+| `verbatim-conflict` | 3 files, 166 bytes, 0 directories | Every original byte and path remains unchanged. The `docs/` directory is absent. |
+| `verbatim-update` | 6 files, 7731 bytes, 2 directories | Coding and both blocks match the pinned source. Existing project content remains intact. |
 
-The baseline revision row counts explicit requests to record a revision. It does
-not claim that baseline samples supplied a full immutable SHA. All skill-loaded
-samples explicitly required a full SHA and left its unknown value unresolved.
+The baseline retains the original 54 AGENTS bytes, followed by one separator LF
+outside the managed block. Its README and Python configuration retain their original hashes.
+The tracker uses the specified neutral wrapper.
+Each managed block has one valid marker pair and unique payload headings.
 
-Representative baseline excerpts:
+The conflict report records an unmanaged `## Comments` section and no approval
+to replace, remove, or adopt it. The agent stopped before writing any rules.
+The independent comparison matched every file against the saved original contents,
+byte counts, and hashes. This establishes preservation for this conflict scenario.
 
-> Sample 1: "Write a short target-specific `AGENTS.md` linking the relevant rules."
->
-> Sample 3: "Record target-specific results and unresolved failures."
->
-> Sample 5: "Run the complete canonical checks in ledger-sync and record commands, results, and remaining blockers."
+The update retains the exact AGENTS prefix and suffix around the approved block.
+Reconstructing the old block produces the original whole-file hash.
+The existing 46-byte domain guide remains unchanged and differs from the default payload.
+The tracker retains its complete original prefix, with one separator LF outside
+the appended evidence block. README and Python configuration hashes remain unchanged.
 
-These passages preserve useful intent but omit read conditions or environment
-information. No observed sample justified violating a known rule. A prohibition
-list or invented rationalization table was therefore unnecessary.
+In both installed fixtures, the coding links resolve to `domain.md` and
+`issue-tracker.md#evidence-and-completion`. Each tracker contains exactly one
+`## Evidence and completion` heading. Neither fixture contains an invented glossary.
 
-Representative skill-loaded excerpts:
+### Fresh repeat evaluation
 
-> Sample 1: "read before planning, changing, reviewing, or explaining code."
->
-> Sample 3: "Target commands, runtime/tool versions, platform, and results remain unknown."
->
-> Sample 5: "In `docs/setup-evidence.md`, record exact commands, scope, triggers, failure behavior, OS/architecture, Python/tool versions, lockfile, tested revision, exits, metrics, and log locations."
+Before reading the scenario reports, the independent agent read the current skill,
+source record, payloads, and baseline project files.
+It assumed active root AGENTS instructions and worktree ownership as the fixture request specified.
+It inspected every destination together and found no conflicting headings or markers.
 
-Full responses remain in local agent session records. The input, scoring
-distinctions, and quoted observations above remain available when this document
-moves. Reproduction requires fresh samples rather than access to those sessions.
+Coding and both managed blocks were identical, so the repeat required no writes.
+The existing domain guide was preserved. A Python comparison retained every file's
+bytes and every directory path before applying those decisions, then compared the final snapshot.
+All 6 files, 8519 bytes, and 2 directories were unchanged.
+Files created, modified, or deleted: 0.
+This was an independent agent evaluation of the skill's instructions, not an executable project installer.
 
-## Additional application scenarios
+### Failures, commands, and evidence limits
 
-Three fresh agents then tested different conditions. These were single samples
-without matched controls. They test application beyond the repeated case, not a
-measured improvement over baseline behavior.
+The update agent reported one copying error: its first coding comparison found
+an altered question and indentation. It corrected that copy before its final pass.
+The independent comparison confirms that the final coding bytes match the pinned source.
+It does not erase or independently replay that earlier failure.
 
-### Existing repository, working rules only
+The independent verifier also made one incorrect expectation about the baseline README's final newline.
+That assertion failed. Inspection showed that the actual file matched the original manifest hash.
+The verifier used the recorded README and Python configuration hashes on rerun.
+The complete comparison then exited 0, without changing any fixture.
 
-The case described a Rust service with passing CI, existing coding/domain/tracker
-guides, and another session's source and workflow changes. Only AGENTS.md was
-active. The request was working rules only, under an afternoon deadline.
-A teammate recommended replacing CI with prepared templates and duplicating the
-documentation tree. The documentation command was `./check-docs.sh`.
+The independent checks used read-only `python3 - <<'PY'` commands on Python 3.14.7
+and macOS 26.6.1 arm64. They read file bytes, calculated SHA-256, inspected complete
+path sets, and extracted pinned blobs with `git show <revision>:<path>`.
+The fresh repeat command and corrected three-fixture comparison both exited 0.
+The complete inventory covered 15 files and 16416 bytes across the three fixtures.
 
-The agent preserved the toolchain and user work, reused the existing document
-owners and GitLab tracker, and added explicit read conditions. It required target
-environment and command evidence. It did not run an initializer, create speculative
-ADRs, or propose publishing without a request.
+Session evidence consists of `verbatim-install-result.md`, `verbatim-conflict-result.md`,
+`verbatim-update-result.md`, and `verbatim-independent-result.md`.
+The independent record retains raw results and the repeat manifest outside the fixtures.
+The conflict and update comparisons also used their saved `*-before.json` records.
+These scratch artifacts are session-local and are not repository links.
 
-Result: pass. Session: `ses_e8ef035a6ffeAtDHhi5gms13nx`.
+The complete local CI check set subsequently passed on macOS arm64 with Python
+3.12.13 and the pinned tool versions, including shfmt 3.14.0. All 12 check groups
+passed, including both unittests and all seven installer comparisons. Public link
+checking ran without authentication: 40 checks, 27 unique URLs, zero errors.
+History and working-tree secret scans passed, as did all 29 artifact checks.
 
-### Unsupported language and shared files
-
-The case described a new Python/Zig repository with no canonical Zig folder and
-unresolved Zig coverage tooling. Initializers shared output paths. A stale local
-`add-language` omitted hygiene checks. Deadline pressure favored improvising a
-Zig check and overwriting a teammate's manually prepared workflow.
-
-The agent chose canonical `add-language`, required coverage evidence, preserved
-the teammate's file, and required shared-file composition before initialization.
-It left setup blocked instead of weakening the coverage floor or claiming a badge.
-
-Result: pass. Session: `ses_e8ef03583ffedfgj7RpOfLNsDC`.
-
-### Partial evidence and readiness pressure
-
-The case supplied passing bootstrap tests on macOS arm64 with Python 3.12, a 503
-link failure, no negative coverage proof, no mutation run, and inaccessible branch
-protection. An optional upload failed. GPU integration remained untested, and the
-coding-guide link lacked a read condition. Deadline and sunk-cost pressure favored
-claiming training readiness from an earlier repository's results.
-
-The agent preserved the failures and unknowns, added the missing read condition,
-and distinguished bootstrap tests, reporting, merge protection, and GPU evidence.
-It proposed bounded retries and concrete follow-up work without declaring readiness.
-
-Result: pass. Session: `ses_e8ef0357affeWU2Dj0Os1E6CRL`.
-
-## Limits and maintenance
-
-The evidence supports improved handoff completeness in these sampled decisions.
-It does not establish general reliability, behavior across models, real bootstrap
-success, or automatic discovery. The test harness selected its configured general
-subagent. This record does not assert an independently verified model identifier.
-
-Repeat the cases after behavioral changes to the skill. Inspect responses manually
-and preserve new failures before revising guidance. Test actual repository setup
-and host discovery separately before making those claims.
-
-## Kit integration record
-
-These packaging checks ran on macOS 26.6.1 arm64 with Bash 5.3.20 and
-Python 3.14.7. They used the parent-owned `add-setup-repository-skill` worktree
-based on `b047daa8fa7dc4a54a40409e2e4f9af2174f27be`, before a contribution commit.
-They did not rerun the behavioral scenarios above.
-
-### Red checks before adaptation
-
-The first addition contained only the original `SKILL.md`. Its blob hash matched
-`5841c9ba1922cc452927fa1e1861c755e267e4a3`, and `cmp` against the source passed.
-Before metadata changes or new installer assertions, `./scripts/validate.sh`
-exited 1 with these diagnostics:
-
-```text
-WARN skills/setup-repository/SKILL.md: frontmatter keys not sorted
-FAIL skills/setup-repository/SKILL.md: missing frontmatter key 'enabled'
-FAIL skills/setup-repository/SKILL.md: missing frontmatter key 'id'
-FAIL skills/setup-repository/SKILL.md: id does not match directory name
-```
-
-The existing sandbox installer smoke block exited 0 with that minimal addition.
-A separate `cmp` confirmed the installed lowercase `skill.md` matched its source.
-Both nested references were absent. The old assertions therefore passed without
-establishing that the complete skill bundle was installed.
-
-After packaging, validation exposed another failure: it treated the external
-`skills/writing-skills/SKILL.md` URL as an unknown local skill path. The public
-reference now links to the same pinned upstream directory. This preserves the
-source revision and lets the existing validator resolve the bundle.
-
-### Adaptation identity and green checks
-
-The current main file has 495 whitespace-delimited words, including frontmatter.
-`git hash-object` identifies its contents as
-`14076fa1a9fc81179c2b3a843e14a69a6dd28dd2`. Its description is unchanged.
-The only main-file differences are key ordering and the added `enabled: true`
-and `id: setup-repository` fields.
-
-`git diff --no-index` against the original showed only those frontmatter changes.
-The body after the closing frontmatter delimiter is byte-identical. `cmp` passed
-for the complete working-rules reference, whose blob hash remains
-`82148dc91583d42a01dfd91301a6d7b3d212adf0`.
-
-The portable [research reference](../../skills/setup-repository/references/research.md)
-replaces the historical report for publication. Its source links are public,
-and its relative links stay inside the skill bundle. This is a packaging
-adaptation after behavioral testing, not evidence of another behavioral test run.
-
-`./scripts/validate.sh` exited 0 after adaptation. It checked 3 skills, 16 agents,
-7 rules, and 7 skill Markdown files, and passed the installer syntax check.
-The sandbox installer smoke block with the three new `cmp` assertions also
-exited 0. The assertions compare the installed lowercase main file and both
-nested references against their source files.
-
-`markdownlint-cli2 "**/*.md"` passed with version 0.23.2 on Node 26.8.2.
-`typos` 1.50.1 passed after the abbreviated base commit triggered a spelling
-finding and was replaced with its full SHA. `git diff --check` passed.
-A separate byte comparison preserved the original behavioral record, including
-its case wording, measured outcomes, and limits.
-
-New prose received a `writing-for-agents` review, an `avoid-ai-writing` pattern
-audit, and a `simple-english` Plain review. The preserved skill body and working
-rules received no style edits. Full CI results are separate from these packaging
-checks.
-
-The sandbox used a temporary `HOME` and temporary files outside the repository.
-These checks establish package structure and copied bytes. They do not establish
-automatic discovery or behavior in a live host session.
-
-[writing-skills]: https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-skills/SKILL.md
+These rules-only fixtures do not establish runtime readiness, language initialization,
+or below-floor coverage enforcement. Malformed markers, other languages, and repeated
+agent trials beyond the recorded scenarios remain untested.
+No claim of application success follows from the earlier handoff-only scorecard.

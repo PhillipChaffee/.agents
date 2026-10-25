@@ -16,7 +16,8 @@ checklist below):
 Resume an in-progress design for a new skill in this .agents kit. First run:
   git fetch origin claude/relaxed-faraday-x71bqk && git merge --ff-only origin/claude/relaxed-faraday-x71bqk
 then read docs/superpowers/handoffs/2026-10-25-manim-teaching-video-skill/README.md and
-docs/superpowers/handoffs/2026-10-25-manim-teaching-video-skill/design-proposal.md in full.
+docs/superpowers/handoffs/2026-10-25-manim-teaching-video-skill/design-proposal.md and
+docs/superpowers/handoffs/2026-10-25-manim-teaching-video-skill/decision-briefing.md in full.
 
 We are mid-way through the superpowers:brainstorming skill on the ARCHITECTURAL path. Load that
 skill and resume at step 5: present the design proposal to me section by section for approval,
@@ -120,6 +121,22 @@ Container of the first session:
 
    A `000` or `403` means the host is still blocked: stop and report it.
 
+3. Add the system packages to the environment's setup script (cloud environment
+   menu in the title bar, then Edit; the script runs at the start of every new
+   session, one directory above the repository). ManimCE's `manimpango`
+   dependency has no Linux wheel and compiles against the Pango headers, and
+   formulas need a TeX distribution. The design session could not install
+   either because its container had no package-mirror access:
+
+   ```bash
+   apt-get update && apt-get install -y build-essential pkg-config libcairo2-dev libpango1.0-dev ffmpeg \
+       texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra texlive-science dvisvgm
+   ```
+
+   Kokoro's phonemizer falls back to `espeak-ng` for unknown words; add it if
+   M0 confirms the need. Use Python 3.11 or 3.12 for the Manim virtualenv
+   (`uv venv --python 3.12`); the Kokoro wheel declares Python below 3.13.
+
 ## Design summary (from `design-proposal.md`)
 
 Three architectures were drafted from different angles and scored by three
@@ -180,6 +197,9 @@ recorded here; the rest are collected at step 5.
 ## Contents of this folder
 
 - `design-proposal.md`: the synthesized design, awaiting owner approval. Read first.
+- `decision-briefing.md`: background the owner asked for on each of the nine
+  decisions (sizes, storage, inlined roles versus agents, what LaTeX entails,
+  corpus depth, render-time expectations, ADR-0002, license, description style).
 - `critique.md`: the adversarial completeness check applied to the proposal; the
   proposal's final "Revision notes" section lists what changed in response.
 - `maps/`: evidence maps written by parallel readers. Reusable as research input for

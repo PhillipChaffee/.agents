@@ -1,0 +1,4 @@
+# Files restored to upstream pstack wording on purpose, one repo-relative path
+# per line. validate.sh skips its stale-Cursor-path check and its vendor,
+# Cursor, and forge term guard for these files; every other check still runs.
+# Restore a file with: git checkout 101f20f -- <path>

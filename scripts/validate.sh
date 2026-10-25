@@ -120,6 +120,13 @@ MAPPING_DOCS = {
     "skills/poteto-mode/references/model-roles.md",
     "skills/poteto-mode/references/forge-operations.md",
 }
+# Files the owner restored to upstream pstack wording on purpose.
+VERBATIM_LIST = Path("scripts/pstack-verbatim.txt")
+if VERBATIM_LIST.exists():
+    for line in VERBATIM_LIST.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            MAPPING_DOCS.add(line)
 # ADR-0001 and ADR-0007 guard: no vendor model slug, Cursor subagent
 # field, or forge CLI in kit skills and agents.
 BANNED = re.compile(

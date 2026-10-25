@@ -1,7 +1,8 @@
 ---
-name: principle-never-block-on-the-human
 description: "Apply when tempted to ask 'should I do X?' on reversible work."
-disable-model-invocation: true
+enabled: true
+id: principle-never-block-on-the-human
+name: principle-never-block-on-the-human
 ---
 
 # Never Block on the Human

@@ -1,7 +1,8 @@
 ---
-name: principle-boundary-discipline
 description: "Apply when wiring validation, error handling, or framework adapters. Concentrate guards at system boundaries (CLI, config, network, external APIs); trust internal types and keep business logic in pure functions."
-disable-model-invocation: true
+enabled: true
+id: principle-boundary-discipline
+name: principle-boundary-discipline
 ---
 
 # Boundary Discipline

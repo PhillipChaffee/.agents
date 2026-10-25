@@ -1,7 +1,8 @@
 ---
-name: principle-redesign-from-first-principles
 description: "Apply when integrating a new requirement into an existing design."
-disable-model-invocation: true
+enabled: true
+id: principle-redesign-from-first-principles
+name: principle-redesign-from-first-principles
 ---
 
 # Redesign From First Principles

@@ -1,7 +1,8 @@
 ---
-name: poteto-help
 description: Guides users through pstack setup, /poteto-mode, and picking the skill, playbook, or principle for a task. Type /poteto-help with a question.
-disable-model-invocation: true
+enabled: true
+id: poteto-help
+name: poteto-help
 ---
 
 # Poteto help

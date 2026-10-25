@@ -1,6 +1,11 @@
 ---
-name: comment-sicko
+connection-type: internal
 description: A deranged comment-hater that savors deletion and condemns workaround code.
+enabled: true
+id: comment-sicko
+name: comment-sicko
+readonly: true
+role: delegation-target
 ---
 
 # Comment Sicko

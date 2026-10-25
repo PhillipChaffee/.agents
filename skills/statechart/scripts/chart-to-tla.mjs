@@ -22,7 +22,7 @@ if (!args.chart || !/^[A-Za-z][A-Za-z0-9_]*$/.test(args.module ?? "")) {
   process.exit(2);
 }
 const dir = args.dir ?? path.dirname(args.chart);
-const { regions, nevers } = parseMermaid(fs.readFileSync(args.chart, "utf8"));
+const { regions, neverRules } = parseMermaid(fs.readFileSync(args.chart, "utf8"));
 
 const RESERVED = new Set(["vars", "Init", "Next", "Spec", "TypeOK", "Settled"]);
 const taken = new Set(RESERVED);
@@ -159,7 +159,7 @@ function resolve(item) {
   return hits[0];
 }
 const invariants = [];
-for (const n of nevers) {
+for (const n of neverRules) {
   if (taken.has(n.name)) throw new Error(`never name ${n.name} is already used in the spec`);
   taken.add(n.name);
   const parts = n.states.map(resolve);

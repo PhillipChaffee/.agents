@@ -544,7 +544,7 @@ export const BROKEN_MARK = "statechart broken";
 
 export function parseMermaid(text) {
   const names = new Map();
-  const nevers = [];
+  const neverRules = [];
   let last = null;
   const newPart = () => ({ children: [], transitions: [] });
   const root = { name: "", parts: [newPart()] };
@@ -583,7 +583,7 @@ export function parseMermaid(text) {
     last = null;
     const never = /^%%\s*never\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)(?:\s+--\s+(.*))?$/.exec(line);
     if (never) {
-      nevers.push({
+      neverRules.push({
         name: never[1],
         states: never[2].split("&").map((s) => s.trim()),
         sentence: never[3] ?? "",
@@ -788,7 +788,7 @@ export function parseMermaid(text) {
       t.guard = { not: t.when.not, states };
       delete t.when;
     }
-  return { regions, nevers };
+  return { regions, neverRules };
 }
 
 function guardHolds(guard, at) {

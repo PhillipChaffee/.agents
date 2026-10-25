@@ -137,7 +137,7 @@ function splitRules(cfg) {
     if (KEYWORD.test(w)) section = w;
     const list = /^INVARIANTS?$/.test(section)
       ? rules
-      : /^PROPERT(Y|IES)$/.test(section)
+      : /^(PROPERTY|PROPERTIES)$/.test(section)
         ? properties
         : null;
     if (!list) kept.push(KEYWORD.test(w) && kept.length ? `\n${w}` : w);

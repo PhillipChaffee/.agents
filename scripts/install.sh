@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Sync kit content from this repo (canonical) into ~/.agents (the .agents
 # protocol layout). Non-destructive by default; manages only paths listed in
-# its own stamp manifest.
+# its own stamp manifest. A skill ships every file under its directory
+# (playbooks, references, and the scripts some skills run), not only markdown.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -91,7 +92,7 @@ build_mapping() {
 			skills/*/SKILL.md) continue ;;
 			esac
 			printf 'skills/%s/%s\tskills/%s/%s\n' "$id" "$rel" "$id" "$rel"
-		done < <(cd "$skill_dir" && find . -type f -name '*.md' ! -name 'SKILL.md' | sed 's|^\./||')
+		done < <(cd "$skill_dir" && find . -type f ! -name 'SKILL.md' ! -name '.DS_Store' ! -path '*/node_modules/*' | sed 's|^\./||' | LC_ALL=C sort)
 	done
 	for f in agents/*/; do
 		id=$(basename "$f")
@@ -183,6 +184,11 @@ copy_one() {
 	else
 		mkdir -p "$(dirname "$dest_abs")"
 		cp "$src_abs" "$dest_abs"
+		# cp keeps a pre-existing destination's mode, so a skill script that
+		# gained its executable bit after first install still runs.
+		if [ -x "$src_abs" ]; then
+			chmod +x "$dest_abs"
+		fi
 		echo "$action $dest"
 	fi
 	return 0

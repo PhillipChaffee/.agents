@@ -19,3 +19,11 @@ retruns = "retruns"
 # GNU grep's PCRE flags in the typescript folder's bidi-hygiene step
 # (grep -rPn); typos reads it as a misspelling of "On"
 Pn = "Pn"
+
+# Identifiers quoted verbatim from the 3b1b/videos source in the hand-off
+# evidence maps (docs/superpowers/handoffs/); they report his spellings, they
+# do not make them. Remove with that folder.
+propogation = "propogation"
+comparrison = "comparrison"
+ouptut = "ouptut"
+divy = "divy"

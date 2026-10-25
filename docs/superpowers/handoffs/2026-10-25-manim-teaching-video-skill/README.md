@@ -169,8 +169,8 @@ ones; the proposal's "Revision notes" section records how each was resolved.
 
 ### Decisions the proposal needs from the owner
 
-The proposal's recommendation is in parentheses. Answers given so far are
-recorded here; the rest are collected at step 5.
+The proposal's recommendation is in parentheses. The owner's answers so far
+are recorded under "Owner answers" below; the rest are collected at step 5.
 
 1. Corpus tooling location: separate MIT repository `manim-3b1b-corpus`
    (recommended) versus a `tools/` directory inside the kit.
@@ -193,6 +193,51 @@ recorded here; the rest are collected at step 5.
 9. Description style: the kit's own style (capability plus trigger phrases,
    no workflow summary) rather than the writing-skills "triggers only" rule;
    a conscious deviation the owner should confirm.
+
+### Owner answers and change requests (2026-10-25, first session)
+
+Answered:
+
+- Decision 5: analyze all eight videos before the skill ships, not two.
+- Decision 6: 1080p `standard` is the ceiling for v1; no 4K tier.
+- Decision 7: add the one CI line that runs the bundled scripts' self-test.
+- Decision 8: option A. Analyses never enter the kit.
+- Decision 2, revised: keep the keyframes and transcripts. Download the eight
+  videos, extract keyframes, and store them with the transcripts in the
+  private corpus repository, never in the kit. The owner is concerned that
+  the skill's output will be worse without frames and transcript examples
+  available, and asked for an experiment (below).
+
+New constraints from the owner:
+
+- Nothing generated during this design work goes into the kit: no
+  `docs/research/`, no ADR, no design or hand-off documents. Consumers of the
+  kit do not need them. This hand-off folder is temporary and must be removed
+  from the branch before any pull request to `main`; the research, design
+  proposal, spec and implementation plan live in the corpus repository
+  instead (the brainstorming skill's spec location is overridden
+  accordingly). The kit receives only the skill directory, the installer and
+  validator changes, the CI line, the README skills row and a CHANGELOG entry.
+- Skill authoring follows the superpowers `writing-skills` method only
+  (baseline subagent pressure tests, RED/GREEN/REFACTOR). The Anthropic
+  `skill-creator` eval scripts are not used. This likely also resolves
+  decision 9 toward the writing-skills description rule (triggers only);
+  confirm with the owner.
+
+Experiment requested (fold into the spec and plan): measure whether giving
+the run-time roles exemplars (keyframe contact sheets and transcript excerpts
+from the corpus, chosen per technique) produces better videos than the rules,
+pattern helpers and rubric alone. Three arms on the same fixed prompts at the
+draft tier: no skill; skill without exemplars; skill with an exemplar pack
+loaded by the storyboarder and the frame critic. Score blind with the rubric
+and by the owner's review of contact sheets. If exemplars win, the public kit
+still cannot ship his frames, so the skill reads an optional local exemplar
+directory (for example an `MTV_EXEMPLARS` path pointing into the private
+corpus checkout) and the owner's installs get the exemplars while the public
+skill ships rules and original examples only.
+
+Still open: decisions 1, 3, 4 and 9. The owner asked how decision 1 (the
+separate corpus repository) works before confirming it.
 
 ## Contents of this folder
 

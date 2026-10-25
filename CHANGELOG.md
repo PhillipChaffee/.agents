@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+Added `setup-repository` for repository initialization and working-rule adoption.
+
+- Reuses canonical language initializers and tracker/domain skills, with bundled
+  working rules, public source rationale, and a separate behavioral test record
+- Installer smoke tests compare the installed skill and both nested references
+  against their source files
+
 Stripped the owner's work stack from the review Agents (#22).
 
 - The seven domain-review Agents (`cr-architecture`, `cr-correctness`,

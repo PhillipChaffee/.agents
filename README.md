@@ -59,12 +59,13 @@ The pieces his set doesn't ship, by what they get you in the flow:
 
 ### What's inside
 
-#### Skills (2)
+#### Skills (3)
 
 | Skill | What it does |
 | --- | --- |
 | `code-review` | Two-tier review: standard = two-axis (Standards + Spec); deep = specialist panel + verifier + walkthrough + applied fixes |
 | `research` | Tiered research: direct answers, background research, or a full research→synthesis pipeline; Tier 2/3 write a cited file to `docs/research/` for the main flow to consume |
+| `setup-repository` | Coordinate canonical language initializers and project working rules, with source revisions, read conditions, and validation evidence |
 
 #### Sub-agents (16)
 

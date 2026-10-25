@@ -21,6 +21,9 @@ jobs:
           HOME="$SBX" ./scripts/install.sh --target agents >/dev/null
           test -f "$SBX/.agents/skills/code-review/skill.md"
           test -f "$SBX/.agents/skills/research/skill.md"
+          cmp skills/setup-repository/SKILL.md "$SBX/.agents/skills/setup-repository/skill.md"
+          cmp skills/setup-repository/references/working-rules.md "$SBX/.agents/skills/setup-repository/references/working-rules.md"
+          cmp skills/setup-repository/references/research.md "$SBX/.agents/skills/setup-repository/references/research.md"
           test -f "$SBX/.agents/agents/cr-security/agent.md"
           test -f "$SBX/.agents/rules/look-it-up.md"
           test -f "$SBX/.agents/agents.md"

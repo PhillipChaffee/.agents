@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+Added `setup-repository` for repository initialization and literal rule installation.
+
+- Installs maintained source text word for word, with whole-file and marked-block
+  ownership, conflict approval, and byte-idempotent repeat installation
+- Bundles four TXT payloads with pinned hashes and a source record, replacing
+  the paraphrased working-rules reference
+- Extends skill support-file installation to TXT and tests packaged and installed
+  payload hashes alongside the installer smoke comparisons
+
 Stripped the owner's work stack from the review Agents (#22).
 
 - The seven domain-review Agents (`cr-architecture`, `cr-correctness`,

@@ -59,12 +59,13 @@ The pieces his set doesn't ship, by what they get you in the flow:
 
 ### What's inside
 
-#### Skills (2)
+#### Skills (3)
 
 | Skill | What it does |
 | --- | --- |
 | `code-review` | Two-tier review: standard = two-axis (Standards + Spec); deep = specialist panel + verifier + walkthrough + applied fixes |
 | `research` | Tiered research: direct answers, background research, or a full research→synthesis pipeline; Tier 2/3 write a cited file to `docs/research/` for the main flow to consume |
+| `setup-repository` | Install maintained rule payloads word for word, with conflict approval and byte comparisons, after canonical initialization for new repositories |
 
 #### Sub-agents (16)
 
@@ -110,6 +111,10 @@ default: it manages only the paths in its own stamp manifest, skips unstamped
 files that differ (use `--force`), and supports `--dry-run`, `--prune`,
 `--uninstall`, and `--pull` (reverse-sync edits from the target back into the
 repo).
+
+Skill support files include nested Markdown references and literal TXT payloads.
+`setup-repository` places those payloads in project guides and marked instruction
+blocks when invoked, with a preflight of all destinations before rule writes.
 
 On install you choose your harness's fast/main/deep models and the installer
 writes a consumer-local `models.json` beside the kit — the kit itself pins no

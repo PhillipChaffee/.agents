@@ -1,4 +1,4 @@
-### Multi-phase or multi-PR plan
+# Multi-phase or multi-PR plan
 
 **You own the plan, not the code. The plan is a checklist an owner runs box by box and the operator audits from the evidence.** The plan is the deliverable. Do not implement.
 

@@ -106,8 +106,10 @@ Container of the first session:
    with at least: `www.youtube.com`, `youtube.com`, `*.googlevideo.com`,
    `i.ytimg.com`, `www.3blue1brown.com`, `docs.manim.community`, `3b1b.github.io`,
    `github.com`, `raw.githubusercontent.com`, `huggingface.co`,
-   `cdn-lfs.huggingface.co`, with the package-managers box ticked. Hugging Face hosts
-   the Whisper and local text-to-speech model downloads.
+   `cdn-lfs.huggingface.co`, `storage.googleapis.com`, with the package-managers box
+   ticked. Hugging Face hosts the Whisper and local text-to-speech model downloads;
+   the Google storage bucket hosts the 3blue1brown.com lesson figures the corpus
+   pipeline fetches.
 2. Verify before any network-dependent work:
 
    ```bash

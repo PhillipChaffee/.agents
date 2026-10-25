@@ -236,8 +236,24 @@ directory (for example an `MTV_EXEMPLARS` path pointing into the private
 corpus checkout) and the owner's installs get the exemplars while the public
 skill ships rules and original examples only.
 
-Still open: decisions 1, 3, 4 and 9. The owner asked how decision 1 (the
-separate corpus repository) works before confirming it.
+Answered later the same day: decision 1, separate corpus repository, created by
+the owner as PRIVATE at <https://github.com/PhillipChaffee/manim-3b1b-corpus>
+(the amended design said public; private is the owner's choice, and its only
+effects are that the status badges cannot render and that others cannot
+rebuild the corpus without access). Decision 3, inlined roles. Decision 4,
+LaTeX as a hard requirement. Decision 9, triggers-only description per
+writing-skills. Method: superpowers writing-skills only; neither Anthropic's
+skill-creator nor Matt Pocock's writing-for-agents is used.
+
+Corpus repository state at hand-off: bootstrapped per full-lint's
+`init-python-repo` skill (package `corpus_tools`, tests at 100 percent branch
+coverage, pinned tools, hash-locked requirements, CI and nightly mutation
+workflows, hygiene configs), with the design material under `docs/design/`.
+CI is green on `main`. Two template fixes were needed and are worth carrying
+back to full-lint's `python/ci.yml`: the two jobs shared one concurrency group
+with cancel-in-progress, so the second job to start cancelled the first, and
+`github.job` is not available in a job-level concurrency expression; the fix
+is a workflow-level `concurrency` block. Badges are omitted for a private repo.
 
 ## Contents of this folder
 

@@ -29,6 +29,11 @@ Local inputs inspected:
 - The public Google Cloud Storage bucket that hosts the site's lesson assets
   (HTTP 200 on object GET and on XML listing; see section 2).
 
+Gate status of this file on 2026-10-25: `markdownlint-cli2` 0.18.1 with the
+kit's `.markdownlint-cli2.jsonc` reports 0 errors, `typos` with the kit's
+`.typos.toml` is clean, and `lychee` is not installed in this container, so
+link targets were checked with `curl` instead (section 7, item 10).
+
 ## 1. Video list
 
 The canonical ordering is the `neural-networks` entry of
@@ -43,7 +48,10 @@ frontmatter fields of `app/pages/lessons/<year>/<slug>/index.mdx`; the
 into a link to `3b1b/videos` (`Lesson.tsx`, the `source` link block).
 Durations are **third-party** (minute-rounded figures from course and
 episode listings surfaced by WebSearch) and must be confirmed with
-`yt-dlp --print duration` once YouTube is reachable.
+`yt-dlp --print duration` once YouTube is reachable. A WebSearch retry on
+2026-10-25 surfaced no duration for either 2026 video, and a WebFetch of a
+YouTube watch page failed with a DNS error (`ENOTFOUND www.youtube.com`),
+so those two stay unverified.
 
 | # | Slug | Site title (frontmatter) | YouTube ID | Date | Duration | `source:` |
 | --- | ------ | -------------------------- | ------------ | ------ | ---------- | ----------- |
@@ -157,6 +165,8 @@ lesson, optionally with `patrons.txt` and lesson-specific components
 The public URL of a lesson is `/lessons/<slug>` on the site host; the route
 is derived in `react-router.config.ts` (lines 15-24) by capturing
 `lessons/20[0-9][0-9]/(.*)/index.mdx`, so the year is not part of the URL.
+WebSearch result listings (third-party) show live addresses of exactly that
+form for `cross-entropy`, `entropy` and `diffusion-models`.
 
 ### Frontmatter schema
 
@@ -186,6 +196,14 @@ credits:
 `lessons.ts` lines 32-58 derive `year` from `date` and the card image from
 the video ID (through `getThumbnail` in `app/components/YouTube.tsx`, which
 builds the YouTube `maxresdefault.jpg` thumbnail URL from the ID).
+
+Parser notes (verified by grep over the twelve frontmatters): `date:` is a
+bare YAML date in the 2017 and 2024 lessons but a quoted string in both 2026
+lessons (`2026/entropy/index.mdx` line 4, `2026/cross-entropy/index.mdx`
+line 4); `chapter:` appears only in the 2017 lessons; `video:` is absent from
+`neural-network-analysis`; and `source:` names a file for 2017 but a
+directory for 2024 and 2026. A pipeline must read `date` as a string and
+treat `video`, `chapter` and `source` as optional.
 
 ### Transcripts
 
@@ -686,7 +704,11 @@ video ID, and record its content hashes in the committed manifest.
     hosts, 3blue1brown.com, docs.manim.community, 3b1b.github.io, and every
     third-party page WebFetch tried (DNS resolution failed through the
     proxy). Reachable: GitHub over git and raw.githubusercontent.com, PyPI,
-    storage.googleapis.com.
+    storage.googleapis.com. Plain `github.com` web pages answer HTTP 403
+    through the proxy even though `git ls-remote` and `git clone` to the
+    same repositories succeed, so the repository links in Sources could only
+    be checked by git here; the raw, PyPI and bucket links all returned 200
+    to `curl`.
 
 ## Appendix A: scene class inventory
 

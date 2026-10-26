@@ -24,6 +24,12 @@ STAGES: tuple[str, ...] = (
     "render.draft", "frames", "render.standard", "assemble", "verify",
 )
 
+# The digest of the generated lesson.py beside lesson.json, which load adds to the lesson and
+# save leaves out, so it is never part of the file. The fix loop edits only that file, and every
+# stage from render.draft on reads it, so it stands among their fields: a resume then renders
+# an edit that a run stopped before rendering, or whose render failed.
+SCENES_FILE_SHA256 = "lesson_py_sha256"
+
 # The dotted fields each stage reads; "scenes[].x" is the field of every scene and "beats[].x"
 # that of every beat. An entry naming a stage stands for all of that stage's fields, so a field
 # added to an early stage reaches every later stage's hash without being copied into each row.
@@ -43,7 +49,7 @@ _STAGE_READS: dict[str, tuple[str, ...]] = {
     ),
     "narrate": ("provider", "voice", "beats[].id", "beats[].narration", "beats[].marks"),
     "scenes": ("storyboard", "seed"),
-    "render.draft": ("scenes", "beats[].audio", "beats[].duration_s", "beats[].marks_s"),
+    "render.draft": ("scenes", SCENES_FILE_SHA256, "beats[].audio", "beats[].duration_s", "beats[].marks_s"),
     "frames": ("render.draft",),
     # Both renders read the same fields; which tier to render comes from the command line.
     "render.standard": ("render.draft",),
@@ -62,17 +68,27 @@ def _expand(stage: str) -> tuple[str, ...]:
 STAGE_FIELDS: dict[str, tuple[str, ...]] = {stage: _expand(stage) for stage in STAGES}
 
 
+def scenes_file(lesson_path: Path) -> Path:
+    """The generated lesson.py: no CLI names it, so it is the file the run directory layout puts
+    beside lesson.json."""
+    return Path(lesson_path).resolve().parent / "lesson.py"
+
+
 def load(path: Path) -> dict:
-    """Read a lesson, giving every beat whose ``tail_s`` is absent or null its default hold."""
+    """Read a lesson, giving every beat whose ``tail_s`` is absent or null its default hold and
+    the lesson its ``SCENES_FILE_SHA256``, None when no generated lesson.py is beside it."""
     lesson = common.load_json(path)
     for scene, beat in beats(lesson):
         if beat.get("tail_s") is None:
             beat["tail_s"] = common.LAST_TAIL_S if beat is scene["beats"][-1] else common.DEFAULT_TAIL_S
+    if isinstance(lesson, dict):
+        scenes_py = scenes_file(path)
+        lesson[SCENES_FILE_SHA256] = common.sha256_file(scenes_py) if scenes_py.is_file() else None
     return lesson
 
 
 def save(lesson: dict, path: Path) -> None:
-    common.dump_json(lesson, path)
+    common.dump_json({key: value for key, value in lesson.items() if key != SCENES_FILE_SHA256}, path)
 
 
 def beats(lesson: dict) -> Iterator[tuple[dict, dict]]:

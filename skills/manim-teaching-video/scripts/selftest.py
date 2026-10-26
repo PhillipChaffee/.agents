@@ -534,6 +534,27 @@ class TestLessonStages(unittest.TestCase):
         lesson["scenes"][0]["beats"][0]["marks"]["reveal"] = 8
         self.assertTrue(mtv_lesson.needs_rerun(lesson, "storyboard"))
 
+    def test_scenes_file_edit_reruns_render_stages(self):
+        # The fix loop (spec 6.6 step 8) edits only the generated lesson.py, so a resume must see
+        # that edit in the render stages' hash, though the digest never reaches lesson.json.
+        self.assertIsNone(mtv_lesson.load(ASSETS_DIR / "lesson.example.json")[mtv_lesson.SCENES_FILE_SHA256])
+        scratch = Scratch()
+        self.addCleanup(scratch.cleanup)
+        lesson_path = example_run_dir(scratch.path) / "lesson.json"
+        scenes_py = lesson_path.parent / "lesson.py"
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE)
+        lesson = mtv_lesson.load(lesson_path)
+        for stage in mtv_lesson.STAGES:
+            mtv_lesson.mark_done(lesson, stage, {})
+        mtv_lesson.save(lesson, lesson_path)
+        self.assertNotIn(mtv_lesson.SCENES_FILE_SHA256, common.load_json(lesson_path))
+        lesson = mtv_lesson.load(lesson_path)
+        self.assertEqual([stage for stage in mtv_lesson.STAGES if mtv_lesson.needs_rerun(lesson, stage)], [])
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE + "# fix pass\n")
+        lesson = mtv_lesson.load(lesson_path)
+        self.assertEqual([stage for stage in mtv_lesson.STAGES if mtv_lesson.needs_rerun(lesson, stage)],
+                         ["render.draft", "frames", "render.standard", "assemble", "verify"])
+
     def test_bump_counters(self):
         lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
         self.assertEqual(mtv_lesson.bump(lesson, "script_retries"), 1)
@@ -857,13 +878,18 @@ class TestRender(ExampleLessonCase):
         cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         before = mtv_lesson.load(self.lesson_path)
+        # The fix loop edits lesson.py before it re-renders the scene (spec 6.6 step 8).
+        scenes_py = self.run_dir / "lesson.py"
+        scenes_py.write_text(scenes_py.read_text() + "# fix pass\n")
         cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
                         env={**self.env, "MTV_FAKE_FAIL": "1"})
         self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
         after = mtv_lesson.load(self.lesson_path)
         # A failed render writes no render block and leaves the earlier stage, so s01's beats now
-        # name videos that are gone, while s02, which was not re-rendered, keeps its own.
+        # name videos that are gone, while s02, which was not re-rendered, keeps its own. The kept
+        # stage no longer matches, because its hash covers lesson.py, so a resume renders again.
         self.assertEqual((after["stages"], after["scenes"]), (before["stages"], before["scenes"]))
+        self.assertTrue(mtv_lesson.needs_rerun(after, "render.draft"))
         s01, s02 = (self.run_dir / "render" / "draft" / scene_id for scene_id in ("s01", "s02"))
         self.assertEqual(sorted(path.name for path in s01.iterdir() if path.is_file()), ["render.log", "run.log"])
         self.assertTrue((s02 / "sections.json").exists())

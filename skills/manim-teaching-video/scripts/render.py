@@ -33,12 +33,6 @@ def _config_file(tier: str) -> Path:
     return SKILL_DIR / "assets" / f"manim.cfg.{tier}"
 
 
-def _scenes_file(lesson_path: Path) -> Path:
-    # No CLI names the generated scenes file, so it is the one the run directory layout puts
-    # beside lesson.json.
-    return lesson_path.resolve().parent / "lesson.py"
-
-
 def scene_command(lesson_py: Path, scene_class: str, cfg: Path, media_dir: Path, disable_caching: bool) -> list[str]:
     # CE options: --config_file and --disable_caching (manim/cli/render/global_options.py:60-70),
     # --save_sections (render_options.py:260), --media_dir (output_options.py:24). Every option
@@ -187,7 +181,7 @@ def render_scene(lesson: dict, lesson_path: Path, scene: dict, tier: str, hang_t
     out_dir = run_dir / "render" / tier / scene["id"]
     media_dir = out_dir / "media"
     render_log, run_log = out_dir / "render.log", out_dir / "run.log"
-    lesson_py, env = _scenes_file(lesson_path), scene_env(SCRIPTS_DIR, run_log, lesson_path)
+    lesson_py, env = mtv_lesson.scenes_file(lesson_path), scene_env(SCRIPTS_DIR, run_log, lesson_path)
 
     def attempt(disable_caching: bool) -> tuple[int | None, float]:
         # A retried scene must not keep the hung attempt's beat lines.
@@ -321,8 +315,8 @@ def main(argv: list[str] | None = None) -> int:
         return common.usage_error("manim is not on PATH; activate the venv that has ManimCE")
     if not _config_file(args.tier).exists():
         return common.usage_error(f"config file missing: {_config_file(args.tier)}")
-    if not _scenes_file(args.lesson).exists():
-        return common.usage_error(f"scenes file missing: {_scenes_file(args.lesson)}")
+    if not mtv_lesson.scenes_file(args.lesson).exists():
+        return common.usage_error(f"scenes file missing: {mtv_lesson.scenes_file(args.lesson)}")
     start = time.monotonic()
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         outcomes = pool.map(

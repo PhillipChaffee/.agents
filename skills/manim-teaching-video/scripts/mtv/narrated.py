@@ -26,6 +26,15 @@ except ImportError:
     # The self-test drives the mixin through a stand-in scene where ManimCE is absent.
     MANIM_AVAILABLE = False
 
+# Of a frame. CE's clock is a running sum of 1/fps steps (CE manim/renderer/cairo_renderer.py:210),
+# whose float noise (5e-15 s in a real draft) stays far below it.
+FRAME_SLACK = 1e-6
+
+
+def _frames_to_reach(t_s: float, fps: float) -> int:
+    """The whole frames it takes to reach ``t_s``; a time within float noise of a frame boundary is on it."""
+    return math.ceil(t_s * fps - FRAME_SLACK)
+
 
 @dataclass
 class Beat:
@@ -48,8 +57,14 @@ class Beat:
         return max(self.marks_s[mark] - lead - (self.clock() - self.enter_s), 1 / self.fps)
 
     def remaining(self) -> float:
-        """The run time left until the beat's narration and tail end."""
-        return max(self.target_end - self.clock(), 1 / self.fps)
+        """The run time that ends an animation on the first frame at or after the beat's narration and tail end."""
+        frames = max(_frames_to_reach(self.target_end - self.clock(), self.fps), 1)
+        # CE draws one frame per np.arange(0, run_time, 1/fps) step (CE manim/scene/scene.py:1128-1129),
+        # where a whole number of frames can divide out a hair above itself (23/15 s draws 24 frames
+        # at 15 fps); half a frame short draws exactly ``frames``. A single frame divides exactly, and
+        # CE warns below it (1158-1165). A static wait rounds down instead
+        # (CE manim/renderer/cairo_renderer.py:221-225), ending a frame early, which the exit pad fills.
+        return max(frames - 0.5, 1) / self.fps
 
 
 class NarratedMixin:
@@ -99,7 +114,9 @@ class NarratedMixin:
         # Not in a try/finally: a beat whose body raised is neither padded nor logged, so
         # render.py finds it missing and surfaces the traceback.
         yield timing
-        overrun_s = max(self.time - timing.target_end, 0.0)
+        # CE's clock moves in whole frames, so a beat ends no sooner than the first frame at or after
+        # its target, where a body ending on b.remaining() lands: only time past that frame overruns.
+        overrun_s = max(self.time - _frames_to_reach(timing.target_end, fps) / fps, 0.0)
         self.wait(max(timing.target_end - self.time, 1 / fps))  # CE manim/scene/scene.py:1242-1283
         if self._mtv_run_log:
             # Opened per beat so each line lands at once; render.py's hang detector watches it grow.

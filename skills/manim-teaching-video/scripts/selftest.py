@@ -1125,6 +1125,31 @@ class TestNarratedMixin(ExampleLessonCase):
             self.assertLess(abs(line["exit_s"] - target_end), 1 / 15 + 1e-9)
         self.assertEqual(lines[-1]["exit_s"], scene.time)
 
+    def test_body_ending_on_remaining_logs_no_overrun(self):
+        # Synthesized audio leaves a beat's end off the frame grid and CE's clock gathers float
+        # noise, yet a body that ends on b.remaining() is on time, so report.md lists no overrun.
+        # play stands for any animation, and for a wait with updaters live, which CE draws alike.
+        lesson = mtv_lesson.load(self.lesson_path)
+        beats = lesson["scenes"][0]["beats"]  # tails 0.4, 0.4 and the scene-closing 1.0
+        durations = [round(0.5 + 0.05 * i, 2) for i in range(231)]  # 0.5 s to 12.0 s
+        run_log = Path(os.environ["MTV_RUN_LOG"])
+        for fps in (15.0, 30.0):
+            for i in range(0, len(durations), len(beats)):
+                for beat, duration_s in zip(beats, durations[i:]):
+                    beat["duration_s"] = duration_s
+                mtv_lesson.save(lesson, self.lesson_path)
+                run_log.unlink(missing_ok=True)
+                scene = FrameClockScene()
+                scene.frame_rate = fps
+                scene.load_lesson("s01", self.lesson_path)
+                for n, beat in enumerate(beats):
+                    with scene.beat(beat["id"]) as b:
+                        if n % 2:
+                            scene.play(0.5)
+                        scene.play(b.remaining())
+                for line in map(json.loads, run_log.read_text().splitlines()):
+                    self.assertLess(line["overrun_s"], 1e-9, (fps, line))
+
     def test_cached_rerender_keeps_run_log_on_the_section_index(self):
         # A re-render reuses CE's cached segments, whose clock advances by exact run times while
         # the reused files hold whole frames; the run log must still match the index the sync gate

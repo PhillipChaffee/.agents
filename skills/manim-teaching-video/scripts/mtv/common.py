@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -269,12 +270,23 @@ def run_cmd(
     env: dict[str, str] | None = None,
     cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    completed = subprocess.run(argv, capture_output=True, text=True, env=env, cwd=cwd, check=False)
+    # On an inherited stdin a child reads input piped to this process (ffmpeg takes it as
+    # interactive keys) and stops a background job; manim prompts on it for a missing class.
+    completed = subprocess.run(
+        argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, env=env, cwd=cwd, check=False
+    )
     if log_path is not None:
         with open(log_path, "a", encoding="utf-8") as log:
             log.write(completed.stdout)
             log.write(completed.stderr)
     return completed
+
+
+def scripts_pythonpath(scripts_dir: Path) -> str:
+    """PYTHONPATH for a manim process that runs a generated scenes file: ``scripts_dir`` first, so
+    that a scene's "from mtv..." imports this skill's package, then the inherited entries."""
+    inherited = os.environ.get("PYTHONPATH", "").split(os.pathsep)
+    return os.pathsep.join([str(scripts_dir), *(part for part in inherited if part and part != str(scripts_dir))])
 
 
 def ffprobe_json(path: Path) -> dict:
@@ -298,8 +310,9 @@ def load_valid_lesson(path: Path) -> tuple[dict, list[str]]:
 
     try:
         lesson = lesson_module.load(path)
+    # load also reads the lesson.py beside the lesson, which the error names when it is the one.
     except OSError as exc:
-        return {}, [f"cannot read {path}: {exc.strerror or exc}"]
+        return {}, [f"cannot read {exc.filename or path}: {exc.strerror or exc}"]
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         return {}, [f"cannot read {path}: {exc}"]
     return lesson, lesson_module.validate(lesson)
@@ -314,6 +327,10 @@ class ErrorRow(NamedTuple):
     ce_replacement: str
     fix_text: str
 
+
+# CE raises f"{compiler} error converting to ..." (manim/utils/tex_file_writing.py:218-219), and
+# the one math engine is latex; the error table and verify.py's latex gate both look for it.
+LATEX_ERROR = "latex error converting to"
 
 # Each pattern is the message text ManimCE 0.22.0 writes at the cited line, so a CE upgrade
 # that rewords a message needs that row checked. Order matters only where one log could
@@ -417,7 +434,7 @@ ERROR_TABLE: tuple[ErrorRow, ...] = (
     ),
     # manim/utils/tex_file_writing.py:215-224
     ErrorRow(
-        re.compile(r"latex error converting to"),
+        re.compile(re.escape(LATEX_ERROR)),
         "LaTeX absent, a missing package or a bad formula",
         "fix the formula; a missing package is added only in look.py",
         "Fix the formula, and when the log names a missing LaTeX package, add it only in look.py, never in a scene.",
@@ -426,7 +443,7 @@ ERROR_TABLE: tuple[ErrorRow, ...] = (
     ErrorRow(
         re.compile(r"dvisvgm.*(not found|at least version 2\.4)"),
         "dvisvgm missing or older than 2.4",
-        "install dvisvgm (the D13 package)",
+        "install the dvisvgm system package, 2.4 or newer",
         "Install the dvisvgm system package, version 2.4 or newer, then rerun preflight.py before rendering again.",
     ),
     # manim/mobject/text/text_mobject.py:490 logs this as a warning, which match_error skips, so

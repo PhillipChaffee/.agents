@@ -28,9 +28,6 @@ from mtv import lesson as mtv_lesson
 
 MISSING = "missing"
 UNREADABLE = "unreadable"
-# CE raises f"{compiler} error converting to ..." (manim/utils/tex_file_writing.py:218-219),
-# and the one math engine is latex.
-LATEX_ERROR = "latex error converting to"
 RUBRIC_MAX = 32  # sixteen items scored 0 to 2
 SAMPLE_EVERY_S = 10
 # 3b1b-style lessons sit on near-black backgrounds, so a frame mean under spec 6.12's 8 of 255 is
@@ -230,7 +227,7 @@ def index_coverage(lesson: dict, run_dir: Path, tier: str) -> list[GateResult]:
 
 def latex_error(lesson: dict, run_dir: Path, tier: str) -> list[GateResult]:
     logs = sorted((run_dir / "render" / tier).glob("*/render.log"))
-    failing = sum(LATEX_ERROR in log.read_text(encoding="utf-8", errors="replace") for log in logs)
+    failing = sum(common.LATEX_ERROR in log.read_text(encoding="utf-8", errors="replace") for log in logs)
     return [GateResult("latex error", failing, None, failing == 0)]
 
 

@@ -109,7 +109,8 @@ def example_run_dir(parent: Path) -> Path:
 # the failing path with a scenes file that is otherwise clean. Its render writes what CE's
 # --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
 # MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
-# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang, or real MP4s;
+# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang (=1 until the
+# --disable_caching retry, =always on every attempt), or real MP4s;
 # MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit.
 FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
 import ast
@@ -139,7 +140,8 @@ if scene_class not in {node.name for node in ast.parse(lesson_py.read_text()).bo
     sys.exit("There are no scenes inside that module")
 if os.environ.get("MTV_FAKE_FAIL") == "1":
     sys.exit("TypeError: Passing Mobject methods to Scene.play is no longer supported. Use Mobject.animate instead.")
-if os.environ.get("MTV_FAKE_HANG") == "1" and "--disable_caching" not in argv:
+hang = os.environ.get("MTV_FAKE_HANG")
+if hang == "always" or (hang == "1" and "--disable_caching" not in argv):
     time.sleep(30)
 lesson = json.loads(Path(os.environ["MTV_LESSON"]).read_text())
 beats = next(scene for scene in lesson["scenes"] if scene["scene_class"] == scene_class)["beats"]
@@ -421,16 +423,12 @@ class ScratchCase(unittest.TestCase):
         self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
 
 
-class ExampleLessonCase(unittest.TestCase):
+class ExampleLessonCase(ScratchCase):
     """Gives each test its own run directory holding the example lesson, under one class scratch."""
 
-    @classmethod
-    def setUpClass(cls):
-        cls.scratch = Scratch()
-        cls.addClassCleanup(cls.scratch.cleanup)
-
     def setUp(self):
-        self.run_dir = example_run_dir(self.scratch.path)
+        super().setUp()
+        self.run_dir = example_run_dir(self.work_dir)
         self.lesson_path = self.run_dir / "lesson.json"
 
 
@@ -782,6 +780,69 @@ class TestLessonSchema(unittest.TestCase):
             "s02-b03: marks must be an object",
         ])
 
+    def test_every_other_error_string(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        s01, s02 = lesson["scenes"]
+        lesson.update(schema="mtv-lesson/0", seed=True, colors={"cost": "CRIMSON"})
+        s01.update(opening_state="fade", scene_class="class")
+        s01["beats"][1]["id"] = "s02-b02"
+        s01["beats"][2]["tail_s"] = -0.1
+        s02["beats"][0]["marks"] = {"value": "3"}
+        self.assertEqual(mtv_lesson.validate(lesson), [
+            "schema is 'mtv-lesson/0', expected 'mtv-lesson/1'",
+            "seed must be an integer",
+            "colors['cost'] = 'CRIMSON' is not a ManimCE color name",
+            "s01: opening_state 'fade' not in OPENING_STATES",
+            "s01: scene_class 'class' is not a Python identifier",
+            "s02-b02: id does not match s01-bNN",
+            "s01-b03: tail_s must be a non-negative number",
+            "s02-b01: marks['value'] = '3' past the word count 15",
+            "s02-b02: duplicate beat id",
+        ])
+        with self.assertRaises(KeyError):
+            mtv_lesson.scene_by_id(lesson, "s09")
+        scene, beat = mtv_lesson.beat_index(lesson)["s02-b03"]
+        self.assertEqual((scene["id"], beat["marks"]["picture"]), ("s02", 32))
+
+    def test_ids_and_mark_names_are_file_name_safe(self):
+        # Scene ids name render and frame directories, and beat ids and mark names name the files
+        # in them; frames.py writes <beat>-first.png and <beat>-last.png beside <beat>-<mark>.png.
+        def errors(edit) -> list[str]:
+            lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+            edit(lesson)
+            return mtv_lesson.validate(lesson)
+
+        def rename_scene(lesson: dict, i: int, scene_id: str, first_beat: int = 1) -> None:
+            scene = lesson["scenes"][i]
+            scene["id"] = scene_id
+            for n, beat in enumerate(scene["beats"], first_beat):
+                beat["id"] = f"{scene_id}-b{n:02d}"
+
+        self.assertEqual(errors(lambda l: l["scenes"][0]["beats"][0].update(id="s01-b\u0660\u0661")),
+                         ["s01-b\u0660\u0661: id does not match s01-bNN"])
+        self.assertEqual(errors(lambda l: rename_scene(l, 0, "intro")), ["intro: id does not match sNN"])
+        self.assertEqual(errors(lambda l: rename_scene(l, 0, "")), ["scenes[0]: id does not match sNN"])
+        # Renumbered beats keep the beat ids unique, so only the scene id repeats.
+        self.assertEqual(errors(lambda l: rename_scene(l, 1, "s01", first_beat=4)), ["s01: duplicate scene id"])
+        marks = {"last": 1, "first": 2, "a/b": 3, "\u00e9": 4, "ok.mark_2-x": 5}
+        self.assertEqual(errors(lambda l: l["scenes"][0]["beats"][0].update(marks=marks)), [
+            "s01-b01: mark name 'last' is taken by the beat's last frame",
+            "s01-b01: mark name 'first' is taken by the beat's first frame",
+            "s01-b01: mark name 'a/b' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'",
+            "s01-b01: mark name '\u00e9' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'",
+            "s01-b01: lands mark 'reveal' not in marks",
+        ])
+
+    def test_unreadable_scenes_file_is_the_file_named(self):
+        # load hashes the generated lesson.py beside lesson.json, so a failure to read it must
+        # name that file, not the lesson.
+        lesson_path = example_run_dir(self.scratch.path) / "lesson.json"
+        scenes_py = mtv_lesson.scenes_file(lesson_path)
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE)
+        denied = PermissionError(13, "Permission denied", str(scenes_py))
+        with mock.patch.object(common, "sha256_file", side_effect=denied):
+            self.assertEqual(common.load_valid_lesson(lesson_path), ({}, [f"cannot read {scenes_py}: Permission denied"]))
+
 
 class TestLessonStages(unittest.TestCase):
     def test_stage_inputs_change_only_with_read_fields(self):
@@ -822,6 +883,14 @@ class TestLessonStages(unittest.TestCase):
         lesson = mtv_lesson.load(lesson_path)
         self.assertEqual([stage for stage in mtv_lesson.STAGES if mtv_lesson.needs_rerun(lesson, stage)],
                          ["render.draft", "frames", "render.standard", "assemble", "verify"])
+
+    def test_stage_rows_expand_their_parent_stages(self):
+        # verify's row names only assemble, which reaches brief through render.draft and its parents.
+        verify_fields = mtv_lesson.STAGE_FIELDS["verify"]
+        self.assertLessEqual({"schema", "seed", "beats[].narration", "beats[].marks", "beats[].audio",
+                              mtv_lesson.SCENES_FILE_SHA256, "tier"}, set(verify_fields))
+        self.assertFalse(set(verify_fields) & set(mtv_lesson.STAGES))
+        self.assertEqual(len(verify_fields), len(set(verify_fields)))
 
     def test_bump_counters(self):
         lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
@@ -1614,6 +1683,20 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertFalse(checks["pass"])
         self.assertIn("ValueError: S01BadThing failed its dry run", cp.stdout)
 
+    def test_dry_run_and_render_share_one_pythonpath(self):
+        # Both run the same scenes file, so a package it imports from the inherited PYTHONPATH
+        # must load in the dry run as it does in the render.
+        inherited = str(self.run_dir.parent / "site-packages")
+        completed = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch.dict(os.environ, {"PYTHONPATH": inherited, "MTV_RUN_LOG": "stale.log"}), \
+                mock.patch.object(check_scenes.common, "run_cmd", return_value=completed) as run_cmd:
+            check_scenes.dry_run(self.run_dir / "lesson.py", ["S01WorkingThing"], self.run_dir, self.lesson_path)
+            render_env = render.scene_env(render.SCRIPTS_DIR, self.run_dir / "run.log", self.lesson_path)
+        env = run_cmd.call_args.kwargs["env"]
+        self.assertEqual(env["PYTHONPATH"].split(os.pathsep), [str(SCRIPTS_DIR), inherited])
+        self.assertEqual(env["PYTHONPATH"], render_env["PYTHONPATH"])
+        self.assertNotIn("MTV_RUN_LOG", env)
+
     def test_lint_reads_the_syntax_tree(self):
         # Words in comments and docstrings are not code, and an import names a module.
         self.assertEqual(check_scenes.banned_findings('"""Never open a file."""\n# no ImageMobject here\n'), [])
@@ -1716,7 +1799,72 @@ class TestRender(ExampleLessonCase):
                 self.assertEqual((after["stages"], after["scenes"]), (before["stages"], before["scenes"]))
                 left = sorted(path.name for path in s01.iterdir() if path.is_file())
                 self.assertEqual(left, ["render.log", "run.log"])
+                self.assertIn(reason, (s01 / "render.log").read_text())
                 self.assertFalse(render._rendered(after["scenes"][0], "draft", self.run_dir))
+
+    def test_twice_hung_scene_fails_naming_the_hang(self):
+        env = {**self.env, "MTV_FAKE_HANG": "always"}
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", "--hang-timeout-s", "1",
+                        cwd=self.run_dir, env=env)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        self.assertIn("mtv: no new output in render.log or run.log for 1 s; killed", cp.stdout.strip().splitlines()[-1])
+        calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
+        self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False, True])
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertEqual(lesson["attempts"]["render_retries"], {"s01": 1})
+        self.assertNotIn("render.draft", lesson["stages"])
+
+    def test_failed_scene_keeps_the_others_blocks_and_leaves_the_stage(self):
+        # Spec 6.6 step 8 re-renders only the failed scenes, so the scenes that rendered in a failing
+        # run keep their blocks (F16); the stage waits until every scene has this tier's render (F17).
+        scenes_py = self.run_dir / "lesson.py"
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE.split("\n\nclass S02OneNeuron")[0] + "\n")
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        self.assertIn("s02: render failed", cp.stdout)
+        lesson = mtv_lesson.load(self.lesson_path)
+        for scene, beat in mtv_lesson.beats(lesson):
+            video = beat["render"]["video"]
+            self.assertEqual(video is not None and (self.run_dir / video).exists(), scene["id"] == "s01")
+        self.assertEqual(lesson["env"]["manim"], "Manim Community v0.22.0")
+        self.assertNotIn("render.draft", lesson["stages"])
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertNotIn("render.draft", mtv_lesson.load(self.lesson_path)["stages"])
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE)
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s02", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("render.draft", mtv_lesson.load(self.lesson_path)["stages"])
+
+    def test_usage_errors_exit_2_before_any_render(self):
+        no_manim = {**os.environ, "PATH": str(self.scratch.path)}
+        cases = (
+            ("--jobs", ["--jobs", "0"], lambda l: None, self.env, "--jobs must be at least 1"),
+            ("--scenes", ["--scenes", "s09"], lambda l: None, self.env, "no scene with id 's09'"),
+            ("scene_class", [], lambda l: l["scenes"][0].pop("scene_class"), self.env,
+             "s01: missing field 'scene_class'"),
+            ("manim", [], lambda l: None, no_manim, "manim is not on PATH"),
+            ("no scenes", [], lambda l: l.update(scenes=[]), self.env, "nothing to render: no scenes"),
+            ("beatless scene", [], lambda l: l["scenes"][1].update(beats=[]), self.env,
+             "nothing to render: s02: no beats"),
+        )
+        original = self.lesson_path.read_text()
+        for label, args, edit, env, error in cases:
+            with self.subTest(label):
+                lesson = json.loads(original)
+                edit(lesson)
+                self.lesson_path.write_text(json.dumps(lesson))
+                before = self.lesson_path.read_text()
+                cp = run_script("render", "lesson.json", "--tier", "draft", *args, cwd=self.run_dir, env=env)
+                self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+                self.assertIn(error, cp.stderr)
+                self.assertEqual(self.lesson_path.read_text(), before)
+        self.lesson_path.write_text(original)
+        (self.run_dir / "lesson.py").unlink()
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("scenes file missing", cp.stderr)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
 
     def test_record_env_font_probe(self):
         # mtv.look arrives with Task 17 and imports manim, so a stub package stands in for it on
@@ -1843,15 +1991,43 @@ class TestExemplars(ExampleLessonCase):
             self.assertEqual(cp.stdout, "", args)
         self.assertEqual(mtv_lesson.load(self.lesson_path)["exemplars"]["used"], {"storyboarder": [], "frame-critic": {}})
 
+    def test_check_reports_an_unhashable_source(self):
+        # A broken pack is a report.md warning and never a stop, so check must not raise on one.
+        make_pack(self.pack, broken=False)
+        index = common.load_json(self.pack / "index.json")
+        index["tags"]["working-thing-first"][0]["source"] = ["corpus"]
+        index["tags"]["provenance-transform"][0]["source"] = {"corpus": True}
+        common.dump_json(index, self.pack / "index.json")
+        self.assertEqual(sorted(exemplars.check(self.pack)), [
+            "ccccccccccc-s01-b01: source '['corpus']' is not corpus or original",
+            "ddddddddddd-s01-b01: source '{'corpus': True}' is not corpus or original",
+        ])
+        cp = run_script("exemplars", "check", str(self.pack), cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        self.assertNotIn("Traceback", cp.stderr)
 
-class TestFrames(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.scratch = Scratch()
-        cls.addClassCleanup(cls.scratch.cleanup)
+    def test_pick_without_a_pack_or_a_valid_lesson_exits_2(self):
+        make_pack(self.pack, broken=False)
+        unset = {name: value for name, value in os.environ.items() if name != "MTV_EXEMPLARS"}
+        before = self.lesson_path.read_text()
+        cp = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=unset)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("no exemplar pack", cp.stderr)
+        lesson = json.loads(before)
+        lesson["seed"] = "twenty"
+        self.lesson_path.write_text(json.dumps(lesson))
+        invalid = self.lesson_path.read_text()
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        cp = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("lesson invalid: seed must be an integer", cp.stderr)
+        self.assertEqual((cp.stdout, self.lesson_path.read_text()), ("", invalid))
 
+
+class TestFrames(ScratchCase):
     def setUp(self):
-        self.run_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+        super().setUp()
+        self.run_dir = self.work_dir
 
     def test_continuity_jump_fails_at_threshold(self):
         require_tool("ffmpeg", "frames continuity")
@@ -1898,7 +2074,9 @@ class TestFrames(unittest.TestCase):
 
     def test_sheet_requires_pil(self):
         require_tool("ffmpeg", "frames sheet")
-        require("PIL", "frames sheet")
+        # A system Pillow built for another interpreter imports PIL but not its C core, which
+        # ImageDraw loads, and frames.py imports ImageDraw.
+        require("PIL.ImageDraw", "frames sheet")
         clip = Path(self.scratch.path) / "c.mp4"
         make_clip(clip, "blue", 2.0)
         out = Path(self.scratch.path) / "sheet.jpg"
@@ -1906,6 +2084,29 @@ class TestFrames(unittest.TestCase):
         from PIL import Image
         with Image.open(out) as image:
             self.assertEqual(image.size, (1278, 480))
+
+
+class TestChildStdin(ScratchCase):
+    def test_children_never_read_stdin(self):
+        # A child that inherits stdin swallows input piped to the script that started it, and
+        # stops a background job that reads from the terminal.
+        bin_dir = self.work_dir / "bin"
+        bin_dir.mkdir()
+        fake_ffmpeg = bin_dir / "ffmpeg"
+        fake_ffmpeg.write_text(
+            f"#!{sys.executable}\nimport sys\nsys.stdout.buffer.write(bytes([len(sys.stdin.buffer.read())]) * 2304)\n"
+        )
+        fake_ffmpeg.chmod(0o755)
+        probe = (
+            "import sys\nfrom pathlib import Path\nimport frames\nfrom mtv import common\n"
+            "child = [sys.executable, '-c', 'import sys; print(len(sys.stdin.read()))']\n"
+            "print(common.run_cmd(child).stdout.strip(), frames.gray_small(Path('v.mp4'), 0.0)[0])\n"
+        )
+        env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+               "PYTHONPATH": str(SCRIPTS_DIR), "PYTHONDONTWRITEBYTECODE": "1"}
+        cp = subprocess.run([sys.executable, "-c", probe], input="piped", capture_output=True, text=True,
+                            env=env, cwd=self.work_dir, check=False)
+        self.assertEqual(cp.stdout.split(), ["0", "0"], cp.stderr)
 
 
 class TestAssemble(ExampleLessonCase):
@@ -1921,7 +2122,7 @@ class TestAssemble(ExampleLessonCase):
         info = common.ffprobe_json(out)
         self.assertEqual(sorted(s["codec_type"] for s in info["streams"]), ["audio", "video"])
         self.assertAlmostEqual(float(info["format"]["duration"]), 8.0, delta=0.5)
-        srt = (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text()
+        srt = (self.run_dir / "out" / "what-a-neuron-computes.draft.srt").read_text()
         self.assertEqual(srt.count(" --> "), 4)
         self.assertIn("00:00:02,000 --> ", srt)
         self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"]["tools"], {"saturation": "1.5"})
@@ -1951,10 +2152,70 @@ class TestAssemble(ExampleLessonCase):
         cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertEqual(
-            (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text(),
+            (self.run_dir / "out" / "what-a-neuron-computes.draft.srt").read_text(),
             "1\n00:00:00,000 --> 00:00:01,200\nThis is beat one of scene s01.\n\n"
             "2\n00:00:02,000 --> 00:00:03,200\nThis is beat two of scene s01.\n",
         )
+
+    def test_other_tier_keeps_the_delivery_tier_stage_and_srt(self):
+        # The assemble stage's hash holds lesson.tier, not --tier, so a draft assemble of a lesson
+        # delivered at standard must not stand for the standard file, nor replace its subtitles.
+        require_tool("ffmpeg", "assemble other tier")
+        require_tool("ffprobe", "assemble other tier")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        lesson = mtv_lesson.load(lesson_path)
+        lesson["tier"] = "standard"
+        standard_stage = {"inputs_sha256": "standard", "done": "2026-10-26T10:00:00Z", "tools": {"saturation": "1.5"}}
+        lesson["stages"]["assemble"] = standard_stage
+        mtv_lesson.save(lesson, lesson_path)
+        standard_srt = self.run_dir / "out" / "what-a-neuron-computes.standard.srt"
+        standard_srt.parent.mkdir()
+        standard_srt.write_text("standard cues\n")
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"], standard_stage)
+        self.assertEqual(standard_srt.read_text(), "standard cues\n")
+        self.assertIn(" --> ", (self.run_dir / "out" / "what-a-neuron-computes.draft.srt").read_text())
+        self.assertFalse((self.run_dir / "out" / "what-a-neuron-computes.srt").exists())
+
+    def test_silent_narration_assembles(self):
+        # The null provider's silence measures -inf in loudnorm's first pass, which the second
+        # pass rejects; selftest.py --one-beat assembles exactly that narration.
+        require_tool("ffmpeg", "assemble silence")
+        require_tool("ffprobe", "assemble silence")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        for _, beat in mtv_lesson.beats(mtv_lesson.load(lesson_path)):
+            tts.get_provider("null").synthesize(beat["narration"], self.run_dir / beat["audio"])
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        info = common.ffprobe_json(self.run_dir / "out" / "what-a-neuron-computes.draft.mp4")
+        self.assertEqual(sorted(s["codec_type"] for s in info["streams"]), ["audio", "video"])
+
+    def test_unexpected_failures_exit_2_without_traceback(self):
+        require_tool("ffmpeg", "assemble failures")
+        require_tool("ffprobe", "assemble failures")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        before = lesson_path.read_text()
+        # out/ cannot be created where a file holds its name.
+        (self.run_dir / "out").write_text("")
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertNotIn("Traceback", cp.stderr)
+        (self.run_dir / "out").unlink()
+        # An ffmpeg build that prints loudnorm's first pass without its JSON report.
+        real_ffmpeg = assemble._ffmpeg
+
+        def no_report(*args: str) -> str:
+            return "" if any("print_format=json" in arg for arg in args) else real_ffmpeg(*args)
+
+        stderr = io.StringIO()
+        with mock.patch.object(assemble, "_ffmpeg", side_effect=no_report), contextlib.redirect_stderr(stderr), \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = assemble.main([str(lesson_path), "--tier", "draft", "--saturation", "1.0"])
+        self.assertEqual(code, 2, stderr.getvalue())
+        self.assertIn("loudnorm", stderr.getvalue())
+        self.assertEqual(lesson_path.read_text(), before)
+        self.assertFalse((self.run_dir / "out" / "what-a-neuron-computes.draft.mp4").exists())
 
     def test_missing_audio_or_tier_video_exits_2_without_writing(self):
         require_tool("ffmpeg", "assemble missing inputs")
@@ -2052,6 +2313,33 @@ class TestVerify(ExampleLessonCase):
         cp = common.run_cmd(["markdownlint-cli2", "report.md"], cwd=self.run_dir)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
 
+    def test_report_names_rubric_exemplars_and_render(self):
+        pack = self.run_dir.parent / "pack"
+        make_pack(pack, broken=False)
+        lesson = mtv_lesson.load(self.lesson_path)
+        scores = {f"R{n:02d}": 2 for n in range(1, 17)}
+        lesson["checks"].update(
+            storyboard={"pass": True},
+            frames={"scenes": {"s01": {"scores": scores}, "s02": {"scores": {**scores, "R03": 0}}},
+                    "final": {"scores": {**scores, "R03": 0}, "zeros": ["R03"]}},
+        )
+        lesson["exemplars"].update(dir=str(pack), index_sha256=common.sha256_file(pack / "index.json"),
+                                   used={"storyboarder": ["aaaaaaaaaaa-s01-b01"], "frame-critic": {"s02": []}})
+        mtv_lesson.mark_done(lesson, "render.draft", {"wall_clock_s": "12.5", "jobs": "3"})
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        paragraphs = (self.run_dir / "report.md").read_text().split("\n\n")
+        for paragraph in (
+            "Narration: null, voice af_heart, model n/a",
+            "Font: n/a",
+            "Exemplars: corpus 0123abcd; storyboarder aaaaaaaaaaa-s01-b01; frame-critic s02 none",
+            "Rubric: storyboard pass; frames per scene s01: 32/32, s02: 30/32; final 30/32 (minimum per item"
+            " across scenes), zeros: R03",
+            "Render: draft 12.5 s wall clock, standard n/a wall clock, jobs 3",
+        ):
+            self.assertIn(paragraph, paragraphs)
+
     def test_wav_longer_than_beat_fails(self):
         make_tone(self.run_dir / "audio" / "s01-b01.wav", 2.6)
         cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
@@ -2072,6 +2360,17 @@ class TestVerify(ExampleLessonCase):
 
 class TestVerifyManimCEOutput(ExampleLessonCase):
     """The sync gates and the report read a section index and a run log that ManimCE wrote."""
+
+    def test_latex_gate_reads_the_message_ce_raises(self):
+        latex_failure = "ValueError: latex error converting to dvi. See log output above\n"
+        for scene_id, text in (("s01", "File ready\n"), ("s02", latex_failure)):
+            out_dir = self.run_dir / "render" / "draft" / scene_id
+            out_dir.mkdir(parents=True)
+            (out_dir / "render.log").write_text(text)
+        gate = verify.latex_error(mtv_lesson.load(self.lesson_path), self.run_dir, "draft")[0]
+        self.assertEqual((gate.measured, gate.passed), (1, False))
+        # The error table's latex row matches the same text.
+        self.assertEqual(common.match_error(latex_failure), common.ERROR_TABLE[11])
 
     def test_manimce_index_and_clock_pass_until_shifted(self):
         lesson = mtv_lesson.load(self.lesson_path)
@@ -2128,6 +2427,33 @@ class TestVerifyExternal(ScratchCase):
         self.assertEqual(lines[-1], "FAIL verify --external: no manimlib beside")
         self.assertEqual(sorted(d.iterdir()), before)
 
+    def test_streams_and_audio_gates_fail_on_real_files_and_usage_exits_2(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        silent = d / "silent.mp4"
+        make_clip(silent, "blue", 4.0)
+        rows = {g.gate: g for g in verify.external(silent)}
+        self.assertEqual((rows["streams"].measured, rows["streams"].passed), ("video", False))
+        self.assertEqual((rows["container vs audio"].measured, rows["container vs audio"].passed),
+                         (verify.MISSING, False))
+        # The narration stops 4 s before the picture does.
+        make_av(d / "short-tone.mp4", "testsrc=size=854x480:rate=15:duration=6", tone_s=2, shortest=False)
+        row = {g.gate: g for g in verify.external(d / "short-tone.mp4")}["container vs audio"]
+        self.assertGreater(row.measured, common.SYNC_CONTAINER_TOLERANCE_S)
+        self.assertFalse(row.passed)
+        no_tools = {**os.environ, "PATH": str(d)}
+        for args, env, error in (
+            (("--external", str(silent), "--tier", "draft"), None, "--external takes the MP4 alone"),
+            (("lesson.json", "--external", str(silent)), None, "--external takes the MP4 alone"),
+            (("--external", str(silent)), no_tools, "ffmpeg and ffprobe not on PATH"),
+            ((), None, "lesson.json and --tier are required"),
+        ):
+            with self.subTest(args=args):
+                cp = run_script("verify", *args, cwd=d, env=env)
+                self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+                self.assertIn(error, cp.stderr)
+
     def test_samples_follow_the_video_stream(self):
         require_tool("ffmpeg", "verify external")
         require_tool("ffprobe", "verify external")
@@ -2149,8 +2475,9 @@ class TestVerifyExternal(ScratchCase):
             self.assertFalse(rows[gate].passed)
 
     def test_frame_gates_judge_the_typical_sample(self):
-        # Thin strokes on BLACK, as a real draft has: 56 of 64x36 pixels lit (mean luma 4.9 of 255),
-        # and 20 of them changing between samples (mean absolute difference 0.0068).
+        # Thin strokes on BLACK, lit as a real draft is: 56 of 64x36 pixels lit (mean luma 4.9 of 255).
+        # A step moves 10 of them, a mean absolute difference of 0.0068 between samples, under
+        # IDENTICAL_MAD: on their own, such steps read as frozen.
         def picture(step: int) -> bytes:
             frame = bytearray(64 * 36)
             frame[:46] = bytes([200]) * 46
@@ -2164,7 +2491,8 @@ class TestVerifyExternal(ScratchCase):
                 return verify._frame_rows(Path("draft.mp4"), {"streams": [video]})
 
         black = bytes(64 * 36)
-        # One sample falls in a fade through black, as at a scene boundary or in a closing tail.
+        # One sample falls in a fade through black, as at a scene boundary or in a closing tail; its
+        # change, not the steps', is what passes not frozen.
         lesson = rows(picture(0), picture(1), black, picture(3), picture(4))
         self.assertEqual([g.passed for g in lesson], [True, True], [g.as_dict() for g in lesson])
         self.assertEqual(lesson[0].measured, round(56 / (64 * 36), 4))

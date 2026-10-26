@@ -172,3 +172,16 @@ class NarratedMixin:
             "overrun_s": overrun_s,
             "boxes": self._boxes(),
         }
+
+
+if MANIM_AVAILABLE:
+    # The three bases a scenes file may subclass; check_scenes.py matches each to a scene_kind.
+
+    class NarratedScene(NarratedMixin, Scene):
+        """A flat narrated scene."""
+
+    class NarratedCameraScene(NarratedMixin, MovingCameraScene):  # CE manim/scene/moving_camera_scene.py:104-121
+        """A narrated scene whose camera frame can move and zoom (zoom_to)."""
+
+    class Narrated3DScene(NarratedMixin, ThreeDScene):  # CE manim/scene/three_d_scene.py:31
+        """A narrated 3D scene with an orbiting camera (orbit_with_hud)."""

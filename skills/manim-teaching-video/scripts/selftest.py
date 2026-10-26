@@ -1632,6 +1632,63 @@ class TestFrames(unittest.TestCase):
             self.assertEqual(image.size, (1278, 480))
 
 
+# The one-beat lesson's scenes file: one flat class whose beat lands its visual at the mark.
+ONE_BEAT_LESSON_PY = """from manim import *
+from mtv.narrated import NarratedScene
+
+
+class OneBeat(NarratedScene):
+    def construct(self):
+        self.load_lesson("s01")
+        with self.beat("s01-b01") as b:
+            self.play(FadeIn(Square()), run_time=b.until("reveal"))
+            self.wait(b.remaining())
+"""
+
+
+def make_one_beat_lesson(run_dir: Path) -> Path:
+    """Write ``run_dir/lesson.json``: the example's first beat alone, as class OneBeat, narrated with the null provider."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+    scene = lesson["scenes"][0]
+    # The beat closes its scene now, so it takes the scene-closing tail.
+    scene.update(scene_class="OneBeat", beats=[{**scene["beats"][0], "tail_s": 1.0}])
+    # The provider is recorded too, so a later narrate.py run without --provider keeps the cache.
+    lesson.update(scenes=[scene], provider="null")
+    path = run_dir / "lesson.json"
+    mtv_lesson.save(lesson, path)
+    cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=run_dir)
+    if cp.returncode != 0:
+        raise RuntimeError(f"narrate.py failed on the one-beat lesson: {cp.stdout}{cp.stderr}")
+    return path
+
+
+def write_fixtures(fixtures_dir: Path) -> None:
+    """Write the fixture lessons, each with its scenes file, under ``fixtures_dir``."""
+    one_beat = fixtures_dir / "one-beat"
+    make_one_beat_lesson(one_beat)
+    (one_beat / "lesson.py").write_text(ONE_BEAT_LESSON_PY, encoding="utf-8")
+
+
+class TestFixtures(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def test_one_beat_fixture_is_narrated_and_lint_clean(self):
+        write_fixtures(self.scratch.path)
+        run_dir = self.scratch.path / "one-beat"
+        lesson, errors = common.load_valid_lesson(run_dir / "lesson.json")
+        self.assertEqual(errors, [])
+        beats = [beat for _, beat in mtv_lesson.beats(lesson)]
+        self.assertEqual([(b["id"], b["tail_s"]) for b in beats], [("s01-b01", 1.0)])
+        self.assertTrue((run_dir / beats[0]["audio"]).exists())
+        self.assertIn("reveal", beats[0]["marks_s"])
+        source = (run_dir / "lesson.py").read_text()
+        self.assertEqual(check_scenes.lint_source(source, lesson), [])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run the self-test; arguments not listed here (for example -k NAME) go to unittest.",
@@ -1641,10 +1698,12 @@ def main() -> int:
     parser.add_argument("--one-beat", action="store_true", help="render, assemble and verify a one-beat lesson")
     parser.add_argument("--fixtures", type=Path, metavar="DIR", help="write the fixture lessons into DIR")
     args, unittest_args = parser.parse_known_args()
+    if args.fixtures is not None:
+        write_fixtures(args.fixtures.resolve())
+        return 0
     for flag, given in (
         ("--patterns", args.patterns),
         ("--one-beat", args.one_beat),
-        ("--fixtures", args.fixtures is not None),
     ):
         if given:
             return common.usage_error(f"{flag} not implemented yet")

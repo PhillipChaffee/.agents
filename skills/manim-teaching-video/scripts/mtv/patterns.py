@@ -185,8 +185,12 @@ def focus_and_dim(group: VGroup, keep: list[Mobject], opacity: float = 0.2) -> A
     if not dimmed:
         raise ValueError("focus_and_dim: every member of group is in keep, so nothing would dim")
     # group=group: played, the group puts ``group`` itself in the scene, not a new Group of the
-    # dimmed parts drawn over the kept ones (CE manim/animation/composition.py:30).
-    return AnimationGroup(*(_fade_to_at_most(m, opacity) for m in dimmed), group=group)
+    # dimmed parts drawn over the kept ones (CE manim/animation/composition.py:30). A group
+    # suspends the updaters of its whole ``group`` while it plays (composition.py:92-93), which
+    # would freeze a kept counter or live decimal, so it suspends none; each fade sets opacities
+    # only, which an updater moving a part leaves alone.
+    fades = (_fade_to_at_most(m, opacity) for m in dimmed)
+    return AnimationGroup(*fades, group=group, suspend_mobject_updating=False)
 
 
 def _fade_to_at_most(mob: Mobject, opacity: float) -> Animation:

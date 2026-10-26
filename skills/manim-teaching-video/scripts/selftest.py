@@ -3085,6 +3085,19 @@ class TestPatterns(unittest.TestCase):
         self.assertLessEqual(net.edges[1].get_stroke_opacity(), 0.2 + 1e-9)
         self.assertAlmostEqual(kept.get_fill_opacity(), 1.0)
 
+    def test_focus_leaves_kept_updaters_running(self):
+        manim = importlib.import_module("manim")
+        net = self.patterns.LayeredNetwork([2, 3], seed=1)
+        kept = net.node(1, 0)
+        ticks = []
+        kept.add_updater(lambda m, dt: ticks.append(dt))
+        with manim.tempconfig({"dry_run": True, "disable_caching": True}):
+            scene = manim.Scene()
+            scene.add(net)
+            scene.play(self.patterns.focus_and_dim(net, [kept]), run_time=1.0)
+        # One tick per frame with time passing; a suspended group gave only a few ticks of dt 0.
+        self.assertGreaterEqual(sum(1 for dt in ticks if dt > 0), manim.config.frame_rate - 1)
+
     def test_count_keeps_pace_and_delayed_tolerates_float_error(self):
         net = self.patterns.LayeredNetwork([4, 20, 3], seed=1)
         _, counting = self.patterns.count_parameters(net)

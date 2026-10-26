@@ -37,6 +37,7 @@ import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
 import mtv.tts as tts  # noqa: E402
 import narrate  # noqa: E402
+import render  # noqa: E402
 import storyboard_check  # noqa: E402
 
 
@@ -846,6 +847,38 @@ class TestRender(ExampleLessonCase):
         self.assertNotIn("Traceback", cp.stderr)
         self.assertIn("There are no scenes inside that module", cp.stdout)  # the render.log tail, printed before the verdict
         self.assertIn(common.ERROR_TABLE[18].gl_idiom, cp.stdout.strip().splitlines()[-1])  # row 19 in the verdict
+
+    def test_failed_rerender_leaves_no_stale_video(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        before = mtv_lesson.load(self.lesson_path)
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
+                        env={**self.env, "MTV_FAKE_FAIL": "1"})
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        after = mtv_lesson.load(self.lesson_path)
+        # A failed render writes no render block and leaves the earlier stage, so s01's beats now
+        # name videos that are gone, while s02, which was not re-rendered, keeps its own.
+        self.assertEqual((after["stages"], after["scenes"]), (before["stages"], before["scenes"]))
+        s01, s02 = (self.run_dir / "render" / "draft" / scene_id for scene_id in ("s01", "s02"))
+        self.assertEqual(sorted(path.name for path in s01.iterdir() if path.is_file()), ["render.log", "run.log"])
+        self.assertTrue((s02 / "sections.json").exists())
+        for scene, beat in mtv_lesson.beats(after):
+            self.assertEqual((self.run_dir / beat["render"]["video"]).exists(), scene["id"] == "s02")
+
+    def test_record_env_font_probe(self):
+        # mtv.look arrives with Task 17 and imports manim, so a stub package stands in for it on
+        # the probe's path; "" is pick_font's answer when no candidate is installed (Pango's default).
+        for i, (body, font) in enumerate((('return "CMU Serif"', "CMU Serif"), ('return ""', ""),
+                                          ('raise ImportError("manim")', None))):
+            with self.subTest(font=font):
+                scripts = self.run_dir.parent / f"stub-scripts-{i}"
+                (scripts / "mtv").mkdir(parents=True)
+                (scripts / "mtv" / "__init__.py").write_text("")
+                (scripts / "mtv" / "look.py").write_text(f"def pick_font():\n    {body}\n")
+                lesson = {}
+                render.record_env(lesson, scripts)
+                self.assertEqual(lesson["env"]["font"], font)
+                self.assertEqual(lesson["env"]["pythonpath"].split(os.pathsep)[0], str(scripts))
 
 
 def main() -> int:

@@ -110,6 +110,21 @@ def _section_indexes(out_dir: Path, scene_class: str) -> list[Path]:
     return sorted((out_dir / "media" / "videos").glob(f"*/*/sections/{scene_class}.json"))
 
 
+def _clear_outputs(out_dir: Path, scene_class: str) -> None:
+    """Delete what an earlier render of this scene left: CE's section index, and the index and
+    MP4s that collect_sections copied beside render.log.
+
+    CE exits 0 having rendered another class when the requested one is missing from a file
+    with one other scene (manim/utils/module_ops.py:103-108), so an index left by an earlier
+    render would pass for this one. A failed render leaves the scene's earlier render blocks
+    and the render stage of lesson.json as they were, so its beats must name missing files,
+    not videos of the lesson.py it replaces: main's stage test, and every later script that
+    reads them, then stops on a missing file instead of using those videos.
+    """
+    for stale in [*_section_indexes(out_dir, scene_class), out_dir / "sections.json", *out_dir.glob("*.mp4")]:
+        stale.unlink(missing_ok=True)
+
+
 def collect_sections(out_dir: Path, scene_class: str) -> list[dict]:
     """CE's section index for ``scene_class``, copied with its MP4s into ``out_dir``; empty when CE wrote none.
 
@@ -182,11 +197,7 @@ def render_scene(lesson: dict, lesson_path: Path, scene: dict, tier: str, hang_t
         out_dir.mkdir(parents=True, exist_ok=True)
         # verify.py's latex gate reads the whole render.log, so an error an earlier run fixed must go.
         render_log.write_bytes(b"")
-        # CE exits 0 having rendered another class when the requested one is missing from a file
-        # with one other scene (manim/utils/module_ops.py:103-108), so an index left by an earlier
-        # render would pass for this one.
-        for stale in _section_indexes(out_dir, scene["scene_class"]):
-            stale.unlink()
+        _clear_outputs(out_dir, scene["scene_class"])
         returncode, wall_s = attempt(False)
         if returncode is None:
             mtv_lesson.bump(lesson, "render_retries", scene["id"])
@@ -221,10 +232,10 @@ def render_scene(lesson: dict, lesson_path: Path, scene: dict, tier: str, hang_t
     return {"ok": True, "wall_s": wall_s}
 
 
-def _first_line(argv: list[str], env: dict[str, str] | None = None) -> str | None:
+def _first_line(argv: list[str], env: dict[str, str] | None = None, cwd: Path | None = None) -> str | None:
     """The first line ``argv`` prints, or None when it is absent, fails or prints nothing."""
     try:
-        completed = common.run_cmd(argv, env=env)
+        completed = common.run_cmd(argv, env=env, cwd=cwd)
     except OSError:
         return None
     lines = completed.stdout.splitlines()
@@ -234,13 +245,15 @@ def _first_line(argv: list[str], env: dict[str, str] | None = None) -> str | Non
 def record_env(lesson: dict, scripts_dir: Path) -> None:
     pythonpath = _pythonpath(scripts_dir)
     # The font comes from the interpreter and path the scenes run with, since look.py imports manim.
+    # python -c puts its working directory first on sys.path, so the probe runs in scripts_dir,
+    # where that entry is the package PYTHONPATH names first, not an mtv the caller's directory holds.
     font_probe = [sys.executable, "-c", "from mtv.look import pick_font; print(pick_font())"]
     lesson.setdefault("env", {}).update(
         pythonpath=pythonpath,
         manim=_first_line(["manim", "--version"]),
         ffmpeg=_first_line(["ffmpeg", "-version"]),
         python=platform.python_version(),
-        font=_first_line(font_probe, env={**os.environ, "PYTHONPATH": pythonpath}),
+        font=_first_line(font_probe, env={**os.environ, "PYTHONPATH": pythonpath}, cwd=scripts_dir),
     )
 
 

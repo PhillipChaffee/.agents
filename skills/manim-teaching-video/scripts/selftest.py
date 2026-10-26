@@ -424,16 +424,12 @@ class ScratchCase(unittest.TestCase):
         self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
 
 
-class ExampleLessonCase(unittest.TestCase):
+class ExampleLessonCase(ScratchCase):
     """Gives each test its own run directory holding the example lesson, under one class scratch."""
 
-    @classmethod
-    def setUpClass(cls):
-        cls.scratch = Scratch()
-        cls.addClassCleanup(cls.scratch.cleanup)
-
     def setUp(self):
-        self.run_dir = example_run_dir(self.scratch.path)
+        super().setUp()
+        self.run_dir = example_run_dir(self.work_dir)
         self.lesson_path = self.run_dir / "lesson.json"
 
 
@@ -1910,14 +1906,10 @@ class TestExemplars(ExampleLessonCase):
         self.assertEqual((cp.stdout, self.lesson_path.read_text()), ("", invalid))
 
 
-class TestFrames(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.scratch = Scratch()
-        cls.addClassCleanup(cls.scratch.cleanup)
-
+class TestFrames(ScratchCase):
     def setUp(self):
-        self.run_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+        super().setUp()
+        self.run_dir = self.work_dir
 
     def test_continuity_jump_fails_at_threshold(self):
         require_tool("ffmpeg", "frames continuity")
@@ -2250,6 +2242,17 @@ class TestVerify(ExampleLessonCase):
 
 class TestVerifyManimCEOutput(ExampleLessonCase):
     """The sync gates and the report read a section index and a run log that ManimCE wrote."""
+
+    def test_latex_gate_reads_the_message_ce_raises(self):
+        latex_failure = "ValueError: latex error converting to dvi. See log output above\n"
+        for scene_id, text in (("s01", "File ready\n"), ("s02", latex_failure)):
+            out_dir = self.run_dir / "render" / "draft" / scene_id
+            out_dir.mkdir(parents=True)
+            (out_dir / "render.log").write_text(text)
+        gate = verify.latex_error(mtv_lesson.load(self.lesson_path), self.run_dir, "draft")[0]
+        self.assertEqual((gate.measured, gate.passed), (1, False))
+        # The error table's latex row matches the same text.
+        self.assertEqual(common.match_error(latex_failure), common.ERROR_TABLE[11])
 
     def test_manimce_index_and_clock_pass_until_shifted(self):
         lesson = mtv_lesson.load(self.lesson_path)

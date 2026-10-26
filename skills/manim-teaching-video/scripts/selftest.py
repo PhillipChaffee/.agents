@@ -39,6 +39,7 @@ ASSETS_DIR = SKILL_DIR / "assets"
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import assemble  # noqa: E402
 import check_scenes  # noqa: E402
 import exemplars  # noqa: E402
 import frames  # noqa: E402
@@ -49,6 +50,7 @@ import mtv.tts as tts  # noqa: E402
 import narrate  # noqa: E402
 import render  # noqa: E402
 import storyboard_check  # noqa: E402
+import verify  # noqa: E402
 
 
 def _skip(fixture: str, dependency: str) -> NoReturn:
@@ -332,6 +334,65 @@ def make_rendered_lesson(run_dir: Path, colors: list[str], tone_s: float = 1.5) 
     lesson_path = run_dir / "lesson.json"
     mtv_lesson.save(lesson, lesson_path)
     return lesson_path
+
+
+def shift_run_log(lesson_path: Path, seconds: float) -> None:
+    """Move every beat's run-log entry and exit by ``seconds``, as a render whose clock drifted would."""
+    lesson = mtv_lesson.load(lesson_path)
+    for _, beat in mtv_lesson.beats(lesson):
+        log = beat["render"]["log"]
+        log["enter_s"] += seconds
+        log["exit_s"] += seconds
+    mtv_lesson.save(lesson, lesson_path)
+
+
+# The example lesson's s01 as ManimCE 0.22.0 left it after a draft render through render.py: the
+# section index byte for byte, and each beat's run-log line without its boxes. PyAV measured
+# s01-b02 from its stream time base, 0.3 ms off its 143 frames, and the mixin's clock is a running
+# sum of 1/15 s steps, so s01-b01 ends 5e-15 s past its target and logs that as its overrun.
+MANIMCE_S01_SECTIONS = """[
+    {
+        "name": "s01-b01",
+        "type": "default.normal",
+        "video": "S01WorkingThing_0000_s01-b01.mp4",
+        "width": 854,
+        "height": 480,
+        "nb_frames": "61",
+        "duration": "4.066667",
+        "avg_frame_rate": "15/1",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p"
+    },
+    {
+        "name": "s01-b02",
+        "type": "default.normal",
+        "video": "S01WorkingThing_0001_s01-b02.mp4",
+        "width": 854,
+        "height": 480,
+        "nb_frames": "143",
+        "duration": "9.533008",
+        "avg_frame_rate": "732160/48809",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p"
+    },
+    {
+        "name": "s01-b03",
+        "type": "default.normal",
+        "video": "S01WorkingThing_0002_s01-b03.mp4",
+        "width": 854,
+        "height": 480,
+        "nb_frames": "117",
+        "duration": "7.800000",
+        "avg_frame_rate": "15/1",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p"
+    }
+]"""
+MANIMCE_S01_RUN_LOG = (
+    {"enter_s": 0.0, "exit_s": 4.066666666666672, "audio_s": 3.6, "tail_s": 0.4, "overrun_s": 5.329070518200751e-15},
+    {"enter_s": 4.066666666666672, "exit_s": 13.599999999999987, "audio_s": 9.2, "tail_s": 0.4, "overrun_s": 0.0},
+    {"enter_s": 13.599999999999987, "exit_s": 21.39999999999998, "audio_s": 6.8, "tail_s": 1.0, "overrun_s": 0.0},
+)
 
 
 class ExampleLessonCase(unittest.TestCase):
@@ -1670,6 +1731,222 @@ class TestFrames(unittest.TestCase):
         from PIL import Image
         with Image.open(out) as image:
             self.assertEqual(image.size, (1278, 480))
+
+
+class TestAssemble(ExampleLessonCase):
+    """make_rendered_lesson replaces the example lesson in each test's run directory."""
+
+    def test_assemble_two_streams_and_srt(self):
+        require_tool("ffmpeg", "assemble")
+        require_tool("ffprobe", "assemble")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue", "red"], tone_s=1.5)
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        out = self.run_dir / "out" / "what-a-neuron-computes.draft.mp4"
+        info = common.ffprobe_json(out)
+        self.assertEqual(sorted(s["codec_type"] for s in info["streams"]), ["audio", "video"])
+        self.assertAlmostEqual(float(info["format"]["duration"]), 8.0, delta=0.5)
+        srt = (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text()
+        self.assertEqual(srt.count(" --> "), 4)
+        self.assertIn("00:00:02,000 --> ", srt)
+        self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"]["tools"], {"saturation": "1.5"})
+        verdict = cp.stdout.strip().splitlines()[-1]
+        self.assertRegex(verdict, r"^PASS assembled out/what-a-neuron-computes\.draft\.mp4 \(\d+\.\d\d s\)$")
+
+    def test_assemble_resamples_44100_wav(self):
+        require_tool("ffmpeg", "assemble resample")
+        require_tool("ffprobe", "assemble resample")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        make_tone(self.run_dir / "audio" / "s01-b01.wav", 1.5, rate=44100)
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        with wave.open(str(self.run_dir / "out" / ".narration.draft.wav")) as narration:
+            self.assertEqual((narration.getframerate(), narration.getnchannels()), (24000, 1))
+        self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"]["tools"], {"saturation": "1.0"})
+
+    def test_srt_timestamp(self):
+        self.assertEqual(assemble.srt_timestamp(3661.25), "01:01:01,250")
+
+    def test_srt_cues_start_at_rendered_beat_offsets(self):
+        # 1.2 s of narration and the 0.5 s tail end 0.3 s before each 2 s beat video, so only
+        # offsets summed from render.duration_s start the second cue at 2 s.
+        require_tool("ffmpeg", "assemble srt")
+        require_tool("ffprobe", "assemble srt")
+        make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.2)
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(
+            (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text(),
+            "1\n00:00:00,000 --> 00:00:01,200\nThis is beat one of scene s01.\n\n"
+            "2\n00:00:02,000 --> 00:00:03,200\nThis is beat two of scene s01.\n",
+        )
+
+    def test_missing_audio_or_tier_video_exits_2_without_writing(self):
+        require_tool("ffmpeg", "assemble missing inputs")
+        require_tool("ffprobe", "assemble missing inputs")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        (self.run_dir / "audio" / "s01-b02.wav").unlink()
+        before = lesson_path.read_text()
+        # The fixture renders the draft tier only, so no beat has a standard video.
+        cp = run_script("assemble", "lesson.json", "--tier", "standard", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("s01-b01: no standard render.video", cp.stderr)
+        self.assertIn("s01-b02: no audio", cp.stderr)
+        self.assertEqual(lesson_path.read_text(), before)
+        self.assertFalse((self.run_dir / "out").exists())
+
+
+class TestVerify(ExampleLessonCase):
+    """Each test verifies a freshly rendered, reviewed and assembled two-scene lesson."""
+
+    def setUp(self):
+        super().setUp()
+        require_tool("ffmpeg", "verify")
+        require_tool("ffprobe", "verify")
+        make_rendered_lesson(self.run_dir, ["blue", "blue"], tone_s=1.5)
+        for script in ("frames", "assemble"):
+            cp = run_script(script, "lesson.json", "--tier", "draft", cwd=self.run_dir)
+            self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+
+    def test_verify_passes_then_shifted_log_fails_sync(self):
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        gates = {g["gate"]: g for g in lesson["checks"]["verify"]["gates"]}
+        self.assertEqual(len(gates), 10)
+        self.assertTrue(all(g["pass"] for g in gates.values()))
+        self.assertEqual(gates["run log vs section index"]["tolerance"], common.SYNC_BEAT_TOLERANCE_S)
+        self.assertEqual(gates["container duration"]["tolerance"], common.SYNC_CONTAINER_TOLERANCE_S)
+        self.assertEqual(gates["banned names"]["measured"], 0)
+        report = (self.run_dir / "report.md").read_text()
+        self.assertTrue(report.startswith("# What a neuron computes\n"))
+        self.assertIn("Hard gates:", report)
+        shift_run_log(self.lesson_path, 0.5)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
+        self.assertFalse(gates["run log vs section index"]["pass"])
+        # The failure drops the first run's verify stage, so neither a resume nor the report
+        # takes the earlier pass for this verdict.
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertNotIn("verify", lesson["stages"])
+        self.assertTrue(mtv_lesson.needs_rerun(lesson, "verify"))
+        resume = (self.run_dir / "report.md").read_text().splitlines()[-1]
+        self.assertTrue(resume.startswith("Resume:"), resume)
+        self.assertNotIn("verify", resume)
+
+    def test_pass_at_another_tier_leaves_verify_stage_undone(self):
+        # The verify stage's hash holds lesson.tier, not --tier, so a draft pass of a lesson
+        # delivered at standard must not stand for the standard file's verify.
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertIn("verify", lesson["stages"])
+        lesson["tier"] = "standard"
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertNotIn("verify", lesson["stages"])
+        self.assertTrue(mtv_lesson.needs_rerun(lesson, "verify"))
+
+    def test_report_with_every_warning_lints_clean(self):
+        # Task 22 lints the run directory with the kit's markdownlint gate. Of the rules that
+        # gate turns off, MD013 (line length) is the only one a report can trip, so only it is off.
+        require_tool("markdownlint-cli2", "verify report lint")
+        lesson = mtv_lesson.load(self.lesson_path)
+        first, second = lesson["scenes"][0]["beats"]
+        first["render"]["log"]["overrun_s"] = 1.2
+        second["interpolated"] = True
+        findings = ["index.json: corpus_commit missing", "sheet.png: not JPEG"]
+        lesson["exemplars"].update(dir="pack", check_findings=findings)
+        mtv_lesson.mark_done(lesson, "narrate", {"provider": "elevenlabs", "fallback": "kokoro"})
+        lesson["env"]["font"] = ""
+        scores = {"scores": {f"R{n:02d}": 2 for n in range(1, 17)}}
+        lesson["checks"].update(
+            storyboard={"pass": True},
+            frames={"scenes": {"s01": scores, "s02": scores}, "final": {**scores, "zeros": []}},
+        )
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        report = (self.run_dir / "report.md").read_text()
+        for text in ("interpolated beats: s01-b02", "not JPEG", "provider fallback to kokoro", "overrun s01-b01"):
+            self.assertIn(text, report)
+        common.dump_json({"config": {"MD013": False}}, self.run_dir / ".markdownlint-cli2.jsonc")
+        cp = common.run_cmd(["markdownlint-cli2", "report.md"], cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+
+    def test_wav_longer_than_beat_fails(self):
+        make_tone(self.run_dir / "audio" / "s01-b01.wav", 2.6)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
+        self.assertFalse(gates["wav within beat"]["pass"])
+
+    def test_overrun_and_continuity_gates(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["render"]["log"]["overrun_s"] = 1.2
+        mtv_lesson.save(lesson, self.lesson_path)
+        (self.run_dir / "frames" / "continuity.json").unlink()
+        run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
+        self.assertFalse(gates["overrun"]["pass"])
+        self.assertEqual(gates["continuity"]["measured"], "missing")
+
+
+class TestVerifyManimCEOutput(ExampleLessonCase):
+    """The sync gates and the report read a section index and a run log that ManimCE wrote."""
+
+    def test_manimce_index_and_clock_pass_until_shifted(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"] = lesson["scenes"][:1]
+        out_dir = self.run_dir / "render" / "draft" / "s01"
+        out_dir.mkdir(parents=True)
+        (out_dir / "sections.json").write_text(MANIMCE_S01_SECTIONS)
+        for beat, log in zip(lesson["scenes"][0]["beats"], MANIMCE_S01_RUN_LOG):
+            beat["render"]["log"] = dict(log)
+        mtv_lesson.save(lesson, self.lesson_path)
+        sync = verify.run_log_vs_section_index(lesson, self.run_dir, "draft")[0]
+        self.assertTrue(sync.passed)
+        self.assertLess(sync.measured, 0.001)
+        self.assertEqual(verify.index_coverage(lesson, self.run_dir, "draft")[0].measured, 0)
+        # A beat that ended on time is no overrun, whatever float noise CE's clock leaves.
+        self.assertEqual(verify._warnings(lesson), [])
+        shift_run_log(self.lesson_path, 0.5)
+        sync = verify.run_log_vs_section_index(mtv_lesson.load(self.lesson_path), self.run_dir, "draft")[0]
+        self.assertFalse(sync.passed)
+
+
+class TestPreflight(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+
+    def test_preflight_json_reports_install_lines(self):
+        cp = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir)
+        report = json.loads(cp.stdout)
+        checks = {c["name"]: c for c in report["checks"]}
+        self.assertEqual(list(checks), ["python", "manim", "latex", "dvisvgm", "ffmpeg", "ffprobe", "provider", "font", "disk", "cpu", "exemplars"])
+        py_ok = sys.version_info[:2] in ((3, 11), (3, 12))
+        self.assertEqual(checks["python"]["ok"], py_ok)
+        if not py_ok:
+            self.assertEqual(checks["python"]["install"], "uv venv --python 3.12")
+        self.assertTrue(checks["provider"]["ok"])
+        self.assertIn("rtf=", checks["provider"]["detail"])
+        self.assertTrue(checks["exemplars"]["ok"])
+        broken = self.work_dir / "broken-pack"
+        make_pack(broken, broken=True)
+        cp2 = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir, env={**os.environ, "MTV_EXEMPLARS": str(broken)})
+        ex = {c["name"]: c for c in json.loads(cp2.stdout)["checks"]}["exemplars"]
+        self.assertTrue(ex["ok"])
+        self.assertEqual(ex["detail"], "3 findings (continuing without exemplars)")
+        self.assertEqual(cp.returncode, 0 if report["ok"] else 1)
+        self.assertEqual(report["ok"], all(c["ok"] for c in report["checks"]))
 
 
 # The one-beat lesson's scenes file: one flat class whose beat lands its visual at the mark.

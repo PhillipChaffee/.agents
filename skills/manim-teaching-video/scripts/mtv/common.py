@@ -145,6 +145,16 @@ DEFAULT_TAIL_S = 0.4
 LAST_TAIL_S = 1.0
 DEFAULT_LEAD_S = 0.2
 OVERRUN_MAX_S = 1.0
+
+# The two float tolerances of beat timing, side by side because both absorb the same noise:
+# ManimCE sums its clock frame by frame in floats (CE manim/renderer/cairo_renderer.py:210).
+# Seconds of clock difference that are float error, not time: a 3D scene's clock ends a beat
+# about 4e-15 s past its narrated end, which read as time would log an overrun and pad a whole
+# extra frame (spec 12.5 amendment 3). patterns.delayed uses it for a wait computed in floats.
+CLOCK_EPSILON_S = 1e-9
+# Of a frame: a time within this of a frame boundary counts as on it when converting seconds to
+# whole frames. The clock's float noise (5e-15 s in a real draft) stays far below it.
+FRAME_SLACK = 1e-6
 SYNC_BEAT_TOLERANCE_S = 2 / 15  # measured by M0 Task 9 on 2026-10-26
 SYNC_CONTAINER_TOLERANCE_S = 0.5  # measured by M0 Task 9 on 2026-10-26
 HANG_TIMEOUT_S = 600  # measured by M0 Task 9 on 2026-10-26

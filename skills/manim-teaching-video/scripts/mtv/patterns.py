@@ -49,7 +49,7 @@ from manim import (
     there_and_back,
 )
 
-from .common import FRAME_HEIGHT, FRAME_WIDTH
+from .common import CLOCK_EPSILON_S, FRAME_HEIGHT, FRAME_WIDTH
 from .look import ROLE_COLORS
 from .narrated import Narrated3DScene, NarratedCameraScene
 
@@ -59,9 +59,6 @@ __all__ = [
     "count_parameters", "live_decimal", "zoom_to", "orbit_with_hud", "staggered", "delayed",
     "question_caption",
 ]
-
-# Seconds below which a computed duration is float error, not time.
-_TIME_EPSILON_S = 1e-9
 
 # A layer taller than this shows its first and last halves with a vertical ellipsis between.
 _MAX_SHOWN_NODES = 16
@@ -274,11 +271,11 @@ def delayed(anim: Animation, start_s: float, total_s: float) -> Animation:
     rest = total_s - start_s - anim.run_time
     # A tolerance, so an exact fit computed in floats (0.1 + 0.2 against 0.3) is not refused
     # and does not leave a wait of 1e-16 s.
-    if rest < -_TIME_EPSILON_S:
+    if rest < -CLOCK_EPSILON_S:
         raise ValueError(f"delayed: {anim.run_time} s from {start_s} s ends past total_s {total_s} s")
     # CE manim/animation/composition.py:198-240, manim/animation/animation.py:584-620
-    parts = (([Wait(start_s)] if start_s > _TIME_EPSILON_S else []) + [anim]
-             + ([Wait(rest)] if rest > _TIME_EPSILON_S else []))
+    parts = (([Wait(start_s)] if start_s > CLOCK_EPSILON_S else []) + [anim]
+             + ([Wait(rest)] if rest > CLOCK_EPSILON_S else []))
     return Succession(*parts)
 
 

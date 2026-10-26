@@ -30,19 +30,9 @@ except ImportError:
     _UNDRAWN_TYPES = ()
 
 
-# Seconds of clock difference that are float error, not time: CE sums its clock frame by
-# frame in floats, and a 3D scene's clock ends a beat about 4e-15 s past its narrated end.
-# Read as time, that would log an overrun and pad a whole extra frame.
-CLOCK_EPSILON_S = 1e-9
-
-# Of a frame. CE's clock is a running sum of 1/fps steps (CE manim/renderer/cairo_renderer.py:210),
-# whose float noise (5e-15 s in a real draft) stays far below it.
-FRAME_SLACK = 1e-6
-
-
 def _frames_to_reach(t_s: float, fps: float) -> int:
     """The whole frames it takes to reach ``t_s``; a time within float noise of a frame boundary is on it."""
-    return math.ceil(t_s * fps - FRAME_SLACK)
+    return math.ceil(t_s * fps - common.FRAME_SLACK)
 
 
 @dataclass
@@ -126,11 +116,11 @@ class NarratedMixin:
         pad_s = timing.target_end - self.time
         # CE's clock moves in whole frames, so a beat ends no sooner than the first frame at or after
         # its target, where a body ending on b.remaining() lands: only time past that frame overruns,
-        # and a residue within CLOCK_EPSILON_S of it is float error.
+        # and a residue within common.CLOCK_EPSILON_S of it is float error.
         past_frame_s = self.time - _frames_to_reach(timing.target_end, fps) / fps
-        overrun_s = past_frame_s if past_frame_s > CLOCK_EPSILON_S else 0.0
+        overrun_s = past_frame_s if past_frame_s > common.CLOCK_EPSILON_S else 0.0
         # A clock already on the narrated end needs no pad; the one-frame floor would add a frame.
-        if abs(pad_s) > CLOCK_EPSILON_S:
+        if abs(pad_s) > common.CLOCK_EPSILON_S:
             self.wait(max(pad_s, 1 / fps))  # CE manim/scene/scene.py:1242-1283
         if self._mtv_run_log:
             # Opened per beat so each line lands at once; render.py's hang detector watches it grow.

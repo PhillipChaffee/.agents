@@ -509,6 +509,16 @@ class TestVocabularies(unittest.TestCase):
             self.assertIn(pin, text)
         self.assertEqual((SCRIPTS_DIR / "requirements-kokoro.txt").read_text().strip(), "kokoro==0.9.4")
 
+    def test_float_tolerances_live_in_common_only(self):
+        # One definition each, so narrated.py and patterns.py cannot drift apart.
+        self.assertEqual((common.CLOCK_EPSILON_S, common.FRAME_SLACK), (1e-9, 1e-6))
+        for name in ("narrated.py", "patterns.py"):
+            tree = ast.parse((SCRIPTS_DIR / "mtv" / name).read_text(encoding="utf-8"))
+            assigned = {target.id for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))
+                        for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+                        if isinstance(target, ast.Name)}
+            self.assertEqual({n for n in assigned if "EPSILON" in n or "SLACK" in n}, set(), name)
+
     def test_every_helper_has_pattern_tags_and_index_entry(self):
         tree = ast.parse((SCRIPTS_DIR / "mtv" / "patterns.py").read_text(encoding="utf-8"))
         helpers = {node.name for node in tree.body

@@ -19,12 +19,21 @@ from typing import Any
 from . import common, lesson
 
 try:
-    from manim import DL, UR, MovingCameraScene, Scene, ThreeDScene, config
+    from manim import DL, UR, MovingCameraScene, Scene, ThreeDScene, ValueTracker, config
 
     MANIM_AVAILABLE = True
+    # Mobjects CE keeps in the scene that never draw: the 3D camera's angle trackers.
+    _UNDRAWN_TYPES: tuple[type, ...] = (ValueTracker,)
 except ImportError:
     # The self-test drives the mixin through a stand-in scene where ManimCE is absent.
     MANIM_AVAILABLE = False
+    _UNDRAWN_TYPES = ()
+
+
+# Seconds of clock difference that are float error, not time: CE sums its clock frame by
+# frame in floats, and a 3D scene's clock ends a beat about 4e-15 s past its narrated end.
+# Read as time, that would log an overrun and pad a whole extra frame.
+CLOCK_EPSILON_S = 1e-9
 
 # Of a frame. CE's clock is a running sum of 1/fps steps (CE manim/renderer/cairo_renderer.py:210),
 # whose float noise (5e-15 s in a real draft) stays far below it.
@@ -114,10 +123,15 @@ class NarratedMixin:
         # Not in a try/finally: a beat whose body raised is neither padded nor logged, so
         # render.py finds it missing and surfaces the traceback.
         yield timing
+        pad_s = timing.target_end - self.time
         # CE's clock moves in whole frames, so a beat ends no sooner than the first frame at or after
-        # its target, where a body ending on b.remaining() lands: only time past that frame overruns.
-        overrun_s = max(self.time - _frames_to_reach(timing.target_end, fps) / fps, 0.0)
-        self.wait(max(timing.target_end - self.time, 1 / fps))  # CE manim/scene/scene.py:1242-1283
+        # its target, where a body ending on b.remaining() lands: only time past that frame overruns,
+        # and a residue within CLOCK_EPSILON_S of it is float error.
+        past_frame_s = self.time - _frames_to_reach(timing.target_end, fps) / fps
+        overrun_s = past_frame_s if past_frame_s > CLOCK_EPSILON_S else 0.0
+        # A clock already on the narrated end needs no pad; the one-frame floor would add a frame.
+        if abs(pad_s) > CLOCK_EPSILON_S:
+            self.wait(max(pad_s, 1 / fps))  # CE manim/scene/scene.py:1242-1283
         if self._mtv_run_log:
             # Opened per beat so each line lands at once; render.py's hang detector watches it grow.
             with open(self._mtv_run_log, "a", encoding="utf-8") as run_log:
@@ -166,10 +180,16 @@ class NarratedMixin:
 
         The points test covers the whole family because a group holds no points of its own
         (CE manim/mobject/mobject.py:2360-2366); a mobject with none anywhere is skipped, since
-        CE puts its corners at the origin (2410-2413), where nothing is drawn.
+        CE puts its corners at the origin (2410-2413), where nothing is drawn. Camera bookkeeping
+        is skipped too: CE adds the moving camera's frame to the scene when it animates and the
+        3D camera's angle trackers when they rotate, and a tracker's one point sits at its value,
+        so a long orbit would read as a mobject clipped off the frame.
         """
         boxes = []
+        frame = getattr(getattr(self, "camera", None), "frame", None)
         for mobject in self.mobjects:
+            if mobject is frame or isinstance(mobject, _UNDRAWN_TYPES):
+                continue
             if len(mobject.get_all_points()) == 0:
                 continue
             x0, y0 = mobject.get_corner(DL)[:2]  # CE manim/mobject/mobject.py:2428
@@ -189,3 +209,16 @@ class NarratedMixin:
             "overrun_s": overrun_s,
             "boxes": self._boxes(),
         }
+
+
+if MANIM_AVAILABLE:
+    # The three bases a scenes file may subclass; check_scenes.py matches each to a scene_kind.
+
+    class NarratedScene(NarratedMixin, Scene):
+        """A flat narrated scene."""
+
+    class NarratedCameraScene(NarratedMixin, MovingCameraScene):  # CE manim/scene/moving_camera_scene.py:104-121
+        """A narrated scene whose camera frame can move and zoom (zoom_to)."""
+
+    class Narrated3DScene(NarratedMixin, ThreeDScene):  # CE manim/scene/three_d_scene.py:31
+        """A narrated 3D scene with an orbiting camera (orbit_with_hud)."""

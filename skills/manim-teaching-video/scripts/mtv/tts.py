@@ -7,6 +7,8 @@ even spread of the script's words over the audio stands in when no match exists.
 
 from __future__ import annotations
 
+import importlib
+import os
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,20 +45,146 @@ class NullProvider:
     def synthesize(self, text: str, out_wav: Path) -> list[Word]:
         words = common.normalize_words(text)
         word_s = 60 / common.WORDS_PER_MINUTE
-        with wave.open(str(out_wav), "wb") as wav:
-            wav.setnchannels(1)
-            wav.setsampwidth(2)
-            wav.setframerate(_SAMPLE_RATE_HZ)
-            wav.writeframes(bytes(2 * round(len(words) * word_s * _SAMPLE_RATE_HZ)))
+        _write_wav(out_wav, bytes(2 * round(len(words) * word_s * _SAMPLE_RATE_HZ)))
         return [Word(word, i * word_s, (i + 1) * word_s) for i, word in enumerate(words)]
+
+
+def _transport_errors() -> tuple[type[Exception], ...]:
+    """The transport error of each HTTP client huggingface_hub may use (it moved from httpx to httpx2)."""
+    found = []
+    for module in ("httpx2", "httpx"):
+        try:
+            found.append(importlib.import_module(module).TransportError)
+        except ImportError:
+            pass
+    return tuple(found)
+
+
+class KokoroProvider:
+    """Kokoro-82M, offline once its weights are cached, with per-token times from its duration predictor."""
+
+    name = "kokoro"
+
+    def __init__(self, voice: str = "af_heart", speed: float = 1.0, lang_code: str = "a") -> None:
+        self.voice, self.speed, self.lang_code = voice, speed, lang_code
+        self._pipeline = None
+
+    def _get_pipeline(self):
+        # Built on first use, so a provider that only stands by as the fallback costs nothing.
+        if self._pipeline is None:
+            # Through hf-xet's Rust client the weight download bypasses Python logging, so
+            # the hosts it reaches could not be told apart from the ones M0 recorded.
+            os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+            import kokoro
+            from huggingface_hub import errors as hub_errors
+
+            # The model and voice weights download on first use. huggingface_hub's own HTTP
+            # errors are OSErrors, but a refused connection surfaces as its HTTP client's
+            # TransportError, which is not; either becomes the ConnectionError the scripts
+            # treat as a network failure. Anything else (a corrupt cache, a G2P bug) and a
+            # name the hub does not have (a misspelled voice) keep their own type.
+            try:
+                pipeline = kokoro.KPipeline(lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M")
+                pipeline.load_voice(self.voice)
+            except hub_errors.EntryNotFoundError as exc:
+                if not isinstance(exc, hub_errors.LocalEntryNotFoundError):
+                    raise
+                raise ConnectionError(f"kokoro could not load its weights: {exc}") from exc
+            except (OSError, *_transport_errors()) as exc:
+                raise ConnectionError(f"kokoro could not load its weights: {exc}") from exc
+            self._pipeline = pipeline
+        return self._pipeline
+
+    def synthesize(self, text: str, out_wav: Path) -> list[Word]:
+        import numpy
+        import soundfile
+
+        chunks, words, offset_s = [], [], 0.0
+        # The pipeline splits long text into chunks, each timed from its own start.
+        for result in self._get_pipeline()(text, voice=self.voice, speed=self.speed):
+            if result.audio is None:
+                continue
+            audio = result.audio.numpy()
+            words += [
+                Word(token.text, offset_s + token.start_ts, offset_s + token.end_ts)
+                for token in result.tokens or []
+                if token.start_ts is not None and token.end_ts is not None
+            ]
+            chunks.append(audio)
+            offset_s += len(audio) / _SAMPLE_RATE_HZ
+        soundfile.write(str(out_wav), numpy.concatenate(chunks) if chunks else numpy.zeros(0), _SAMPLE_RATE_HZ)
+        return words
+
+
+class ElevenLabsProvider:
+    """ElevenLabs over its API, timed per character, with the neighboring beats' text passed for prosody."""
+
+    name = "elevenlabs"
+
+    def __init__(self, voice: str, speed: float = 1.0) -> None:
+        self.voice, self.speed = voice, speed
+
+    def _client(self):
+        key = os.environ.get("ELEVENLABS_API_KEY")
+        if not key:
+            # Not an OSError, so a missing key is never retried or answered with the fallback.
+            raise RuntimeError("ELEVENLABS_API_KEY is not set")
+        from elevenlabs.client import ElevenLabs
+
+        return ElevenLabs(api_key=key)
+
+    def synthesize(
+        self, text: str, out_wav: Path, previous_text: str | None = None, next_text: str | None = None
+    ) -> list[Word]:
+        import base64
+
+        # First, so a missing key is reported as such even where the SDK is not installed.
+        client = self._client()
+        from elevenlabs.core.api_error import ApiError
+
+        # Unset neighbors are left out, not sent as null: the SDK omits only its own sentinel.
+        options = {k: v for k, v in (("previous_text", previous_text), ("next_text", next_text)) if v is not None}
+        if self.speed != 1.0:
+            from elevenlabs.types import VoiceSettings
+
+            options["voice_settings"] = VoiceSettings(speed=self.speed)
+        try:
+            response = client.text_to_speech.convert_with_timestamps(
+                voice_id=self.voice, text=text, output_format="pcm_24000", **options
+            )
+        except _transport_errors() as exc:
+            raise ConnectionError(f"elevenlabs unreachable: {exc}") from exc
+        except ApiError as exc:
+            # Rate limits and server errors pass; any other status is the request's fault.
+            if exc.status_code == 429 or (exc.status_code or 0) >= 500:
+                raise ConnectionError(f"elevenlabs answered {exc.status_code}") from exc
+            raise
+        _write_wav(out_wav, base64.b64decode(response.audio_base_64))
+        alignment = response.normalized_alignment
+        if alignment is None:
+            return []
+        return words_from_characters(
+            alignment.characters, alignment.character_start_times_seconds, alignment.character_end_times_seconds
+        )
+
+
+def _write_wav(path: Path, frames: bytes) -> None:
+    """Write 16-bit little-endian mono PCM at the shared rate."""
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(_SAMPLE_RATE_HZ)
+        wav.writeframes(frames)
 
 
 def get_provider(name: str, voice: str = "af_heart", speed: float = 1.0) -> Provider:
     """The provider ``name``; ``voice`` and ``speed`` configure a speaking one, and the null one has neither."""
     if name == "null":
         return NullProvider()
-    if name in ("kokoro", "elevenlabs"):
-        raise ValueError(f"provider '{name}' not implemented yet")
+    if name == "kokoro":
+        return KokoroProvider(voice, speed)
+    if name == "elevenlabs":
+        return ElevenLabsProvider(voice, speed)
     raise ValueError(f"unknown provider '{name}'")
 
 

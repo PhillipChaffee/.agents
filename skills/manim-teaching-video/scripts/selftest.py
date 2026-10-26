@@ -7,7 +7,9 @@ machine without them still runs every other case and exits 0.
 from __future__ import annotations
 
 import argparse
+import ast
 import base64
+import concurrent.futures
 import configparser
 import importlib
 import json
@@ -20,7 +22,9 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+import unittest.mock
 import wave
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -505,6 +509,32 @@ class TestVocabularies(unittest.TestCase):
             self.assertIn(pin, text)
         self.assertEqual((SCRIPTS_DIR / "requirements-kokoro.txt").read_text().strip(), "kokoro==0.9.4")
 
+    def test_every_helper_has_pattern_tags_and_index_entry(self):
+        tree = ast.parse((SCRIPTS_DIR / "mtv" / "patterns.py").read_text(encoding="utf-8"))
+        helpers = {node.name for node in tree.body
+                   if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and not node.name.startswith("_")}
+        self.assertEqual(helpers, set(common.PATTERN_TAGS))
+        index = SKILL_DIR / "references" / "patterns.md"
+        if not index.exists():
+            print("SKIP patterns index: references/patterns.md not present (M2 writes it)")
+            return
+        text = index.read_text(encoding="utf-8")
+        self.assertEqual([name for name in sorted(helpers) if name not in text], [])
+
+    def test_framework_tags_in_technique_tags(self):
+        framework = SKILL_DIR / "references" / "framework.md"
+        if not framework.exists():
+            print("SKIP framework tags: references/framework.md not present (M2 writes it)")
+            raise unittest.SkipTest("references/framework.md not present")
+        tags = []
+        for line in framework.read_text(encoding="utf-8").splitlines():
+            if "Exemplars:" in line:
+                for value in line.split("Exemplars:", 1)[1].split(","):
+                    value = value.strip().removesuffix(".")
+                    if value and value != "none":
+                        tags.append(value)
+        self.assertEqual([tag for tag in tags if tag not in common.TECHNIQUE_TAGS], [])
+
 
 class TestErrorTable(unittest.TestCase):
     def test_error_table_rows(self):
@@ -843,6 +873,124 @@ class TestTts(unittest.TestCase):
             tts.get_provider("piper")
 
 
+class TestKokoro(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        require("kokoro", "kokoro")
+        require("soundfile", "kokoro")
+
+    def test_kokoro_chunks_join_with_offsets(self):
+        # The pipeline's own chunking, stood in for so the case needs no weights: each
+        # chunk's token times start at zero, and an untimed token (punctuation) is dropped.
+        numpy = require("numpy", "kokoro")
+
+        class Audio:
+            def __init__(self, seconds):
+                self.samples = numpy.zeros(round(seconds * 24000), dtype=numpy.float32)
+
+            def numpy(self):
+                return self.samples
+
+        def token(text, start, end):
+            return type("Token", (), {"text": text, "start_ts": start, "end_ts": end})
+
+        def result(seconds, tokens):
+            return type("Result", (), {"audio": Audio(seconds), "tokens": tokens})
+
+        provider = tts.KokoroProvider()
+        provider._pipeline = lambda text, voice, speed: iter([
+            result(1.5, [token("one", 0.1, 0.6), token(".", None, None)]),
+            result(1.0, [token("two", 0.2, 0.7)]),
+        ])
+        out = Path(self.scratch.path) / "chunks.wav"
+        self.assertEqual(provider.synthesize("One. Two.", out),
+                         [tts.Word("one", 0.1, 0.6), tts.Word("two", 1.7, 2.2)])
+        self.assertAlmostEqual(tts.wav_duration(out), 2.5)
+
+    def test_kokoro_tokens_and_784(self):
+        out = Path(self.scratch.path) / "k.wav"
+        try:
+            tokens = tts.get_provider("kokoro").synthesize("There are 784 pixels.", out)
+        except ConnectionError as exc:
+            # The weights are a dependency like any module: unreachable, the case skips by name.
+            _skip("kokoro", f"weights ({exc})")
+        self.assertGreater(len(tokens), 0)
+        self.assertTrue(all(t.start_s <= t.end_s for t in tokens))
+        with wave.open(str(out)) as w:
+            self.assertEqual(w.getframerate(), 24000)
+        print("KOKORO 784 tokens:", [t.text for t in tokens])
+
+
+class TestElevenLabs(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def test_elevenlabs_words(self):
+        require("elevenlabs", "elevenlabs")
+        if not os.environ.get("ELEVENLABS_API_KEY"):
+            print("SKIP elevenlabs: ELEVENLABS_API_KEY not available")
+            raise unittest.SkipTest("no key")
+        out = Path(self.scratch.path) / "e.wav"
+        words = tts.get_provider("elevenlabs", voice=os.environ.get("MTV_TEST_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")).synthesize("Here is a network.", out)
+        self.assertEqual(len(words), 4)
+        self.assertAlmostEqual(tts.wav_duration(out), words[-1].end_s, delta=0.5)
+
+    def test_elevenlabs_decodes_pcm_and_alignment(self):
+        # The API's response shape, stood in for so the case needs no key: base64 16-bit
+        # PCM at 24 kHz and the normalized character alignment.
+        import base64
+        require("elevenlabs", "elevenlabs")
+        calls = []
+        alignment = type("Alignment", (), {"characters": list("hi you"),
+                                           "character_start_times_seconds": [0, 0.1, 0.2, 0.3, 0.4, 0.5],
+                                           "character_end_times_seconds": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]})
+        response = type("Response", (), {"audio_base_64": base64.b64encode(bytes(2 * 24000)).decode(),
+                                         "normalized_alignment": alignment})
+
+        class TextToSpeech:
+            def convert_with_timestamps(self, **kwargs):
+                calls.append(kwargs)
+                return response
+
+        provider = tts.ElevenLabsProvider("voice-id")
+        provider._client = lambda: type("Client", (), {"text_to_speech": TextToSpeech()})
+        out = Path(self.scratch.path) / "fake.wav"
+        words = provider.synthesize("hi you", out, previous_text="before")
+        self.assertEqual(words, [tts.Word("hi", 0, 0.2), tts.Word("you", 0.3, 0.6)])
+        self.assertAlmostEqual(tts.wav_duration(out), 1.0)
+        self.assertEqual(calls, [{"voice_id": "voice-id", "text": "hi you", "output_format": "pcm_24000",
+                                  "previous_text": "before"}])
+
+    def test_missing_key_is_not_retryable(self):
+        env = {k: v for k, v in os.environ.items() if k != "ELEVENLABS_API_KEY"}
+        with unittest.mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(RuntimeError):
+                tts.get_provider("elevenlabs", voice="v").synthesize("hi", Path(self.scratch.path) / "k.wav")
+
+    def test_neighbor_context_reaches_the_provider_only(self):
+        beats = [{"narration": "one"}, {"narration": "two"}, {"narration": "three"}]
+        self.assertEqual(narrate.neighbor_context(beats, 0), {"next_text": "two"})
+        self.assertEqual(narrate.neighbor_context(beats, 1), {"previous_text": "one", "next_text": "three"})
+        self.assertEqual(narrate.neighbor_context(beats, 2), {"previous_text": "two"})
+        seen = []
+
+        class Down:
+            name = "down"
+            def synthesize(self, text, out_wav, **context):
+                seen.append(context)
+                raise ConnectionError("down")
+        _, used, _ = narrate.synthesize_with_retry(Down(), "hi there", Path(self.scratch.path) / "c.wav",
+                                                   tts.get_provider("null"), sleep_fn=lambda s: None,
+                                                   context={"previous_text": "one"})
+        self.assertEqual((used, seen), ("null", [{"previous_text": "one"}] * 4))
+
+
 class TestNarrate(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -1091,6 +1239,18 @@ class TestNarratedMixin(ExampleLessonCase):
             1 / 0
         self.assertEqual([call[0] for call in scene.calls], ["next_section", "add_subcaption"])
         self.assertFalse(Path(os.environ["MTV_RUN_LOG"]).exists())
+
+    def test_float_error_at_beat_end_is_no_overrun_and_no_frame(self):
+        # CE's clock in a 3D scene ends a beat about 4e-15 s off its narrated end, either side.
+        for error_s in (4e-15, -4e-15):
+            scene = StubScene()
+            scene.load_lesson("s01", self.lesson_path)
+            entry = scene._mtv_beats["s01-b01"]
+            with scene.beat("s01-b01"):
+                scene.play(entry["duration_s"] + entry["tail_s"] + error_s)
+            self.assertNotIn("wait", [call[0] for call in scene.calls])
+            lines = Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()
+            self.assertEqual(json.loads(lines[-1])["overrun_s"], 0.0)
 
     def test_boxes_cover_top_level_mobjects_with_points(self):
         scene = StubScene()
@@ -1924,6 +2084,416 @@ class TestPreflight(ScratchCase):
         self.assertEqual(report["ok"], all(c["ok"] for c in report["checks"]))
 
 
+# The hand-written scenes file for lesson.example.json, built from pieces so that the
+# one-beat lesson's OneBeat is S01WorkingThing's first beat, word for word.
+SCENES_HEADER = """import random
+
+from manim import *
+from mtv.narrated import NarratedScene
+from mtv.patterns import *
+
+SEED = 20261025
+
+
+def s01_picture():
+    \"\"\"The network at the bottom and the seeded pixel grid upper left, as s01 builds them.\"\"\"
+    net = LayeredNetwork([784, 16, 16, 10], seed=SEED).scale(0.42).to_edge(DOWN, buff=0.3)
+    pixels = random.Random(SEED)
+    grid = WeightGrid([pixels.random() for _ in range(144)], (12, 12)).scale(0.7).to_corner(UL)
+    return net, grid
+
+
+def s01_focus(net):
+    \"\"\"The connection s01 zooms in to: its edge, its two nodes, and the route a flash takes.\"\"\"
+    a, b = net.node(1, 5), net.node(2, 8)
+    # Edges run layer pair by layer pair, left node by right node: 16 x 16 before layer 1's.
+    edge = net.edges[16 * 16 + 5 * 16 + 8]
+    return edge, a, b
+"""
+
+S01_B01 = """        with self.beat("s01-b01") as b:
+            net, grid = s01_picture()
+            self.play(staggered([net.edges, *net.layers], run_time=1.5))
+            self.play(FadeIn(grid), run_time=b.until("reveal"))
+            self.wait(b.remaining())
+"""
+
+S01_REST = """        with self.beat("s01-b02") as b:
+            output = net.node(3, 4)
+            path = VMobject().set_points_as_corners([
+                grid.get_right(), net.node(0, 3).get_center(), net.node(1, 5).get_center(),
+                net.node(2, 8).get_center(), output.get_center(),
+            ])
+            # A passing flash leaves nothing behind, so what lands at the mark is its result.
+            self.play(flash_along(path), run_time=1.5)
+            self.play(output.animate.scale(1.6).set_color(PURE_YELLOW), run_time=b.until("lights"))
+            self.wait(b.remaining())
+        with self.beat("s01-b03") as b:
+            edge, a, c = s01_focus(net)
+            self.play(focus_and_dim(VGroup(net, grid), [edge, a, c]), edge.animate.set_stroke(width=4, opacity=1.0),
+                      run_time=b.until("zoom"))
+            self.play(FadeIn(question_caption(edge, "what does one connection do?")))
+            self.wait(b.remaining())
+"""
+
+
+def _scene_class(name: str, scene_id: str, body: str) -> str:
+    return (f"\n\nclass {name}(NarratedScene):\n    def construct(self):\n"
+            f"        self.load_lesson(\"{scene_id}\")\n{body}")
+
+
+S02_BODY = """        # Rebuilt with add, as s01 closed, so the boundary is continuous and the first beat
+        # starts at the scene start.
+        net, grid = s01_picture()
+        edge, a, c = s01_focus(net)
+        net.node(3, 4).scale(1.6).set_color(PURE_YELLOW)
+        edge.set_stroke(width=4, opacity=1.0)
+        dim = focus_and_dim(VGroup(net, grid), [edge, a, c])
+        dim.begin()
+        dim.finish()
+        caption = question_caption(edge, "what does one connection do?")
+        self.add(net, grid, caption)
+        with self.beat("s02-b01") as b:
+            column = NumericColumn([0.62, -0.35, 0.18]).to_edge(LEFT, buff=1.0).shift(0.4 * UP)
+            self.play(FadeOut(caption), flash_along(edge))
+            self.play(FadeIn(column), run_time=b.until("value"))
+            self.play(column.at(0).animate.set_color(PURE_YELLOW))
+            self.wait(b.remaining())
+        with self.beat("s02-b02") as b:
+            symbol = MathTex("w", font_size=72).next_to(column, RIGHT, buff=0.8)
+            self.play(numbers_to_symbol(VGroup(column.at(0)), symbol), run_time=b.until("symbol"))
+            self.wait(b.remaining())
+        with self.beat("s02-b03") as b:
+            tracker = ValueTracker(0.71)
+            output = live_decimal(tracker).scale(1.2).to_edge(RIGHT, buff=1.0).shift(0.4 * UP)
+            # The nudge is the beat's first word, too early for anything to land ahead of it, so
+            # the output is shown at once and the tremor plays across the mark.
+            self.add(output)
+            self.play(nudge_and_return(column.at(0)), tracker.animate(rate_func=there_and_back).set_value(0.79))
+            self.play(nudge_and_return(column.at(0), amount=-0.1),
+                      tracker.animate(rate_func=there_and_back).set_value(0.63), run_time=b.until("back"))
+            aside = VGroup(column, symbol, output)
+            with save_and_restore_layout(self, aside):
+                self.play(aside.animate.scale(0.8).shift(0.6 * DOWN))
+                # Restore takes 1 s, so it lands at the picture mark.
+                self.wait(max(b.until("picture") - 1.0, 1 / 15))
+            self.wait(b.remaining())
+"""
+
+ONE_BEAT_LESSON_PY = SCENES_HEADER + _scene_class("OneBeat", "s01", S01_B01)
+TWO_SCENE_LESSON_PY = (SCENES_HEADER + _scene_class("S01WorkingThing", "s01", S01_B01 + S01_REST)
+                       + _scene_class("S02OneNeuron", "s02", S02_BODY))
+
+
+def make_one_beat_lesson(run_dir: Path) -> Path:
+    """Write ``run_dir/lesson.json``: the example's first beat alone, as class OneBeat, narrated with the null provider."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+    scene = lesson["scenes"][0]
+    # The beat closes its scene now, so it takes the scene-closing tail.
+    scene.update(scene_class="OneBeat", beats=[{**scene["beats"][0], "tail_s": 1.0}])
+    # The provider is recorded too, so a later narrate.py run without --provider keeps the cache.
+    lesson.update(scenes=[scene], provider="null")
+    path = run_dir / "lesson.json"
+    mtv_lesson.save(lesson, path)
+    cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=run_dir)
+    if cp.returncode != 0:
+        raise RuntimeError(f"narrate.py failed on the one-beat lesson: {cp.stdout}{cp.stderr}")
+    return path
+
+
+def write_fixtures(fixtures_dir: Path) -> None:
+    """Write under ``fixtures_dir``: one-beat/ and two-scene/, each a lesson.json with its
+    lesson.py, and pack/, the clean synthetic exemplar pack."""
+    one_beat = fixtures_dir / "one-beat"
+    make_one_beat_lesson(one_beat)
+    (one_beat / "lesson.py").write_text(ONE_BEAT_LESSON_PY, encoding="utf-8")
+    two_scene = fixtures_dir / "two-scene"
+    two_scene.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ASSETS_DIR / "lesson.example.json", two_scene / "lesson.json")
+    (two_scene / "lesson.py").write_text(TWO_SCENE_LESSON_PY, encoding="utf-8")
+    make_pack(fixtures_dir / "pack", broken=False)
+
+
+# Three times the --one-beat wall clock M1 Task 22 measured (10.6 s on 4 CPUs), rounded up to 30 s.
+ONE_BEAT_BOUND_S: float | None = 60.0
+
+
+def run_one_beat() -> int:
+    """Narrate, render, review, assemble and verify the one-beat lesson at the draft tier; 1 on any failure."""
+    if common.which("manim") is None:
+        return common.usage_error("--one-beat needs ManimCE: manim is not on PATH")
+    start = time.perf_counter()
+    with Scratch() as scratch:
+        run_dir = Path(scratch) / "one-beat"
+        try:
+            make_one_beat_lesson(run_dir)
+        except RuntimeError as exc:
+            return common.usage_error(str(exc))
+        (run_dir / "lesson.py").write_text(ONE_BEAT_LESSON_PY, encoding="utf-8")
+        for name, *args in (
+            ("narrate", "--provider", "null"),
+            ("render", "--tier", "draft", "--jobs", "1"),
+            ("frames", "--tier", "draft"),
+            ("assemble", "--tier", "draft"),
+            ("verify", "--tier", "draft"),
+        ):
+            cp = run_script(name, "lesson.json", *args, cwd=run_dir)
+            lines = (cp.stdout.strip() or cp.stderr.strip()).splitlines()
+            print(lines[-1] if lines else f"{name}.py printed nothing")
+            if cp.returncode != 0:
+                print(cp.stdout + cp.stderr, file=sys.stderr)
+                return 1
+    wall_s = time.perf_counter() - start
+    print(f"one-beat wall clock {wall_s:.1f} s")
+    if ONE_BEAT_BOUND_S is not None and wall_s > ONE_BEAT_BOUND_S:
+        print(f"FAIL one-beat: {wall_s:.1f} s is past the {ONE_BEAT_BOUND_S:g} s bound")
+        return 1
+    return 0
+
+
+class TestFixtures(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def test_one_beat_fixture_is_narrated_and_lint_clean(self):
+        write_fixtures(self.scratch.path)
+        run_dir = self.scratch.path / "one-beat"
+        lesson, errors = common.load_valid_lesson(run_dir / "lesson.json")
+        self.assertEqual(errors, [])
+        beats = [beat for _, beat in mtv_lesson.beats(lesson)]
+        self.assertEqual([(b["id"], b["tail_s"]) for b in beats], [("s01-b01", 1.0)])
+        self.assertTrue((run_dir / beats[0]["audio"]).exists())
+        self.assertIn("reveal", beats[0]["marks_s"])
+        source = (run_dir / "lesson.py").read_text()
+        self.assertEqual(check_scenes.lint_source(source, lesson), [])
+        two_scene = self.scratch.path / "two-scene"
+        lesson, errors = common.load_valid_lesson(two_scene / "lesson.json")
+        self.assertEqual(errors, [])
+        self.assertEqual(check_scenes.lint_source((two_scene / "lesson.py").read_text(), lesson), [])
+        self.assertTrue((self.scratch.path / "pack" / "index.json").exists())
+
+
+# Section 5.7's note, five physical lines byte for byte: the kit's patterns.py and references
+# carry it, and the corpus repository's check compares the same five lines.
+ATTRIBUTION_NOTE = (
+    "Attribution: the principles, patterns and rubric in this file are derived from a study\n"
+    "of 3Blue1Brown's videos and the public source in the 3b1b/videos repository\n"
+    "(CC BY-NC-SA 4.0). The analysis records live in the manim-3b1b-corpus repository. No\n"
+    "frames, transcript text or source code from those videos appear here; every example is\n"
+    "an original ManimCE rendering."
+)
+
+PATTERN_EXAMPLES_HEADER = """from manim import *
+from mtv.narrated import Narrated3DScene, NarratedCameraScene, NarratedScene
+from mtv.patterns import *
+
+SEED = 20261025
+"""
+
+
+def pattern_example(helper: str, body: str, base: str = "NarratedScene") -> str:
+    """Scene class ``Ex<Helper>`` whose one beat of the one-beat lesson runs ``body`` (four-space lines)."""
+    name = "Ex" + "".join(part[:1].upper() + part[1:] for part in helper.split("_"))
+    lines = "".join(f"            {line}\n" for line in body.strip("\n").split("\n"))
+    return (f"class {name}({base}):\n    def construct(self):\n        self.load_lesson(\"s01\")\n"
+            f"        with self.beat(\"s01-b01\") as b:\n{lines}")
+
+
+# One scene per helper, each playing its helper once inside the one-beat lesson's beat.
+PATTERN_EXAMPLES: dict[str, str] = {
+    "LayeredNetwork": pattern_example("LayeredNetwork", """
+net = LayeredNetwork([4, 20, 3], seed=SEED).scale(0.35)
+self.play(FadeIn(net), run_time=b.until("reveal"))
+self.play(net.node(1, 3).animate.scale(1.5))"""),
+    "NumericColumn": pattern_example("NumericColumn", """
+column = NumericColumn([0.5, -1.25, 2.0])
+self.play(FadeIn(column))
+self.play(column.at(1).animate.scale(1.4))"""),
+    "WeightGrid": pattern_example("WeightGrid", """
+grid = WeightGrid([0.9, -0.4, 0.1, -1.0, 0.6, 0.3], (2, 3))
+self.play(FadeIn(grid))"""),
+    "provenance": pattern_example("provenance", """
+src, dst = Square().shift(2 * LEFT), Circle().shift(2 * RIGHT)
+self.add(src)
+self.play(provenance(src, dst))"""),
+    "numbers_to_symbol": pattern_example("numbers_to_symbol", """
+column = NumericColumn([0.5, -1.25]).shift(2 * LEFT)
+self.add(column)
+self.play(numbers_to_symbol(column, MathTex("w").shift(2 * RIGHT)))"""),
+    "save_and_restore_layout": pattern_example("save_and_restore_layout", """
+group = VGroup(Square(), Circle()).arrange(RIGHT)
+self.add(group)
+with save_and_restore_layout(self, group):
+    self.play(group.animate.shift(UP).scale(0.5))"""),
+    "flash_along": pattern_example("flash_along", """
+line = Line(3 * LEFT, 3 * RIGHT)
+self.add(line)
+self.play(flash_along(line))"""),
+    "focus_and_dim": pattern_example("focus_and_dim", """
+group = VGroup(*(Square(side_length=0.8) for _ in range(4))).arrange(RIGHT)
+self.add(group)
+self.play(focus_and_dim(group, [group[0]]))"""),
+    "nudge_and_return": pattern_example("nudge_and_return", """
+square = Square()
+self.add(square)
+self.play(nudge_and_return(square))"""),
+    "count_parameters": pattern_example("count_parameters", """
+net = LayeredNetwork([3, 4, 2], seed=SEED).scale(0.6).shift(DOWN)
+counter, counting = count_parameters(net)
+self.add(net, counter.to_edge(UP))
+self.play(counting)"""),
+    "live_decimal": pattern_example("live_decimal", """
+tracker = ValueTracker(0.5)
+self.add(live_decimal(tracker))
+self.play(tracker.animate.set_value(1.5))"""),
+    "zoom_to": pattern_example("zoom_to", """
+grid = WeightGrid([0.9, -0.4, 0.1, -1.0, 0.6, 0.3], (2, 3))
+self.add(grid)
+self.play(zoom_to(self, grid[0]))""", base="NarratedCameraScene"),
+    "orbit_with_hud": pattern_example("orbit_with_hud", """
+self.set_camera_orientation(phi=60 * DEGREES, theta=-45 * DEGREES)
+self.add(ThreeDAxes())
+orbit_with_hud(self, VGroup(Text("weights").to_corner(UL)), degrees=30, run_time=2.0)""", base="Narrated3DScene"),
+    "staggered": pattern_example("staggered", """
+self.play(staggered(VGroup(*(Dot() for _ in range(5))).arrange(RIGHT)))"""),
+    "delayed": pattern_example("delayed", """
+self.play(delayed(FadeIn(Square(), run_time=1.0), 0.5, 2.0))"""),
+    "question_caption": pattern_example("question_caption", """
+square = Square().shift(UP)
+self.add(square)
+self.play(FadeIn(question_caption(square, "why this one?")))"""),
+}
+
+
+def render_example(manim: str, examples: Path, helper: str, media: Path, env: dict[str, str]) -> tuple[bool, str]:
+    """Render ``Ex<Helper>`` at -ql; whether it succeeded, and the last line of its output.
+
+    Each render gets its own ``media`` directory, as render.py gives each scene one: CE writes
+    a formula's TeX files under the media directory by content hash, and two processes compiling
+    the same formula there at once break each other's LaTeX run.
+    """
+    name = PATTERN_EXAMPLES[helper].split("(", 1)[0].removeprefix("class ")
+    # stdin closed: with several classes in the file, CE prompts for a class it cannot find.
+    cp = subprocess.run(
+        [manim, "render", "-ql", "--disable_caching", "--media_dir", str(media), str(examples), name],
+        capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, check=False,
+    )
+    tail = (cp.stdout + cp.stderr).strip().splitlines()
+    return cp.returncode == 0, tail[-1] if tail else ""
+
+
+def run_patterns() -> int:
+    """Render one example per helper; 1 when any render fails or a helper has no example."""
+    manim = common.which("manim")
+    if manim is None:
+        return common.usage_error("--patterns needs ManimCE: manim is not on PATH")
+    with Scratch() as scratch:
+        scratch_dir = Path(scratch)
+        try:
+            lesson_path = make_one_beat_lesson(scratch_dir / "one-beat")
+        except RuntimeError as exc:
+            return common.usage_error(str(exc))
+        examples = scratch_dir / "examples.py"
+        examples.write_text(
+            PATTERN_EXAMPLES_HEADER + "".join(f"\n\n{source}" for source in PATTERN_EXAMPLES.values()),
+            encoding="utf-8",
+        )
+        env = {**os.environ, "MTV_LESSON": str(lesson_path), "PYTHONPATH": str(SCRIPTS_DIR),
+               "PYTHONDONTWRITEBYTECODE": "1"}
+        rendered = [helper for helper in common.PATTERN_TAGS if helper in PATTERN_EXAMPLES]
+        with concurrent.futures.ThreadPoolExecutor(max(1, (os.cpu_count() or 2) - 1)) as pool:
+            results = dict(zip(rendered, pool.map(
+                lambda helper: render_example(manim, examples, helper, scratch_dir / "media" / helper, env), rendered)))
+    failed = 0
+    for helper in common.PATTERN_TAGS:
+        if helper not in results:
+            print(f"missing {helper}")
+            failed += 1
+        elif results[helper][0]:
+            print(f"ok {helper}")
+        else:
+            print(f"FAIL {helper}: {results[helper][1]}")
+            failed += 1
+    return 1 if failed else 0
+
+
+class TestPatterns(unittest.TestCase):
+    """The helpers' own logic, built without rendering; --patterns renders them."""
+
+    def setUp(self):
+        require("manim", "patterns")
+        self.patterns = importlib.import_module("mtv.patterns")
+
+    def test_layered_network_shape_and_seed(self):
+        net = self.patterns.LayeredNetwork([3, 20, 2], seed=7)
+        # A layer of 20 shows 16 dots and an ellipsis; edges join only the shown dots.
+        self.assertEqual([len(layer) for layer in net.layers], [3, 17, 2])
+        self.assertEqual(len(net.edges), 3 * 16 + 16 * 2)
+        self.assertIs(net.node(1, 15), net.layers[1][16])
+        twin = self.patterns.LayeredNetwork([3, 20, 2], seed=7)
+        style = [(e.get_stroke_color().to_hex(), round(e.get_stroke_opacity(), 6)) for e in net.edges]
+        self.assertEqual(style, [(e.get_stroke_color().to_hex(), round(e.get_stroke_opacity(), 6)) for e in twin.edges])
+
+    def test_weight_grid_and_focus_reject_bad_input(self):
+        with self.assertRaises(ValueError):
+            self.patterns.WeightGrid([0.1, 0.2, 0.3], (2, 2))
+        manim = importlib.import_module("manim")
+        group = manim.VGroup(manim.Square(), manim.Circle())
+        with self.assertRaises(ValueError):
+            self.patterns.focus_and_dim(group, list(group))
+        self.assertEqual(len(self.patterns.focus_and_dim(group, [group[0]]).animations), 1)
+
+    def test_focus_keeps_nested_members_and_nudge_has_run_time(self):
+        net = self.patterns.LayeredNetwork([2, 3], seed=1)
+        kept = net.node(1, 1)
+        dimmed = [anim.mobject for anim in self.patterns.focus_and_dim(net, [kept]).animations]
+        self.assertFalse(any(kept is m or kept in m.get_family() for m in dimmed))
+        self.assertIn(net.edges, dimmed)
+        self.assertIn(net.layers[0], dimmed)
+        self.assertEqual(self.patterns.nudge_and_return(net.node(0, 0)).run_time, 1.0)
+
+    def test_count_keeps_pace_and_delayed_tolerates_float_error(self):
+        net = self.patterns.LayeredNetwork([4, 20, 3], seed=1)
+        _, counting = self.patterns.count_parameters(net)
+        tracker_anim, lighting = counting.animations
+        # Stretched together, the count runs exactly as long as the lighting.
+        self.assertEqual(tracker_anim.run_time, lighting.run_time)
+        self.assertIs(counting.group, net)
+        manim = importlib.import_module("manim")
+        exact = self.patterns.delayed(manim.FadeIn(manim.Dot(), run_time=0.2), 0.1, 0.3)
+        self.assertEqual(len(exact.animations), 2)
+        with self.assertRaises(ValueError):
+            self.patterns.delayed(manim.FadeIn(manim.Dot(), run_time=0.3), 0.1, 0.3)
+
+    def test_question_caption_stays_in_frame(self):
+        manim = importlib.import_module("manim")
+        for y in (2.0, -3.0):
+            caption, arrow = self.patterns.question_caption(manim.Square(side_length=1).shift(y * manim.UP), "why?")
+            self.assertGreaterEqual(caption.get_bottom()[1], -common.FRAME_HEIGHT / 2)
+
+
+class TestAttribution(unittest.TestCase):
+    def test_patterns_attribution(self):
+        text = (SCRIPTS_DIR / "mtv" / "patterns.py").read_text(encoding="utf-8")
+        first_line, _, rest = text.partition("\n")
+        self.assertTrue(first_line.startswith('"""'))
+        # The note is the docstring's second paragraph: after the title line and one blank line.
+        self.assertTrue(rest.startswith("\n" + ATTRIBUTION_NOTE + "\n"), "patterns.py must open with the note")
+
+    def test_references_attribution(self):
+        references = SKILL_DIR / "references"
+        if not references.is_dir():
+            print("SKIP attribution: references not present (M2 writes them)")
+            raise unittest.SkipTest("references not present")
+        for path in sorted(references.glob("*.md")):
+            paragraphs = path.read_text(encoding="utf-8").split("\n\n")
+            self.assertTrue(paragraphs[0].startswith("# "), path.name)
+            self.assertEqual(paragraphs[1].strip("\n"), ATTRIBUTION_NOTE, path.name)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run the self-test; arguments not listed here (for example -k NAME) go to unittest.",
@@ -1933,13 +2503,13 @@ def main() -> int:
     parser.add_argument("--one-beat", action="store_true", help="render, assemble and verify a one-beat lesson")
     parser.add_argument("--fixtures", type=Path, metavar="DIR", help="write the fixture lessons into DIR")
     args, unittest_args = parser.parse_known_args()
-    for flag, given in (
-        ("--patterns", args.patterns),
-        ("--one-beat", args.one_beat),
-        ("--fixtures", args.fixtures is not None),
-    ):
-        if given:
-            return common.usage_error(f"{flag} not implemented yet")
+    if args.fixtures is not None:
+        write_fixtures(args.fixtures.resolve())
+        return 0
+    if args.patterns:
+        return run_patterns()
+    if args.one_beat:
+        return run_one_beat()
     program = unittest.main(argv=[sys.argv[0], *unittest_args], exit=False)
     return 0 if program.result.wasSuccessful() else 1
 

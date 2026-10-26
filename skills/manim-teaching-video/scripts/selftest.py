@@ -1152,6 +1152,28 @@ class TestProviderErrors(unittest.TestCase):
         lesson["provider"] = "null"
         self.assertFalse(mtv_lesson.needs_rerun(lesson, "narrate"))
 
+    def test_lesson_without_voice_narrated_by_its_own_provider_is_done(self):
+        # validate lets a lesson omit voice and provider; narrated as it stands, a resume must
+        # not restart at narrate (spec 6.6), with --provider naming that same provider or not.
+        lesson_path = self.run_dir / "lesson.json"
+        for provider, args in (("null", ()), ("null", ("--provider", "null")), (None, ("--provider", "kokoro"))):
+            with self.subTest(provider=provider, args=args):
+                lesson = mtv_lesson.load(lesson_path)
+                lesson.pop("voice", None)
+                lesson.pop("stages", None)
+                lesson["provider"] = provider
+                if provider is None:
+                    del lesson["provider"]
+                mtv_lesson.save(lesson, lesson_path)
+                kokoro = tts.get_provider("null")
+                kokoro.name = "kokoro"
+                # Kokoro is not installed here; the null provider speaks in its place.
+                with mock.patch.object(narrate, "build_provider", lambda name, voice: kokoro if name == "kokoro"
+                                       else tts.get_provider(name)), \
+                        contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(narrate.main([str(lesson_path), *args]), 0)
+                self.assertFalse(mtv_lesson.needs_rerun(mtv_lesson.load(lesson_path), "narrate"))
+
 
 class TestNarrate(unittest.TestCase):
     @classmethod

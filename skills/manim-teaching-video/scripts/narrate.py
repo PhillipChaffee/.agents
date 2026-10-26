@@ -203,10 +203,13 @@ def main(argv: list[str] | None = None) -> int:
     if any(common.load_json(run_dir / beat["words"])["provider"] != provider.name for beat in beats):
         tools["fallback"] = fallback.name
     mtv_lesson.mark_done(lesson, "narrate", tools)
-    # The stage is done for the provider and voice that spoke, which --provider may have changed
-    # from the lesson's: hashed with those, a resume under the lesson's own re-narrates.
-    used = {**lesson, "provider": provider.name, "voice": voice}
-    lesson["stages"]["narrate"]["inputs_sha256"] = mtv_lesson.stage_inputs(used, "narrate")
+    # The stage is done for the provider and voice that spoke. When --provider changed them from
+    # the lesson's, they are hashed in place of its fields, so a resume under the lesson's own
+    # re-narrates; otherwise the lesson's own fields stand, absent voice or provider included,
+    # since a resume hashes those and must find the stage done.
+    if name != (lesson.get("provider") or DEFAULT_PROVIDER):
+        used = {**lesson, "provider": provider.name, "voice": voice}
+        lesson["stages"]["narrate"]["inputs_sha256"] = mtv_lesson.stage_inputs(used, "narrate")
     mtv_lesson.save(lesson, args.lesson)
     interpolated = sum(beat["interpolated"] for beat in beats)
     return common.verdict(True, f"narrated {len(beats)} beats, {interpolated} interpolated")

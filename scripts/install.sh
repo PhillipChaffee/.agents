@@ -85,6 +85,8 @@ build_mapping() {
 	for skill_dir in skills/*/; do
 		id=$(basename "$skill_dir")
 		printf 'skills/%s/SKILL.md\tskills/%s/skill.md\n' "$id" "$id"
+		# Upstream tools also open SKILL.md on case-sensitive filesystems.
+		printf 'skills/%s/SKILL.md\tskills/%s/SKILL.md\n' "$id" "$id"
 		while IFS= read -r f; do
 			rel=${f#./}
 			case "$rel" in

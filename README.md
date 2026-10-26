@@ -40,6 +40,8 @@ cd .agents
 The installer copies active skills and their assets, agents, rules, the home
 instruction file, and license notices into `~/.agents`. It does not install
 the disabled archive, source lockfiles, or repository-only scripts.
+Skill entry points retain both `skill.md` and `SKILL.md` spellings for tools
+that require the uppercase filename on case-sensitive filesystems.
 
 Unstamped files that differ are skipped unless `--force` is supplied. Managed
 files can be overwritten: preserve local edits before reinstalling. `--dry-run`

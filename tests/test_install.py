@@ -34,22 +34,24 @@ class InstallTests(unittest.TestCase):
             install("--dry-run")
             self.assertFalse(target.exists())
             install()
-            mapping = {"agents.kit.md": "agents.md"}
+            mapping = {"agents.md": "agents.kit.md"}
             for folder in ("skills", "agents", "rules"):
                 for source in (ROOT / folder).rglob("*"):
                     if not source.is_file() or source.name == ".DS_Store" or "node_modules" in source.parts:
                         continue
                     relative = source.relative_to(ROOT)
                     destination = relative.with_name("skill.md") if source.name == "SKILL.md" else relative
-                    mapping[str(relative)] = str(destination)
+                    mapping[str(destination)] = str(relative)
+                    if source.name == "SKILL.md":
+                        mapping[str(relative)] = str(relative)
             mapping.update({name: name for name in ("LICENSE", "THIRD-PARTY-NOTICES.md")})
-            for source, destination in mapping.items():
+            for destination, source in mapping.items():
                 with self.subTest(source=source):
                     self.assertEqual((ROOT / source).read_bytes(), (target / destination).read_bytes())
                     if os.access(ROOT / source, os.X_OK):
                         self.assertTrue(os.access(target / destination, os.X_OK))
             stamped = set((target / ".kit-stamp").read_text().splitlines()[2:])
-            self.assertEqual(set(mapping.values()), stamped)
+            self.assertEqual(set(mapping), stamped)
             retired = [
                 f"agents/cr-{name}" for name in (
                     "architecture", "correctness", "deployment-safety", "implementer",
@@ -68,7 +70,22 @@ class InstallTests(unittest.TestCase):
                 self.assertFalse((ROOT / missing).exists(), missing)
             for missing in ["skills-disabled", "scripts", *retired]:
                 self.assertFalse((target / missing).exists(), missing)
-            self.assertEqual(len(mapping) + 1, sum(path.is_file() for path in target.rglob("*")))
+            # The two skill filename spellings share an inode on case-insensitive homes.
+            installed = {((target / name).stat().st_dev, (target / name).stat().st_ino) for name in mapping}
+            self.assertEqual(len(installed) + 1, sum(path.is_file() for path in target.rglob("*")))
+
+            bin_dir = home / "bin"
+            bin_dir.mkdir()
+            dot = bin_dir / "dot"
+            dot.write_text("#!/bin/sh\nexit 0\n")
+            dot.chmod(0o755)
+            subprocess.run(
+                ["node", str(target / "skills/writing-skills/render-graphs.js"), str(target / "skills/writing-skills")],
+                env={**env, "PATH": f"{bin_dir}{os.pathsep}{env['PATH']}"},
+                text=True,
+                check=True,
+                capture_output=True,
+            )
 
             unmanaged = target / "local-only.txt"
             unmanaged.write_text("keep this file\n")

@@ -212,14 +212,12 @@ def beat_end_s(cursor_s: float, enter_s: float, duration_s: float, tail_s: float
     but never before the beat's own narration has played from where it entered, so an earlier
     beat's overrun cannot cut this one's speech, which assemble.py would trim. That floor holds
     one frame more than the narration because CE rounds a static pad down to whole frames
-    (CE manim/renderer/cairo_renderer.py:221-225). Without any overrun a beat still enters up to
-    two frames past the cursor: the frame its body rounds up to, then the exit pad's one-frame
-    floor (spec 6.10). A tail under three frames cannot cover both and the floor's frame, so its
-    floor gives up what the tail lacks; otherwise every beat would round up and the scene would
-    drift from its narration a frame or two per beat.
+    (CE manim/renderer/cairo_renderer.py:221-225). A tail under about three frames lets the floor
+    win on every beat, so such a scene runs a frame or two per beat past its summed narration;
+    that is harmless, because verify.py replays these ends from the logged entries and
+    assemble.py pads each beat's WAV to the beat's own rendered length.
     """
-    frame_s = 1 / fps
-    return max(cursor_s + duration_s + tail_s, enter_s + duration_s + min(frame_s, tail_s - 2 * frame_s))
+    return max(cursor_s + duration_s + tail_s, enter_s + duration_s + 1 / fps)
 
 
 def sha256_file(path: Path) -> str:

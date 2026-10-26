@@ -145,10 +145,10 @@ DEFAULT_TAIL_S = 0.4
 LAST_TAIL_S = 1.0
 DEFAULT_LEAD_S = 0.2
 OVERRUN_MAX_S = 1.0
-SYNC_BEAT_TOLERANCE_S = 0.25  # pre-M0 default; set by M0 Task 9, copied in by Task 23
-SYNC_CONTAINER_TOLERANCE_S = 0.5  # pre-M0 default; set by M0 Task 9, copied in by Task 23
-HANG_TIMEOUT_S = 600  # pre-M0 default; set by M0 Task 9, copied in by Task 23
-STANDARD_TO_DRAFT_RATIO = 10.1  # pre-M0 default; set by M0 Task 9, copied in by Task 23
+SYNC_BEAT_TOLERANCE_S = 2 / 15  # measured by M0 Task 9 on 2026-10-26
+SYNC_CONTAINER_TOLERANCE_S = 0.5  # measured by M0 Task 9 on 2026-10-26
+HANG_TIMEOUT_S = 600  # measured by M0 Task 9 on 2026-10-26
+STANDARD_TO_DRAFT_RATIO = 2.00  # measured by M0 Task 9 on 2026-10-26
 CONTINUITY_THRESHOLD = 0.15  # pre-M1 default; recalibrated by Task 22
 
 WORDS_PER_MINUTE = 150

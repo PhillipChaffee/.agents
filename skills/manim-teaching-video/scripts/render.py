@@ -9,6 +9,7 @@ run log.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import platform
@@ -119,7 +120,8 @@ def _clear_outputs(out_dir: Path, scene_class: str) -> None:
     render would pass for this one. A failed render leaves the scene's earlier render blocks
     and the render stage of lesson.json as they were, so its beats must name missing files,
     not videos of the lesson.py it replaces: main's stage test, and every later script that
-    reads them, then stops on a missing file instead of using those videos.
+    reads them, then stops on a missing file instead of using those videos. A render that fails
+    after collect_sections clears the copies it made too, since they keep the earlier file names.
     """
     for stale in [*_section_indexes(out_dir, scene_class), out_dir / "sections.json", *out_dir.glob("*.mp4")]:
         stale.unlink(missing_ok=True)
@@ -167,7 +169,10 @@ def _missing(beat_ids: list[str], found: dict, where: str) -> list[str]:
 
 
 def _run_log_lines(run_log: Path) -> dict[str, dict]:
-    records = (json.loads(line) for line in run_log.read_text(encoding="utf-8").splitlines() if line.strip())
+    records = [json.loads(line) for line in run_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    for record in records:
+        if not (isinstance(record, dict) and "beat" in record):
+            raise ValueError(f"run.log line without a beat key: {json.dumps(record)}")
     return {record["beat"]: record for record in records}
 
 
@@ -218,17 +223,27 @@ def render_scene(lesson: dict, lesson_path: Path, scene: dict, tier: str, hang_t
             # cause, while the missing-beat line appended below (row 16) names only the symptom.
             cause = _matched_row(render_log)
             _append(render_log, missing)
+            _clear_outputs(out_dir, scene["scene_class"])
             return _failure(render_log, cause or _matched_row(render_log))
+        # Every block is built before any is written: a scene that fails partway must leave its
+        # beats as they were, since only the scenes that succeed get new render blocks.
+        renders: dict[str, dict] = {}
         for beat in beats:
             entry = entries[positions[beat["id"]]]
-            beat.setdefault("render", {}).update(
-                index=positions[beat["id"]],
-                video=(out_dir.relative_to(run_dir) / entry["video"]).as_posix(),
-                duration_s=float(entry["duration"]),
-                log={key: value for key, value in records[beat["id"]].items() if key != "beat"},
-            )
-    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            renders[beat["id"]] = {
+                "index": positions[beat["id"]],
+                "video": (out_dir.relative_to(run_dir) / entry["video"]).as_posix(),
+                "duration_s": float(entry["duration"]),
+                "log": {key: value for key, value in records[beat["id"]].items() if key != "beat"},
+            }
+    # LookupError and TypeError cover an index entry of an unexpected shape: one scene's bad
+    # output must not reach pool.map, where it would cost the other scenes' blocks.
+    except (OSError, subprocess.SubprocessError, LookupError, TypeError, ValueError) as exc:
+        with contextlib.suppress(OSError):
+            _clear_outputs(out_dir, scene["scene_class"])
         return {"ok": False, "error": None, "tail": [f"mtv: {exc}"]}
+    for beat in beats:
+        beat.setdefault("render", {}).update(renders[beat["id"]])
     return {"ok": True, "wall_s": wall_s}
 
 

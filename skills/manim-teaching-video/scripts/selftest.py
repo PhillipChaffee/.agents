@@ -95,7 +95,8 @@ def example_run_dir(parent: Path) -> Path:
 # the failing path with a scenes file that is otherwise clean. Its render writes what CE's
 # --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
 # MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
-# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang, or real MP4s.
+# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang, or real MP4s;
+# MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit.
 FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
 import ast
 import json
@@ -147,8 +148,12 @@ with open(os.environ["MTV_RUN_LOG"], "a", encoding="utf-8") as run_log:
         entries.append({"name": beat["id"], "type": "default.normal", "video": video, "width": 854, "height": 480,
                         "nb_frames": str(round(duration * 15)), "duration": f"{duration:.6f}",
                         "avg_frame_rate": "15/1", "codec_name": "h264", "pix_fmt": "yuv420p"})
-        run_log.write(json.dumps({"beat": beat["id"], "enter_s": enter_s, "exit_s": enter_s + duration,
-                                  "audio_s": audio_s, "tail_s": tail_s, "overrun_s": 0.0, "boxes": []}) + "\n")
+        record = {"beat": beat["id"], "enter_s": enter_s, "exit_s": enter_s + duration,
+                  "audio_s": audio_s, "tail_s": tail_s, "overrun_s": 0.0, "boxes": []}
+        if os.environ.get("MTV_FAKE_RUN_LOG") == "nobeat":
+            del record["beat"]
+        if os.environ.get("MTV_FAKE_RUN_LOG") != "none":
+            run_log.write(json.dumps(record) + "\n")
         enter_s += duration
 (sections_dir / f"{scene_class}.json").write_text(json.dumps(entries, indent=4))
 print("File ready")
@@ -864,6 +869,27 @@ class TestRender(ExampleLessonCase):
         self.assertTrue((s02 / "sections.json").exists())
         for scene, beat in mtv_lesson.beats(after):
             self.assertEqual((self.run_dir / beat["render"]["video"]).exists(), scene["id"] == "s02")
+
+    def test_failed_read_back_leaves_no_stale_video(self):
+        # manim exits 0, so its MP4s are already copied when reading its run log fails; the copies
+        # keep the earlier file names, so left in place they would pass for s01's earlier render.
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        before = mtv_lesson.load(self.lesson_path)
+        s01 = self.run_dir / "render" / "draft" / "s01"
+        for mode, reason in (("none", "missing from run.log"),
+                             ("nobeat", "mtv: run.log line without a beat key")):
+            with self.subTest(mode=mode):
+                cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
+                                env={**self.env, "MTV_FAKE_RUN_LOG": mode})
+                self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+                self.assertNotIn("Traceback", cp.stderr)
+                self.assertIn(reason, cp.stdout.strip().splitlines()[-1])
+                after = mtv_lesson.load(self.lesson_path)
+                self.assertEqual((after["stages"], after["scenes"]), (before["stages"], before["scenes"]))
+                left = sorted(path.name for path in s01.iterdir() if path.is_file())
+                self.assertEqual(left, ["render.log", "run.log"])
+                self.assertFalse(render._rendered(after["scenes"][0], "draft", self.run_dir))
 
     def test_record_env_font_probe(self):
         # mtv.look arrives with Task 17 and imports manim, so a stub package stands in for it on

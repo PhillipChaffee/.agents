@@ -34,6 +34,7 @@ import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
 import mtv.tts as tts  # noqa: E402
 import narrate  # noqa: E402
+import storyboard_check  # noqa: E402
 
 
 def _skip(fixture: str, dependency: str) -> NoReturn:
@@ -543,6 +544,84 @@ class TestNarrate(unittest.TestCase):
         cp = run_script("narrate", "--warmup", "--provider", "null", cwd=self.scratch.path)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertRegex(cp.stdout.strip().splitlines()[-1], r"^PASS warmup null rtf=\d+\.\d{3}$")
+
+
+class TestStoryboardCheck(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.run_dir = example_run_dir(self.scratch.path)
+        self.lesson_path = self.run_dir / "lesson.json"
+
+    def edit(self, fn):
+        lesson = mtv_lesson.load(self.lesson_path)
+        fn(lesson)
+        mtv_lesson.save(lesson, self.lesson_path)
+
+    def test_example_passes(self):
+        cp = run_script("storyboard_check", "lesson.json", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout)
+        self.assertTrue(mtv_lesson.load(self.lesson_path)["checks"]["storyboard"]["pass"])
+
+    def test_unresolved_mark_and_symbol_before_value(self):
+        def fn(lesson):
+            lesson["scenes"][0]["beats"][0]["marks"]["reveal"] = 40
+            lesson["scenes"][1]["beats"][0]["shows_value_of"] = []
+        self.edit(fn)
+        cp = run_script("storyboard_check", "lesson.json", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        findings = mtv_lesson.load(self.lesson_path)["checks"]["storyboard"]["findings"]
+        self.assertIn(("s01-b01", None), [(f["beat"], f["rule_id"]) for f in findings])
+        self.assertIn(("s02-b02", "R07"), [(f["beat"], f["rule_id"]) for f in findings])
+
+    def test_script_r08_r09(self):
+        def fn(lesson):
+            for _, beat in mtv_lesson.beats(lesson):
+                beat["narration"] = beat["narration"].replace("?", ".")
+            lesson["scenes"][0]["beats"][0]["narration"] = " ".join(["word"] * 61) + "."
+            lesson["scenes"][0]["beats"][0]["marks"] = {"reveal": 7}
+        self.edit(fn)
+        cp = run_script("storyboard_check", "lesson.json", "--script", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        rules = {f["rule_id"] for f in mtv_lesson.load(self.lesson_path)["checks"]["storyboard"]["findings"]}
+        self.assertTrue({"R08", "R09"} <= rules)
+
+    def test_exemplar_id_in_field(self):
+        self.edit(lambda l: l["scenes"][0]["beats"][0].__setitem__("visual", "copy aircAruvnKk-s09-b03 staging"))
+        cp = run_script("storyboard_check", "lesson.json", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        self.assertIn("aircAruvnKk-s09-b03", cp.stdout)
+
+    def test_unknown_lands_mark_is_a_finding(self):
+        # validate reports it as well, yet an unresolved mark fails this gate, not the input.
+        self.edit(lambda lesson: lesson["scenes"][1]["beats"][2]["lands"][0].__setitem__("mark", "gone"))
+        cp = run_script("storyboard_check", "lesson.json", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1, cp.stderr)
+        self.assertIn("s02-b03 - mark 'gone' does not resolve to a word", cp.stdout.splitlines())
+
+    def test_other_schema_error_exits_2_without_writing(self):
+        self.edit(lambda lesson: lesson["scenes"][0].__setitem__("scene_kind", "2d"))
+        before = self.lesson_path.read_text()
+        cp = run_script("storyboard_check", "lesson.json", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("scene_kind '2d'", cp.stderr)
+        self.assertEqual(self.lesson_path.read_text(), before)
+
+    def test_predicate_keys(self):
+        self.assertEqual(set(storyboard_check.PREDICATES), {"R01", "R03", "R06", "R07", "R08", "R09", "R10", "R11", "R16", "R28"})
+
+    def test_predicates_match_framework(self):
+        ref = SKILL_DIR / "references" / "framework.md"
+        if not ref.exists():
+            print("SKIP storyboard predicates: references/framework.md not present (M2 writes it)")
+            raise unittest.SkipTest("references absent")
+        blocks = [b for b in re.split(r"\n[ \t]*\n", ref.read_text()) if re.match(r"^R\d\d ", b)]
+        self.assertEqual(len(blocks), 30)
+        named = {b[:3] for b in blocks if "Check (storyboard): storyboard_check.py" in b}
+        self.assertEqual(named, set(storyboard_check.PREDICATES))
 
 
 def main() -> int:

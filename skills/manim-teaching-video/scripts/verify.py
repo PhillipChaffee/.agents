@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import statistics
 import subprocess
 import sys
 import wave
@@ -32,8 +33,13 @@ UNREADABLE = "unreadable"
 LATEX_ERROR = "latex error converting to"
 RUBRIC_MAX = 32  # sixteen items scored 0 to 2
 SAMPLE_EVERY_S = 10
-BLACK_MEAN_LUMA = 8  # of 255
-FROZEN_MAD = 0.01
+# A real ManimCE draft of thin 3b1b strokes on BLACK has a frame mean under 8 of 255 and changes
+# by as little as 0.004 between samples, so spec 6.12's frame mean of 8 and difference of 0.01
+# would call it black and frozen, while a black frame has almost no lit pixel and two samples of a
+# still picture differ by 0.0000.
+LIT_LUMA = 8  # of 255: spec 6.12's black level per pixel, above the 3 ffmpeg 6.1's scale reads for black
+BLACK_LIT_SHARE = 0.01  # a frame with a smaller share of lit pixels is black
+IDENTICAL_MAD = 0.001  # samples closer than this are identical
 
 
 @dataclass
@@ -297,20 +303,25 @@ def _samples(mp4: Path, probe: dict | None) -> list[bytes]:
 
 
 def _frame_rows(mp4: Path, probe: dict | None) -> list[GateResult]:
-    """not black and not frozen over the sampled frames; an unreadable frame fails both, with the reason."""
+    """not black and not frozen over the sampled frames; an unreadable frame fails both, with the reason.
+
+    Each judges a median, of the samples' lit shares and of the changes between consecutive samples:
+    a lesson's black opening, a fade through black at a scene boundary and a long hold are
+    deliberate, while a video that is black or still for most of its length is broken.
+    """
     try:
         samples = _samples(mp4, probe)
     except RuntimeError as exc:
         unreadable = f"{UNREADABLE}: {exc}"
         return [
-            GateResult("not black", unreadable, BLACK_MEAN_LUMA, False),
-            GateResult("not frozen", unreadable, FROZEN_MAD, False),
+            GateResult("not black", unreadable, BLACK_LIT_SHARE, False),
+            GateResult("not frozen", unreadable, IDENTICAL_MAD, False),
         ]
-    darkest = min(sum(frame) / len(frame) for frame in samples)
-    least = min(frames.mad(a, b) for a, b in zip(samples, samples[1:]))
+    lit = statistics.median(sum(pixel > LIT_LUMA for pixel in frame) / len(frame) for frame in samples)
+    change = statistics.median(frames.mad(a, b) for a, b in zip(samples, samples[1:]))
     return [
-        GateResult("not black", round(darkest, 3), BLACK_MEAN_LUMA, darkest >= BLACK_MEAN_LUMA),
-        GateResult("not frozen", round(least, 6), FROZEN_MAD, least >= FROZEN_MAD),
+        GateResult("not black", round(lit, 4), BLACK_LIT_SHARE, lit >= BLACK_LIT_SHARE),
+        GateResult("not frozen", round(change, 6), IDENTICAL_MAD, change >= IDENTICAL_MAD),
     ]
 
 

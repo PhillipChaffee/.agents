@@ -1838,6 +1838,29 @@ class TestVerifyExternal(ScratchCase):
             self.assertEqual(rows[gate].measured, f"{verify.UNREADABLE}: {reason}")
             self.assertFalse(rows[gate].passed)
 
+    def test_frame_gates_judge_the_typical_sample(self):
+        # Thin strokes on BLACK, as a real draft has: 56 of 64x36 pixels lit (mean luma 4.9 of 255),
+        # and 20 of them changing between samples (mean absolute difference 0.0068).
+        def picture(step: int) -> bytes:
+            frame = bytearray(64 * 36)
+            frame[:46] = bytes([200]) * 46
+            frame[1000 + 10 * step:1010 + 10 * step] = bytes([200]) * 10
+            return bytes(frame)
+
+        def rows(*samples: bytes) -> list[verify.GateResult]:
+            # Samples fall every ten seconds after the start, so a video 10 n + 5 s long gives n of them.
+            video = {"codec_type": "video", "duration": str(10 * len(samples) + 5), "avg_frame_rate": "15/1"}
+            with mock.patch.object(verify.frames, "gray_small", side_effect=samples):
+                return verify._frame_rows(Path("draft.mp4"), {"streams": [video]})
+
+        black = bytes(64 * 36)
+        # One sample falls in a fade through black, as at a scene boundary or in a closing tail.
+        lesson = rows(picture(0), picture(1), black, picture(3), picture(4))
+        self.assertEqual([g.passed for g in lesson], [True, True], [g.as_dict() for g in lesson])
+        self.assertEqual(lesson[0].measured, round(56 / (64 * 36), 4))
+        self.assertEqual([g.passed for g in rows(black, black, picture(2))], [False, True])
+        self.assertEqual([g.passed for g in rows(picture(0), picture(0), picture(0), picture(1))], [True, False])
+
 
 class TestPreflight(ScratchCase):
     def test_preflight_json_reports_install_lines(self):

@@ -1786,6 +1786,38 @@ class TestExemplars(ExampleLessonCase):
             self.assertEqual(cp.stdout, "", args)
         self.assertEqual(mtv_lesson.load(self.lesson_path)["exemplars"]["used"], {"storyboarder": [], "frame-critic": {}})
 
+    def test_check_reports_an_unhashable_source(self):
+        # A broken pack is a report.md warning and never a stop, so check must not raise on one.
+        make_pack(self.pack, broken=False)
+        index = common.load_json(self.pack / "index.json")
+        index["tags"]["working-thing-first"][0]["source"] = ["corpus"]
+        index["tags"]["provenance-transform"][0]["source"] = {"corpus": True}
+        common.dump_json(index, self.pack / "index.json")
+        self.assertEqual(sorted(exemplars.check(self.pack)), [
+            "ccccccccccc-s01-b01: source '['corpus']' is not corpus or original",
+            "ddddddddddd-s01-b01: source '{'corpus': True}' is not corpus or original",
+        ])
+        cp = run_script("exemplars", "check", str(self.pack), cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        self.assertNotIn("Traceback", cp.stderr)
+
+    def test_pick_without_a_pack_or_a_valid_lesson_exits_2(self):
+        make_pack(self.pack, broken=False)
+        unset = {name: value for name, value in os.environ.items() if name != "MTV_EXEMPLARS"}
+        before = self.lesson_path.read_text()
+        cp = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=unset)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("no exemplar pack", cp.stderr)
+        lesson = json.loads(before)
+        lesson["seed"] = "twenty"
+        self.lesson_path.write_text(json.dumps(lesson))
+        invalid = self.lesson_path.read_text()
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        cp = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("lesson invalid: seed must be an integer", cp.stderr)
+        self.assertEqual((cp.stdout, self.lesson_path.read_text()), ("", invalid))
+
 
 class TestFrames(unittest.TestCase):
     @classmethod

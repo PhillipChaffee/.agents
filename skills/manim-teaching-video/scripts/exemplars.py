@@ -115,7 +115,8 @@ def _entry_findings(entry: Any, position: str, pack_dir: Path) -> list[str]:
     if not isinstance(entry, dict):
         return [f"{position}: entry must be an object"]
     source = entry.get("source")
-    fields, id_pattern = _SOURCES.get(source, ((), None))
+    # A JSON list or object is unhashable, and a lookup with it would raise instead of finding.
+    fields, id_pattern = _SOURCES.get(source, ((), None)) if isinstance(source, str) else ((), None)
     texts = [f"missing field '{field}'" for field in COMMON_FIELDS + fields if field not in entry]
     if "source" in entry and id_pattern is None:
         texts.append(f"source '{source}' is not corpus or original")

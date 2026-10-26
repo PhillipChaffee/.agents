@@ -65,10 +65,16 @@ def mad(a: bytes, b: bytes) -> float:
     return sum(abs(x - y) for x, y in zip(a, b)) / (255 * len(a))
 
 
-def clamp_time(t_s: float, duration_s: float, fps: int) -> float:
-    # The last frame starts one frame before the end; a mark at or past the end (frame
-    # quantization or an overrun) still gets a still instead of an empty seek.
-    return min(max(t_s, 0.0), duration_s - 1 / fps)
+def clamp_time(t_s: float, duration_s: float, fps: float) -> float:
+    """``t_s`` kept inside the video, so that a mark at or past the end (frame quantization or an
+    overrun) still gets a still instead of an empty seek.
+
+    ffmpeg returns the first frame at or after a seek and none for a seek even 0.04 ms past the last
+    frame's start (ffmpeg 6.1.1), while a PyAV stream duration can run a fraction of a millisecond
+    past the frames. A seek to the middle of the frame before the last reads the last frame while
+    the duration is off by under half a frame.
+    """
+    return max(min(t_s, duration_s - 1.5 / fps), 0.0)
 
 
 def _stamp(t_s: float) -> str:

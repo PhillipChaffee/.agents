@@ -278,15 +278,13 @@ def _sample_times(duration_s: float, fps: float | None) -> list[float]:
     """Every SAMPLE_EVERY_S seconds after the start, or a third and two thirds of the way through a
     video too short for two of those.
 
-    The first frame is never sampled: a lesson that opens from black renders it black. ffmpeg
-    returns the first frame at or after a seek, so a seek past the last frame's start reads
-    nothing; samples stay half a frame before it, which also covers a stream duration that runs a
-    fraction of a millisecond past the last frame, as PyAV's can.
+    The first frame is never sampled: a lesson that opens from black renders it black. A sample
+    past the last frame's start would read nothing, so samples are clamped as frames.py's stills are.
     """
     times = [float(t_s) for t_s in range(SAMPLE_EVERY_S, math.ceil(duration_s), SAMPLE_EVERY_S)]
     if len(times) < 2:
         times = [duration_s / 3, 2 * duration_s / 3]
-    return times if fps is None else [min(t_s, duration_s - 1.5 / fps) for t_s in times]
+    return times if fps is None else [frames.clamp_time(t_s, duration_s, fps) for t_s in times]
 
 
 def _samples(mp4: Path, probe: dict | None) -> list[bytes]:

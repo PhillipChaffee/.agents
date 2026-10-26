@@ -1593,12 +1593,17 @@ class TestFrames(unittest.TestCase):
         require_tool("ffmpeg", "frames clamp")
         lesson_path = make_rendered_lesson(self.run_dir, ["blue"])
         lesson = mtv_lesson.load(lesson_path)
-        lesson["scenes"][0]["beats"][0]["marks_s"] = {"late": 2.4}
+        beat = lesson["scenes"][0]["beats"][0]
+        beat["marks_s"] = {"late": 2.4}
+        # A PyAV stream duration runs off its frames' length (0.3 ms in a real draft), here past the
+        # 30 frames' 2.0 s, and ffmpeg reads no frame for a seek past the last frame's start.
+        beat["render"]["duration_s"] = 2.01
         mtv_lesson.save(lesson, lesson_path)
         cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
-        self.assertTrue((self.run_dir / "frames" / "s01" / "s01-b01-late.png").exists())
-        self.assertAlmostEqual(frames.clamp_time(2.4, 2.0, 15), 2.0 - 1 / 15)
+        for still in ("late", "last"):
+            self.assertTrue((self.run_dir / "frames" / "s01" / f"s01-b01-{still}.png").exists())
+        self.assertAlmostEqual(frames.clamp_time(2.4, 2.0, 15), 2.0 - 1.5 / 15)
 
     def test_unrendered_beat_exits_2_without_writing(self):
         require_tool("ffmpeg", "frames unrendered")

@@ -11,6 +11,7 @@ import configparser
 import importlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
 import mtv.tts as tts  # noqa: E402
+import narrate  # noqa: E402
 
 
 def _skip(fixture: str, dependency: str) -> NoReturn:
@@ -69,6 +71,18 @@ class Scratch(tempfile.TemporaryDirectory):
     def __init__(self) -> None:
         super().__init__(prefix="mtv-selftest-")
         self.path = Path(self.name)
+
+
+def example_run_dir(parent: Path) -> Path:
+    """A new run directory under ``parent`` holding a copy of the example lesson.
+
+    unittest runs a class's tests in name order, so a run directory shared between them
+    would let one test's leftovers decide another's result.
+    """
+    run_dir = Path(tempfile.mkdtemp(dir=parent)) / "run"
+    run_dir.mkdir()
+    shutil.copyfile(ASSETS_DIR / "lesson.example.json", run_dir / "lesson.json")
+    return run_dir
 
 
 class TestVocabularies(unittest.TestCase):
@@ -462,6 +476,73 @@ class TestTts(unittest.TestCase):
     def test_unknown_provider(self):
         with self.assertRaises(ValueError):
             tts.get_provider("piper")
+
+
+class TestNarrate(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.run_dir = example_run_dir(self.scratch.path)
+
+    def test_narrate_null_provider(self):
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.run_dir / "lesson.json")
+        for _, beat in mtv_lesson.beats(lesson):
+            self.assertTrue((self.run_dir / beat["audio"]).exists())
+            self.assertTrue((self.run_dir / beat["words"]).exists())
+            self.assertFalse(beat["interpolated"])
+            for t in beat["marks_s"].values():
+                self.assertTrue(0.0 <= t <= beat["duration_s"])
+        self.assertIn("narrate", lesson["stages"])
+        self.assertTrue(cp.stdout.strip().splitlines()[-1].startswith("PASS"))
+
+    def test_narrate_cache_hit_and_deleted_wav(self):
+        run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        wav = self.run_dir / "audio" / "s01-b01.wav"
+        stamp = wav.stat().st_mtime_ns
+        run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(wav.stat().st_mtime_ns, stamp)
+        wav.unlink()
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0)
+        self.assertTrue(wav.exists())
+
+    def test_retry_backoff_and_fallback(self):
+        class Flaky:
+            name = "flaky"
+            def synthesize(self, text, out_wav):
+                raise ConnectionError("down")
+        sleeps = []
+        tokens, used, retries = narrate.synthesize_with_retry(
+            Flaky(), "hello there", Path(self.scratch.path) / "f.wav", tts.get_provider("null"), sleep_fn=sleeps.append)
+        self.assertEqual(sleeps, [2.0, 4.0, 8.0])
+        self.assertEqual((used, retries, len(tokens)), ("null", 3, 2))
+        with self.assertRaises(ConnectionError):
+            narrate.synthesize_with_retry(Flaky(), "hello there", Path(self.scratch.path) / "g.wav", None, sleep_fn=sleeps.append)
+        self.assertIsNone(narrate.build_fallback("null"))
+        self.assertIsNone(narrate.build_fallback("kokoro"))
+
+    def test_elevenlabs_without_key_exits_2_before_any_beat(self):
+        env = {k: v for k, v in os.environ.items() if k != "ELEVENLABS_API_KEY"}
+        cp = run_script("narrate", "lesson.json", "--provider", "elevenlabs", cwd=self.run_dir, env=env)
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("ELEVENLABS_API_KEY", cp.stderr)
+        self.assertFalse((self.run_dir / "audio").exists())
+
+    def test_narrate_invalid_lesson_exits_2(self):
+        lesson = mtv_lesson.load(self.run_dir / "lesson.json")
+        lesson["scenes"][0]["scene_kind"] = "2d"
+        mtv_lesson.save(lesson, self.run_dir / "lesson.json")
+        self.assertEqual(run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir).returncode, 2)
+
+    def test_warmup_needs_no_lesson(self):
+        cp = run_script("narrate", "--warmup", "--provider", "null", cwd=self.scratch.path)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertRegex(cp.stdout.strip().splitlines()[-1], r"^PASS warmup null rtf=\d+\.\d{3}$")
 
 
 def main() -> int:

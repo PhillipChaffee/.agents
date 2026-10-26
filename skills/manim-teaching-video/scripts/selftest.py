@@ -10,6 +10,7 @@ import argparse
 import configparser
 import importlib
 import json
+import math
 import os
 import re
 import shutil
@@ -656,6 +657,19 @@ class StubMobject:
         return [(min if direction[d] < 0 else max)(p[d] for p in self.points) for d in range(3)]
 
 
+class FrameClockScene(StubScene):
+    """Advances its clock by whole frames as CE does for a segment it renders: a play's frame
+    count rounds up (CE manim/scene/scene.py:1128-1129), a static wait's rounds down
+    (CE manim/renderer/cairo_renderer.py:224)."""
+
+    def wait(self, seconds: float) -> None:
+        self.calls.append(("wait", seconds))
+        self.time += int(seconds / (1 / self.frame_rate)) / self.frame_rate
+
+    def play(self, seconds: float) -> None:
+        self.time += math.ceil(seconds / (1 / self.frame_rate)) / self.frame_rate
+
+
 class TestNarratedMixin(ExampleLessonCase):
     def setUp(self):
         super().setUp()
@@ -738,6 +752,54 @@ class TestNarratedMixin(ExampleLessonCase):
             pass
         line = json.loads(Path(os.environ["MTV_RUN_LOG"]).read_text())
         self.assertEqual(line["boxes"], [{"name": "LayeredNetwork", "x0": -5.1, "y0": -3.2, "x1": 5.1, "y1": 0.4}])
+
+    def test_run_log_times_chain_on_a_frame_clock(self):
+        # The sync gate compares these times with CE's section index, which sums whole frames:
+        # each beat enters where the last one left and ends within a frame of its narrated end.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["duration_s"] = 3.63  # off the frame grid, as synthesized audio is
+        mtv_lesson.save(lesson, self.lesson_path)
+        scene = FrameClockScene()
+        scene.load_lesson("s01", self.lesson_path)
+        for beat_id in ("s01-b01", "s01-b02", "s01-b03"):
+            with scene.beat(beat_id):
+                scene.play(0.5)  # 7.5 frames at 15 fps, so 8 frames
+        lines = [json.loads(text) for text in Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()]
+        self.assertEqual([line["beat"] for line in lines], ["s01-b01", "s01-b02", "s01-b03"])
+        self.assertEqual(lines[0]["enter_s"], 0.0)
+        target_end = 0.0
+        for previous, line in zip([None, *lines], lines):
+            if previous:
+                self.assertEqual(line["enter_s"], previous["exit_s"])
+            target_end += line["audio_s"] + line["tail_s"]
+            self.assertLess(abs(line["exit_s"] - target_end), 1 / 15 + 1e-9)
+        self.assertEqual(lines[-1]["exit_s"], scene.time)
+
+    def test_no_run_log_without_mtv_run_log(self):
+        # check_scenes.py's dry run leaves MTV_RUN_LOG unset: beats are still padded, nothing is written.
+        os.environ.pop("MTV_RUN_LOG")
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01"):
+            pass
+        self.assertEqual(scene.calls[-1][0], "wait")
+        self.assertFalse((self.run_dir / "run.log").exists())
+
+    def test_manim_path_takes_the_tier_frame_rate_and_applies_the_look(self):
+        # Where ManimCE imports, the frame rate is the render tier's config value, not the scene's
+        # attribute, and look.py styles the scene once per load.
+        applied = []
+        look = ModuleType("mtv.look")
+        look.apply = applied.append
+        scene = StubScene()
+        with (mock.patch.object(narrated, "MANIM_AVAILABLE", True),
+              mock.patch.object(narrated, "config", mock.Mock(frame_rate=30.0), create=True),
+              mock.patch("mtv.look", look, create=True)):
+            scene.load_lesson("s01", self.lesson_path)
+            with scene.beat("s01-b01") as b:
+                scene.wait(b.duration + 1.0)
+                self.assertAlmostEqual(b.remaining(), 1 / 30)
+        self.assertEqual(applied, [scene])
 
 
 class TestStoryboardCheck(ExampleLessonCase):

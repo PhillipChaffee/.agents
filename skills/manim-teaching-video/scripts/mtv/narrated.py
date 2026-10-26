@@ -80,6 +80,10 @@ class NarratedMixin:
         # (CE manim/scene/scene.py:378-388); the subcaption spans the narration (1726-1766).
         self.next_section(beat_id)
         self.add_subcaption(entry["narration"], duration=entry["duration_s"])
+        # enter_s and exit_s read CE's clock, which a rendered segment advances by whole frames
+        # (CE manim/renderer/cairo_renderer.py:210), as the section index counts them; a segment
+        # reused from CE's cache advances it by its exact run time (110), so a cached re-render
+        # drifts from the index by up to one frame per reused animation.
         timing = Beat(
             beat_id=beat_id,
             narration=entry["narration"],
@@ -125,7 +129,7 @@ class NarratedMixin:
         return boxes
 
     def _log_line(self, beat: Beat, exit_s: float, overrun_s: float) -> dict:
-        # render.py copies these keys in this order into the beat's render.log object.
+        # Spec 6.10's key order, which json.dumps keeps in the run.log line; readers look keys up by name.
         return {
             "beat": beat.beat_id,
             "enter_s": beat.enter_s,

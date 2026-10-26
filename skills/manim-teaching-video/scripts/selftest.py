@@ -11,6 +11,7 @@ import configparser
 import importlib
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -90,11 +91,17 @@ def example_run_dir(parent: Path) -> Path:
 
 # ManimCE is absent where the self-test runs, so the scripts under test find this stand-in
 # first on PATH. Its dry run fails for a class whose name contains Bad, so a test can take
-# the failing path with a scenes file that is otherwise clean.
+# the failing path with a scenes file that is otherwise clean. Its render writes what CE's
+# --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
+# MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
+# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang, or real MP4s.
 FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
+import ast
 import json
 import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 argv = sys.argv[1:]
@@ -110,7 +117,40 @@ if "--dry_run" in argv:
     if "Bad" in argv[-1]:
         sys.exit(f"ValueError: {argv[-1]} failed its dry run")
     sys.exit(0)
-sys.exit("fake manim: no render branch")
+lesson_py, scene_class = Path(argv[-2]), argv[-1]
+# Like CE, the class is looked up in the scenes file; lesson.json supplies only its beats.
+if scene_class not in {node.name for node in ast.parse(lesson_py.read_text()).body if isinstance(node, ast.ClassDef)}:
+    sys.exit("There are no scenes inside that module")
+if os.environ.get("MTV_FAKE_FAIL") == "1":
+    sys.exit("TypeError: Passing Mobject methods to Scene.play is no longer supported. Use Mobject.animate instead.")
+if os.environ.get("MTV_FAKE_HANG") == "1" and "--disable_caching" not in argv:
+    time.sleep(30)
+lesson = json.loads(Path(os.environ["MTV_LESSON"]).read_text())
+beats = next(scene for scene in lesson["scenes"] if scene["scene_class"] == scene_class)["beats"]
+sections_dir = Path(argv[argv.index("--media_dir") + 1]) / "videos" / lesson_py.stem / "480p15" / "sections"
+sections_dir.mkdir(parents=True, exist_ok=True)
+entries, enter_s = [], 0.0
+with open(os.environ["MTV_RUN_LOG"], "a", encoding="utf-8") as run_log:
+    for index, beat in enumerate(beats):
+        audio_s = 2.0 if beat["duration_s"] is None else beat["duration_s"]
+        tail_s = beat.get("tail_s") or 0.0
+        duration = audio_s + tail_s
+        video = f"{scene_class}_{index:04d}_{beat['id']}.mp4"
+        if os.environ.get("MTV_FAKE_FFMPEG") == "1":
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                            f"color=c=blue:s=854x480:r=15:d={duration}", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                            str(sections_dir / video)], check=True)
+        else:
+            (sections_dir / video).touch()
+        # CE writes nb_frames and duration as strings (manim/utils/commands.py:62-63).
+        entries.append({"name": beat["id"], "type": "default.normal", "video": video, "width": 854, "height": 480,
+                        "nb_frames": str(round(duration * 15)), "duration": f"{duration:.6f}",
+                        "avg_frame_rate": "15/1", "codec_name": "h264", "pix_fmt": "yuv420p"})
+        run_log.write(json.dumps({"beat": beat["id"], "enter_s": enter_s, "exit_s": enter_s + duration,
+                                  "audio_s": audio_s, "tail_s": tail_s, "overrun_s": 0.0, "boxes": []}) + "\n")
+        enter_s += duration
+(sections_dir / f"{scene_class}.json").write_text(json.dumps(entries, indent=4))
+print("File ready")
 '''
 
 # The example lesson's two scene classes, each with the base its flat scene_kind needs.
@@ -756,6 +796,56 @@ class TestCheckScenes(ExampleLessonCase):
         missing = check_scenes.lint_source(CLEAN_TWO_CLASS_SOURCE.replace("S02OneNeuron", "S02Other"),
                                            mtv_lesson.load(self.lesson_path))
         self.assertEqual([(f["name"], f["fix"]) for f in missing], [("S02OneNeuron", "define class S02OneNeuron")])
+
+
+class TestRender(ExampleLessonCase):
+    def setUp(self):
+        super().setUp()
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE)
+        self.bin_dir = self.run_dir.parent / "bin"
+        write_fake_manim(self.bin_dir)
+        self.env = env_with_fake_manim(self.bin_dir)
+
+    def test_render_fills_render_and_env(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--jobs", "2", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        for i, (scene, beat) in enumerate(mtv_lesson.beats(lesson)):
+            self.assertEqual(beat["render"]["index"], i % 3)
+            self.assertTrue((self.run_dir / beat["render"]["video"]).exists())
+            self.assertAlmostEqual(beat["render"]["duration_s"], beat["duration_s"] + beat["tail_s"], places=2)
+            self.assertEqual(set(beat["render"]["log"]), {"enter_s", "exit_s", "audio_s", "tail_s", "overrun_s", "boxes"})
+        self.assertEqual(lesson["env"]["manim"], "Manim Community v0.22.0")
+        self.assertEqual(lesson["env"]["python"], platform.python_version())
+        self.assertTrue((self.run_dir / "render" / "draft" / "s01" / "sections.json").exists())
+        self.assertIn("render.draft", lesson["stages"])
+
+    def test_hang_is_killed_and_retried_with_disable_caching(self):
+        env = {**self.env, "MTV_FAKE_HANG": "1"}
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", "--hang-timeout-s", "1",
+                        cwd=self.run_dir, env=env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
+        self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False, True])
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["attempts"]["render_retries"], {"s01": 1})
+
+    def test_error_table_match_in_verdict(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
+                        env={**self.env, "MTV_FAKE_FAIL": "1"})
+        self.assertEqual(cp.returncode, 1)
+        self.assertIn(common.ERROR_TABLE[0].fix_text, cp.stdout.strip().splitlines()[-1])
+
+    def test_missing_class_exits_1_without_traceback(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["scene_class"] = "S01Missing"
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 1)
+        self.assertNotIn("Traceback", cp.stderr)
+        self.assertIn("There are no scenes inside that module", cp.stdout)  # the render.log tail, printed before the verdict
+        self.assertIn(common.ERROR_TABLE[18].gl_idiom, cp.stdout.strip().splitlines()[-1])  # row 19 in the verdict
 
 
 def main() -> int:

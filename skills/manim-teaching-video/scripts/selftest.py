@@ -47,6 +47,7 @@ import mtv.tts as tts  # noqa: E402
 import narrate  # noqa: E402
 import render  # noqa: E402
 import storyboard_check  # noqa: E402
+import verify  # noqa: E402
 
 
 def _skip(fixture: str, dependency: str) -> NoReturn:
@@ -340,6 +341,55 @@ def shift_run_log(lesson_path: Path, seconds: float) -> None:
         log["enter_s"] += seconds
         log["exit_s"] += seconds
     mtv_lesson.save(lesson, lesson_path)
+
+
+# The example lesson's s01 as ManimCE 0.22.0 left it after a draft render through render.py: the
+# section index byte for byte, and each beat's run-log line without its boxes. PyAV measured
+# s01-b02 from its stream time base, 0.3 ms off its 143 frames, and the mixin's clock is a running
+# sum of 1/15 s steps, so s01-b01 ends 5e-15 s past its target and logs that as its overrun.
+MANIMCE_S01_SECTIONS = """[
+    {
+        "name": "s01-b01",
+        "type": "default.normal",
+        "video": "S01WorkingThing_0000_s01-b01.mp4",
+        "width": 854,
+        "height": 480,
+        "nb_frames": "61",
+        "duration": "4.066667",
+        "avg_frame_rate": "15/1",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p"
+    },
+    {
+        "name": "s01-b02",
+        "type": "default.normal",
+        "video": "S01WorkingThing_0001_s01-b02.mp4",
+        "width": 854,
+        "height": 480,
+        "nb_frames": "143",
+        "duration": "9.533008",
+        "avg_frame_rate": "732160/48809",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p"
+    },
+    {
+        "name": "s01-b03",
+        "type": "default.normal",
+        "video": "S01WorkingThing_0002_s01-b03.mp4",
+        "width": 854,
+        "height": 480,
+        "nb_frames": "117",
+        "duration": "7.800000",
+        "avg_frame_rate": "15/1",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p"
+    }
+]"""
+MANIMCE_S01_RUN_LOG = (
+    {"enter_s": 0.0, "exit_s": 4.066666666666672, "audio_s": 3.6, "tail_s": 0.4, "overrun_s": 5.329070518200751e-15},
+    {"enter_s": 4.066666666666672, "exit_s": 13.599999999999987, "audio_s": 9.2, "tail_s": 0.4, "overrun_s": 0.0},
+    {"enter_s": 13.599999999999987, "exit_s": 21.39999999999998, "audio_s": 6.8, "tail_s": 1.0, "overrun_s": 0.0},
+)
 
 
 class ExampleLessonCase(unittest.TestCase):
@@ -1684,6 +1734,29 @@ class TestVerify(ExampleLessonCase):
         gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
         self.assertFalse(gates["overrun"]["pass"])
         self.assertEqual(gates["continuity"]["measured"], "missing")
+
+
+class TestVerifyManimCEOutput(ExampleLessonCase):
+    """The sync gates and the report read a section index and a run log that ManimCE wrote."""
+
+    def test_manimce_index_and_clock_pass_until_shifted(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"] = lesson["scenes"][:1]
+        out_dir = self.run_dir / "render" / "draft" / "s01"
+        out_dir.mkdir(parents=True)
+        (out_dir / "sections.json").write_text(MANIMCE_S01_SECTIONS)
+        for beat, log in zip(lesson["scenes"][0]["beats"], MANIMCE_S01_RUN_LOG):
+            beat["render"]["log"] = dict(log)
+        mtv_lesson.save(lesson, self.lesson_path)
+        sync = verify.run_log_vs_section_index(lesson, self.run_dir, "draft")[0]
+        self.assertTrue(sync.passed)
+        self.assertLess(sync.measured, 0.001)
+        self.assertEqual(verify.index_coverage(lesson, self.run_dir, "draft")[0].measured, 0)
+        # A beat that ended on time is no overrun, whatever float noise CE's clock leaves.
+        self.assertEqual(verify._warnings(lesson), [])
+        shift_run_log(self.lesson_path, 0.5)
+        sync = verify.run_log_vs_section_index(mtv_lesson.load(self.lesson_path), self.run_dir, "draft")[0]
+        self.assertFalse(sync.passed)
 
 
 class TestPreflight(unittest.TestCase):

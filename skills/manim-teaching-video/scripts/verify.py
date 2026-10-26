@@ -318,8 +318,10 @@ def _warnings(lesson: dict) -> list[str]:
         warnings.append(f"provider fallback to {fallback}")
     for beat in beats:
         overrun_s = _number(_dig(beat, "render", "log", "overrun_s"))
-        if overrun_s is not None and overrun_s > 0:
-            warnings.append(f"overrun {beat['id']}: {overrun_s:.2f} s")
+        # The mixin measures an overrun on CE's clock, a running sum of 1/fps steps, so a beat that
+        # ends on its target can log float noise (5e-15 s): only what shows in milliseconds counts.
+        if overrun_s is not None and round(overrun_s, 3) > 0:
+            warnings.append(f"overrun {beat['id']}: {overrun_s:.3f} s")
     return warnings
 
 

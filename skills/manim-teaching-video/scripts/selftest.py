@@ -382,6 +382,37 @@ class TestLessonSchema(unittest.TestCase):
         ])
 
 
+class TestLessonStages(unittest.TestCase):
+    def test_stage_inputs_change_only_with_read_fields(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        before = mtv_lesson.stage_inputs(lesson, "narrate")
+        lesson["scenes"][0]["beats"][0]["visual"] = "changed"
+        self.assertEqual(mtv_lesson.stage_inputs(lesson, "narrate"), before)
+        lesson["scenes"][0]["beats"][0]["narration"] = "Changed words."
+        self.assertNotEqual(mtv_lesson.stage_inputs(lesson, "narrate"), before)
+
+    def test_needs_rerun_and_mark_done(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        self.assertTrue(mtv_lesson.needs_rerun(lesson, "storyboard"))
+        mtv_lesson.mark_done(lesson, "storyboard", {"python": "3.12.3"})
+        self.assertFalse(mtv_lesson.needs_rerun(lesson, "storyboard"))
+        self.assertEqual(lesson["stages"]["storyboard"]["tools"], {"python": "3.12.3"})
+        self.assertRegex(lesson["stages"]["storyboard"]["done"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        lesson["scenes"][0]["beats"][0]["marks"]["reveal"] = 8
+        self.assertTrue(mtv_lesson.needs_rerun(lesson, "storyboard"))
+
+    def test_bump_counters(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        self.assertEqual(mtv_lesson.bump(lesson, "script_retries"), 1)
+        self.assertEqual(mtv_lesson.bump(lesson, "render_retries", "s01"), 1)
+        self.assertEqual(mtv_lesson.bump(lesson, "render_retries", "s01"), 2)
+        self.assertEqual(lesson["attempts"]["render_retries"], {"s01": 2})
+
+    def test_unknown_stage_raises(self):
+        with self.assertRaises(KeyError):
+            mtv_lesson.stage_inputs({}, "nope")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run the self-test; arguments not listed here (for example -k NAME) go to unittest.",

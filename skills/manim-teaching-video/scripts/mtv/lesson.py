@@ -1,7 +1,12 @@
-"""Read, write, check and walk lesson.json, the single state file of a run."""
+"""Read, write, check and walk lesson.json, the single state file of a run.
+
+A run resumes from the same file: each finished stage records a hash of the fields it read,
+and a stage whose fields have changed since then runs again.
+"""
 
 from __future__ import annotations
 
+import json
 import keyword
 import math
 import re
@@ -12,6 +17,49 @@ from typing import Any
 from . import common
 
 _KIND_NAMES = {str: "a string", list: "a list", dict: "an object"}
+
+# Pipeline order: a resumed run starts again at the first stage whose inputs have changed.
+STAGES: tuple[str, ...] = (
+    "brief", "script", "storyboard", "narrate", "scenes",
+    "render.draft", "frames", "render.standard", "assemble", "verify",
+)
+
+# The dotted fields each stage reads; "scenes[].x" is the field of every scene and "beats[].x"
+# that of every beat. An entry naming a stage stands for all of that stage's fields, so a field
+# added to an early stage reaches every later stage's hash without being copied into each row.
+# A row may also name a field its parent stage already holds (scenes repeats seed, assemble
+# repeats tier, both from brief); _expand keeps each field once, so a repeat changes no hash.
+_STAGE_READS: dict[str, tuple[str, ...]] = {
+    "brief": (
+        "schema", "slug", "title", "audience", "target_minutes", "tier", "provider", "voice", "seed",
+        "colors", "exemplars.dir", "exemplars.index_sha256",
+    ),
+    "script": ("brief", "scenes[].id", "scenes[].title", "beats[].id", "beats[].narration"),
+    "storyboard": (
+        "script", "scenes[].scene_class", "scenes[].scene_kind", "scenes[].opening_state",
+        "scenes[].closing_state", "beats[].marks", "beats[].visual", "beats[].patterns", "beats[].moves",
+        "beats[].introduces", "beats[].shows_value_of", "beats[].symbol_introduced", "beats[].lands",
+        "beats[].tail_s",
+    ),
+    "narrate": ("provider", "voice", "beats[].id", "beats[].narration", "beats[].marks"),
+    "scenes": ("storyboard", "seed"),
+    "render.draft": ("scenes", "beats[].audio", "beats[].duration_s", "beats[].marks_s"),
+    "frames": ("render.draft",),
+    # Both renders read the same fields; which tier to render comes from the command line.
+    "render.standard": ("render.draft",),
+    "assemble": ("render.draft", "tier"),
+    "verify": ("assemble",),
+}
+
+
+def _expand(stage: str) -> tuple[str, ...]:
+    fields: list[str] = []
+    for name in _STAGE_READS[stage]:
+        fields.extend(_expand(name) if name in _STAGE_READS else (name,))
+    return tuple(dict.fromkeys(fields))
+
+
+STAGE_FIELDS: dict[str, tuple[str, ...]] = {stage: _expand(stage) for stage in STAGES}
 
 
 def load(path: Path) -> dict:
@@ -123,6 +171,54 @@ def _beat_errors(beat: Any, scene_id: str | None, path: str, beat_ids: set[str])
     if "tail_s" in beat and not _is_non_negative_number(beat["tail_s"]):
         errors.append(f"{owner}: tail_s must be a non-negative number")
     return errors
+
+
+def stage_inputs(lesson: dict, stage: str) -> str:
+    """sha256 of the fields ``stage`` reads (``STAGE_FIELDS``); KeyError for an unknown stage."""
+    projection = {field: _read(lesson, _path(field)) for field in STAGE_FIELDS[stage]}
+    return common.sha256_text(json.dumps(projection, sort_keys=True))
+
+
+def needs_rerun(lesson: dict, stage: str) -> bool:
+    # The hash comes first so that a mistyped stage raises instead of reading as never done.
+    current = stage_inputs(lesson, stage)
+    return lesson.get("stages", {}).get(stage, {}).get("inputs_sha256") != current
+
+
+def mark_done(lesson: dict, stage: str, tools: dict[str, str]) -> None:
+    lesson.setdefault("stages", {})[stage] = {
+        "inputs_sha256": stage_inputs(lesson, stage),
+        "done": common.now_iso(),
+        "tools": tools,
+    }
+
+
+def bump(lesson: dict, counter: str, key: str | None = None) -> int:
+    """Add one to ``attempts[counter]``, or to ``attempts[counter][key]``, counting an absent one as 0."""
+    attempts = lesson.setdefault("attempts", {})
+    counts, name = (attempts, counter) if key is None else (attempts.setdefault(counter, {}), key)
+    counts[name] = counts.get(name, 0) + 1
+    return counts[name]
+
+
+def _read(value: Any, path: list[str]) -> Any:
+    """What ``path`` reaches in ``value``, with one list for each ``[]`` step.
+
+    needs_rerun is asked about stages whose fields no stage has written yet, so an absent
+    field reads as None and an absent list as empty instead of raising.
+    """
+    if not path:
+        return value
+    key, rest = path[0], path[1:]
+    if key.endswith("[]"):
+        return [_read(item, rest) for item in _objects(value, key[:-2])]
+    return _read(value.get(key) if isinstance(value, dict) else None, rest)
+
+
+def _path(field: str) -> list[str]:
+    # STAGE_FIELDS writes "beats[].x" for the beats of every scene.
+    steps = field.split(".")
+    return ["scenes[]", *steps] if steps[0] == "beats[]" else steps
 
 
 def _objects(container: Any, key: str) -> list[dict]:

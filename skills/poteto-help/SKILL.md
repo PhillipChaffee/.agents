@@ -46,7 +46,7 @@ If cost is the worry, say where the tokens go and how to spend fewer. pstack spe
 
 pstack ships inside this kit and runs on any harness that loads it. The [harness adapter](../poteto-mode/references/harness-adapter.md) maps the neutral names, and a step that needs a feature the harness lacks, such as the review bot or a scheduled automation, is skipped with a one-line note.
 
-Other tools can read the skills, because they use the Agent Skills format. But most workflow skills, including `/poteto-mode`, `/how`, `/why`, and `/teach`, spawn subagents with per-role models, and keeping a skill attached for the whole session and the loop command (`/loop` where the harness has one, a scheduled re-prompt elsewhere) are harness features, so those parts may not work there.
+Other tools can read the skills, because they use the Agent Skills format. But most workflow skills, including `/poteto-mode`, `/how`, `/why`, and `/teach`, spawn subagents with per-role models, and keeping a skill attached for the whole session and `/loop` are harness features, so those parts may not work there.
 
 ## Start a task with `/poteto-mode`
 

@@ -69,7 +69,7 @@ A dependency is a context relay, not just ordering. Undeclared upstream context 
 ## Queue and drain
 
 - On a completion notification, write one pointer file to `inbox/` (a tab-separated line: timestamp, agent, unit, status, report path) and return to what you were doing. Never deep-review inline. A completion that needs review becomes a verifier unit. Never review a diff inside a drain.
-- Drain in batches at four points: the end of a critical section, a track rollup, a frontier watcher wake (arm it via the loop command (`/loop` where the harness has one, a scheduled re-prompt elsewhere), with a long heartbeat fallback), and before a human report. Begin each batch by reading every pointer file in `inbox/` in name order and then emptying it. Arrivals during a drain wait for the next one.
+- Drain in batches at four points: the end of a critical section, a track rollup, a frontier watcher wake (arm it via the loop skill, with a long heartbeat fallback), and before a human report. Begin each batch by reading every pointer file in `inbox/` in name order and then emptying it. Arrivals during a drain wait for the next one.
 - Critical sections you finish first: authoring a brief, a stack operation, a conflict decision, writing a gate, updating ledger or frontier.
 - Each drain classifies every pointer (landed, needs-verify, failed, zombie, noise), writes the resulting rows into `units.tsv` (append a unit, update a unit in place) and `ledger.tsv`, regenerates `status.md` from the tables, then spawns the next wave in one message.
 - Account for every spawned child at its track's rollup: arrived, respawned, or its scope explicitly absorbed. Silently redoing a missing child's work hides both the wasted spend and the coverage gap its result existed to close.

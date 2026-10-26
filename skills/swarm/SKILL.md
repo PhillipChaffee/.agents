@@ -9,7 +9,7 @@ name: swarm
 
 ## Start
 
-Open a todo list with one entry per phase before launching anything.
+Open a todolist with one entry per phase before launching anything.
 
 1. Frame
 2. Fan out

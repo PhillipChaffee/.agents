@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import wave
 from pathlib import Path
 from types import ModuleType
 from typing import NoReturn
@@ -30,6 +31,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
+import mtv.tts as tts  # noqa: E402
 
 
 def _skip(fixture: str, dependency: str) -> NoReturn:
@@ -411,6 +413,55 @@ class TestLessonStages(unittest.TestCase):
     def test_unknown_stage_raises(self):
         with self.assertRaises(KeyError):
             mtv_lesson.stage_inputs({}, "nope")
+
+
+class TestTts(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def test_interpolate_midpoints(self):
+        self.assertAlmostEqual(tts.interpolate(4.0, 4, {"m": 1})["m"], 1.5)
+        with self.assertRaises(ValueError):
+            tts.interpolate(4.0, 0, {"m": 0})
+
+    def test_alignment_numeral_expansion(self):
+        require("num2words", "alignment")
+        words = common.normalize_words("the 784 weights")
+        tokens = [tts.Word("the", 0.0, 0.2), tts.Word("seven", 0.2, 0.5), tts.Word("hundred", 0.5, 0.8),
+                  tts.Word("eighty-four", 0.8, 1.2), tts.Word("weights", 1.2, 1.6)]
+        times, interpolated = tts.align_marks(words, tokens, {"n": 1, "w": len(words) - 1})
+        self.assertFalse(interpolated)
+        self.assertAlmostEqual(times["n"], 0.2)
+        self.assertAlmostEqual(times["w"], 1.2)
+
+    def test_alignment_falls_back_when_unmatched(self):
+        self.assertEqual(tts.align_marks(["a", "b"], [], {"m": 0}), ({}, True))
+        self.assertEqual(tts.align_marks(["a", "b"], [tts.Word("zzz", 0, 1)], {"m": 1}), ({}, True))
+
+    def test_lcs_align_takes_earliest_matches(self):
+        # Of two script words that could take the one spoken "the", the first does; a word
+        # on one side only (the script's "x", the provider's "y") is skipped.
+        self.assertEqual(tts.lcs_align(["the", "cat", "the"], ["the"]), {0: 0})
+        self.assertEqual(tts.lcs_align(["a", "x", "b", "c"], ["a", "b", "y", "c"]), {0: 0, 2: 1, 3: 3})
+
+    def test_null_provider_writes_wav(self):
+        out = Path(self.scratch.path) / "b.wav"
+        tokens = tts.get_provider("null").synthesize("Here is a network that already reads handwritten digits.", out)
+        with wave.open(str(out)) as w:
+            self.assertEqual((w.getframerate(), w.getnchannels(), w.getsampwidth()), (24000, 1, 2))
+        self.assertAlmostEqual(tts.wav_duration(out), 9 * 0.4, places=2)
+        self.assertEqual(len(tokens), 9)
+        self.assertAlmostEqual(tokens[-1].end_s, 3.6, places=2)
+
+    def test_words_from_characters(self):
+        words = tts.words_from_characters(list("hi you"), [0, 0.1, 0.2, 0.3, 0.4, 0.5], [0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+        self.assertEqual(words, [tts.Word("hi", 0, 0.2), tts.Word("you", 0.3, 0.6)])
+
+    def test_unknown_provider(self):
+        with self.assertRaises(ValueError):
+            tts.get_provider("piper")
 
 
 def main() -> int:

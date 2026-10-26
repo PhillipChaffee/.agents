@@ -36,6 +36,7 @@ ASSETS_DIR = SKILL_DIR / "assets"
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import assemble  # noqa: E402
 import check_scenes  # noqa: E402
 import exemplars  # noqa: E402
 import frames  # noqa: E402
@@ -1511,6 +1512,69 @@ class TestFrames(unittest.TestCase):
         from PIL import Image
         with Image.open(out) as image:
             self.assertEqual(image.size, (1278, 480))
+
+
+class TestAssemble(ExampleLessonCase):
+    """make_rendered_lesson replaces the example lesson in each test's run directory."""
+
+    def test_assemble_two_streams_and_srt(self):
+        require_tool("ffmpeg", "assemble")
+        require_tool("ffprobe", "assemble")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue", "red"], tone_s=1.5)
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        out = self.run_dir / "out" / "what-a-neuron-computes.draft.mp4"
+        info = common.ffprobe_json(out)
+        self.assertEqual(sorted(s["codec_type"] for s in info["streams"]), ["audio", "video"])
+        self.assertAlmostEqual(float(info["format"]["duration"]), 8.0, delta=0.5)
+        srt = (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text()
+        self.assertEqual(srt.count(" --> "), 4)
+        self.assertIn("00:00:02,000 --> ", srt)
+        self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"]["tools"], {"saturation": "1.5"})
+        verdict = cp.stdout.strip().splitlines()[-1]
+        self.assertRegex(verdict, r"^PASS assembled out/what-a-neuron-computes\.draft\.mp4 \(\d+\.\d\d s\)$")
+
+    def test_assemble_resamples_44100_wav(self):
+        require_tool("ffmpeg", "assemble resample")
+        require_tool("ffprobe", "assemble resample")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        make_tone(self.run_dir / "audio" / "s01-b01.wav", 1.5, rate=44100)
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        with wave.open(str(self.run_dir / "out" / ".narration.draft.wav")) as narration:
+            self.assertEqual((narration.getframerate(), narration.getnchannels()), (24000, 1))
+        self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"]["tools"], {"saturation": "1.0"})
+
+    def test_srt_timestamp(self):
+        self.assertEqual(assemble.srt_timestamp(3661.25), "01:01:01,250")
+
+    def test_srt_cues_start_at_rendered_beat_offsets(self):
+        # 1.2 s of narration and the 0.5 s tail end 0.3 s before each 2 s beat video, so only
+        # offsets summed from render.duration_s start the second cue at 2 s.
+        require_tool("ffmpeg", "assemble srt")
+        require_tool("ffprobe", "assemble srt")
+        make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.2)
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(
+            (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text(),
+            "1\n00:00:00,000 --> 00:00:01,200\nThis is beat one of scene s01.\n\n"
+            "2\n00:00:02,000 --> 00:00:03,200\nThis is beat two of scene s01.\n",
+        )
+
+    def test_missing_audio_or_tier_video_exits_2_without_writing(self):
+        require_tool("ffmpeg", "assemble missing inputs")
+        require_tool("ffprobe", "assemble missing inputs")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        (self.run_dir / "audio" / "s01-b02.wav").unlink()
+        before = lesson_path.read_text()
+        # The fixture renders the draft tier only, so no beat has a standard video.
+        cp = run_script("assemble", "lesson.json", "--tier", "standard", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("s01-b01: no standard render.video", cp.stderr)
+        self.assertIn("s01-b02: no audio", cp.stderr)
+        self.assertEqual(lesson_path.read_text(), before)
+        self.assertFalse((self.run_dir / "out").exists())
 
 
 def main() -> int:

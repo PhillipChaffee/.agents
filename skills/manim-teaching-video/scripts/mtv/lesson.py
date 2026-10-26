@@ -108,6 +108,24 @@ def beat_index(lesson: dict) -> dict[str, tuple[dict, dict]]:
     return {beat["id"]: (scene, beat) for scene, beat in beats(lesson)}
 
 
+def unrendered(lesson: dict, run_dir: Path, tier: str) -> list[str]:
+    """Each scene without beats and each beat without a video of this tier on disk."""
+    scenes = lesson.get("scenes") or []
+    problems = [] if scenes else ["no scenes"]
+    problems += [f"{scene['id']}: no beats" for scene in scenes if not scene.get("beats")]
+    for _, beat in beats(lesson):
+        render = beat.get("render") or {}
+        video = render.get("video")
+        if not (
+            isinstance(video, str)
+            and Path(video).parts[:2] == ("render", tier)
+            and (run_dir / video).is_file()
+            and isinstance(render.get("duration_s"), (int, float))
+        ):
+            problems.append(f"{beat['id']}: no {tier} render.video")
+    return problems
+
+
 def validate(lesson: dict) -> list[str]:
     """Every schema violation in ``lesson``, in document order; empty when it is valid.
 

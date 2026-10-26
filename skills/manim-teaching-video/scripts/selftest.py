@@ -7,12 +7,14 @@ machine without them still runs every other case and exits 0.
 from __future__ import annotations
 
 import argparse
+import base64
 import configparser
 import importlib
 import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -32,6 +34,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import check_scenes  # noqa: E402
+import exemplars  # noqa: E402
 import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
 import mtv.tts as tts  # noqa: E402
@@ -141,6 +144,71 @@ def env_with_fake_manim(bin_dir: Path) -> dict[str, str]:
     """This process's environment with ``bin_dir`` first on PATH; the fake manim there
     records every call's argv as one JSON line in ``bin_dir/calls.jsonl``."""
     return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+# A 1x1 JPEG that Pillow wrote (Image.new("RGB", (1, 1)).save(buf, "JPEG")), so a synthetic
+# pack's contact sheets need no Pillow at test time.
+TINY_JPEG_B64 = (
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAx"
+    "NDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy"
+    "MjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUF"
+    "BAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVW"
+    "V1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi"
+    "4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAEC"
+    "AxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVm"
+    "Z2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq"
+    "8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD5/ooooA//2Q=="
+)
+
+# (tag, exemplar id, confidence) of every entry in a clean synthetic pack.
+PACK_ENTRIES = (
+    ("numbers-before-symbols", "aaaaaaaaaaa-s01-b01", 0.9),
+    ("numbers-before-symbols", "bbbbbbbbbbb-s02-b01", 0.85),
+    ("working-thing-first", "ccccccccccc-s01-b01", 0.8),
+    ("provenance-transform", "ddddddddddd-s01-b01", 0.7),
+    ("viewer-voice", "orig-fixture-lesson-s01-b01", 1.0),
+    ("one-then-all", "eeeeeeeeeee-s01-b01", 0.6),
+)
+
+
+def make_pack(pack_dir: Path, broken: bool) -> None:
+    """A synthetic exemplar pack in the layout M2 builds: index.json, and one sheet and one
+    excerpt per entry under its tag. ``broken`` adds exactly three check findings: an entry
+    under an unknown tag, a deleted sheet and a tiles count of 7."""
+    rows = PACK_ENTRIES + ((("made-up-tag", "fffffffffff-s01-b01", 0.5),) if broken else ())
+    tags: dict[str, list[dict]] = {}
+    for tag, exemplar_id, confidence in rows:
+        entry = {
+            "id": exemplar_id,
+            "tiles": 4,
+            "sheet": f"{tag}/{exemplar_id}.jpg",
+            "excerpt": f"{tag}/{exemplar_id}.md",
+            "rule_ids": ["R07"],
+            "gist": "fixture gist",
+            "confidence": confidence,
+        }
+        if exemplar_id.startswith("orig-"):
+            entry.update(source="original", lesson_slug="fixture-lesson", scene_id="s01", beat_id="s01-b01",
+                         helpers=["NumericColumn"], report="report.md")
+        else:
+            video_id, section_id, beat_id = exemplar_id.rsplit("-", 2)
+            entry.update(source="corpus", video_id=video_id, section_id=section_id, beat_id=beat_id,
+                         t_start=0.0, t_end=10.0)
+        (pack_dir / tag).mkdir(parents=True, exist_ok=True)
+        (pack_dir / entry["sheet"]).write_bytes(base64.b64decode(TINY_JPEG_B64))
+        (pack_dir / entry["excerpt"]).write_text(f"# {exemplar_id}\nfixture excerpt\n", encoding="utf-8")
+        tags.setdefault(tag, []).append(entry)
+    if broken:
+        (pack_dir / tags["numbers-before-symbols"][1]["sheet"]).unlink()
+        tags["one-then-all"][0]["tiles"] = 7
+    index = {
+        "schema": "mtv-exemplars/1",
+        "corpus_commit": "0123abcd",
+        "built": "2026-11-20T10:00:00Z",
+        "license_note": "local use only: contains frames and transcript excerpts from 3Blue1Brown videos; never redistribute",
+        "tags": tags,
+    }
+    common.dump_json(index, pack_dir / "index.json")
 
 
 class ExampleLessonCase(unittest.TestCase):
@@ -756,6 +824,112 @@ class TestCheckScenes(ExampleLessonCase):
         missing = check_scenes.lint_source(CLEAN_TWO_CLASS_SOURCE.replace("S02OneNeuron", "S02Other"),
                                            mtv_lesson.load(self.lesson_path))
         self.assertEqual([(f["name"], f["fix"]) for f in missing], [("S02OneNeuron", "define class S02OneNeuron")])
+
+
+class TestExemplars(ExampleLessonCase):
+    def setUp(self):
+        super().setUp()
+        self.pack = self.run_dir.parent / "pack"
+
+    def test_check_broken_pack_three_findings(self):
+        make_pack(self.pack, broken=True)
+        findings = exemplars.check(self.pack)
+        self.assertEqual(len(findings), 3, findings)
+        self.assertTrue(any("not in TECHNIQUE_TAGS" in f for f in findings))
+        self.assertTrue(any("sheet" in f and "missing" in f for f in findings))
+        self.assertTrue(any("tiles 7 outside 2 to 6" in f for f in findings))
+        self.assertEqual(run_script("exemplars", "check", str(self.pack), cwd=self.run_dir).returncode, 1)
+
+    def test_check_clean_pack_exit_0(self):
+        make_pack(self.pack, broken=False)
+        self.assertEqual(exemplars.check(self.pack), [])
+        self.assertEqual(run_script("exemplars", "check", str(self.pack), cwd=self.run_dir).returncode, 0)
+
+    def test_check_missing_dir_exit_1(self):
+        cp = run_script("exemplars", "check", str(self.pack / "nope"), cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        self.assertIn("index.json missing", cp.stdout)
+        self.assertNotIn("Traceback", cp.stderr)
+
+    def test_pick_storyboarder_deterministic(self):
+        make_pack(self.pack, broken=False)
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        first = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env).stdout
+        second = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env).stdout
+        self.assertEqual(first, second)
+        ids = [p["id"] for p in json.loads(first)]
+        self.assertEqual(ids[1], "aaaaaaaaaaa-s01-b01")  # numbers-before-symbols, confidence 0.9 beats 0.85
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["exemplars"]["used"]["storyboarder"], ids)
+        self.assertTrue(len(ids) <= 8)
+
+    def test_pick_frame_critic_reachable_tags(self):
+        make_pack(self.pack, broken=False)
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        cp = run_script("exemplars", "pick", "--role", "frame-critic", "--scene", "s02", "lesson.json", cwd=self.run_dir, env=env)
+        picks = json.loads(cp.stdout)
+        self.assertTrue(1 <= len(picks) <= 4)
+        scene = mtv_lesson.scene_by_id(mtv_lesson.load(self.lesson_path), "s02")
+        reachable = set()
+        for beat in scene["beats"]:
+            for p in beat["patterns"]:
+                reachable.update(common.PATTERN_TAGS[p])
+            for m in beat["moves"]:
+                reachable.add(common.MOVE_TAGS[m])
+        self.assertTrue({p["tag"] for p in picks} <= reachable)
+
+    def test_check_defaults_to_env_and_prints_index_sha256(self):
+        # The brief stage copies the printed hash into exemplars.index_sha256.
+        make_pack(self.pack, broken=False)
+        cp = run_script("exemplars", "check", cwd=self.run_dir, env={**os.environ, "MTV_EXEMPLARS": str(self.pack)})
+        sha = common.sha256_file(self.pack / "index.json")
+        self.assertEqual(cp.stdout.splitlines(), [f"index.json sha256 {sha}", "PASS 6 exemplars under 5 tags"])
+        unset = {name: value for name, value in os.environ.items() if name != "MTV_EXEMPLARS"}
+        self.assertEqual(run_script("exemplars", "check", cwd=self.run_dir, env=unset).returncode, 2)
+
+    def test_jpeg_size_and_oversized_sheet(self):
+        make_pack(self.pack, broken=False)
+        sheet = self.pack / "working-thing-first" / "ccccccccccc-s01-b01.jpg"
+        self.assertEqual(exemplars.jpeg_size(sheet), (1, 1))
+        data = sheet.read_bytes()
+        sof = data.index(b"\xff\xc0")
+        # A frame header holds its length and precision, then the height and the width.
+        sheet.write_bytes(data[: sof + 5] + struct.pack(">HH", 481, 1281) + data[sof + 9 :])
+        self.assertEqual(exemplars.jpeg_size(sheet), (1281, 481))
+        self.assertEqual(exemplars.check(self.pack), ["ccccccccccc-s01-b01: sheet 1281x481 larger than 1280x480"])
+        sheet.write_bytes(b"not a jpeg")
+        with self.assertRaises(ValueError):
+            exemplars.jpeg_size(sheet)
+        self.assertEqual(exemplars.check(self.pack),
+                         ["ccccccccccc-s01-b01: sheet 'working-thing-first/ccccccccccc-s01-b01.jpg' is not a JPEG"])
+
+    def test_pick_budgets_and_camera_tag(self):
+        make_pack(self.pack, broken=False)
+        (self.pack / "viewer-voice" / "orig-fixture-lesson-s01-b01.md").write_text("# long\n" + "word " * 40)
+        index = common.load_json(self.pack / "index.json")
+        index["tags"]["camera-as-narrator"] = [dict(index["tags"]["working-thing-first"][0], id="ggggggggggg-s01-b01")]
+        lesson = mtv_lesson.load(self.lesson_path)
+        picks = exemplars.pick_storyboarder(index, lesson, self.pack, max_words=20)
+        # Each fixture excerpt has 4 words and stays whole; the 42-word one gets what is left.
+        self.assertEqual([(p["id"], p["words"]) for p in picks], [
+            ("ccccccccccc-s01-b01", 4), ("aaaaaaaaaaa-s01-b01", 4),
+            ("ddddddddddd-s01-b01", 4), ("orig-fixture-lesson-s01-b01", 8),
+        ])
+        lesson["scenes"][1]["scene_kind"] = "camera"
+        self.assertEqual(exemplars.pick_storyboarder(index, lesson, self.pack)[-1]["id"], "ggggggggggg-s01-b01")
+        self.assertEqual(len(exemplars.pick_storyboarder(index, lesson, self.pack, max_images=2)), 2)
+
+    def test_pick_usage_errors_exit_2_without_writing(self):
+        make_pack(self.pack, broken=True)
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        for args in (
+            ("--role", "frame-critic"),
+            ("--role", "frame-critic", "--scene", "s09"),
+            ("--role", "storyboarder"),
+        ):
+            cp = run_script("exemplars", "pick", *args, "lesson.json", cwd=self.run_dir, env=env)
+            self.assertEqual(cp.returncode, 2, args)
+            self.assertEqual(cp.stdout, "", args)
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["exemplars"]["used"], {"storyboarder": [], "frame-critic": {}})
 
 
 def main() -> int:

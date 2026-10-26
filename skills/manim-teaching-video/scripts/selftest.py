@@ -2200,6 +2200,20 @@ class TestPreflight(ScratchCase):
         installs = [line for line in lines if line.startswith("  install: ")]
         self.assertEqual(len(installs), len(failing))
 
+    def test_json_is_one_stdout_line_whatever_the_checks_print(self):
+        preflight = importlib.import_module("preflight")
+
+        def noisy_provider_check(name):
+            print("INFO HTTP Request: HEAD https://huggingface.co/... 302")
+            return preflight.Check("provider", True, f"{name} rtf=0.100", None)
+        stdout = io.StringIO()
+        with (mock.patch.object(preflight, "_provider_check", noisy_provider_check),
+              contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO())):
+            preflight.main(["--json", "--provider", "null"])
+        lines = stdout.getvalue().splitlines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertIn("checks", json.loads(lines[0]))
+
     def test_json_install_only_for_failing_checks_and_provider_lines_are_absolute(self):
         cp = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir)
         for check in json.loads(cp.stdout)["checks"]:

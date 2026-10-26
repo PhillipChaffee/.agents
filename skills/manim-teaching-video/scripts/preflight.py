@@ -83,14 +83,11 @@ def _python_check() -> Check:
 
 def _import_manim() -> tuple[str | None, str]:
     """manim's version, or None and the reason it does not import."""
-    # manim's logger prints to stdout (CE manim/_config/logger_utils.py:87,92-93), where
-    # --json allows only its one line.
-    with contextlib.redirect_stdout(sys.stderr):
-        try:
-            return importlib.import_module("manim").__version__, ""
-        # A broken install raises whatever its failing native dependency raises.
-        except Exception as exc:
-            return None, f"{type(exc).__name__}: {exc}"
+    try:
+        return importlib.import_module("manim").__version__, ""
+    # A broken install raises whatever its failing native dependency raises.
+    except Exception as exc:
+        return None, f"{type(exc).__name__}: {exc}"
 
 
 def _tool_check(tool: str, install: str) -> Check:
@@ -144,7 +141,11 @@ def main(argv: list[str] | None = None) -> int:
     provider_help = f"narration provider to time; default {narrate.DEFAULT_PROVIDER}"
     parser.add_argument("--provider", default=narrate.DEFAULT_PROVIDER, help=provider_help)
     args = parser.parse_args(argv)
-    checks = run_checks(args.provider)
+    # Once imported, manim logs to stdout (CE manim/_config/logger_utils.py:87,92-93), and so does
+    # every library logging through its handler while the checks run, such as huggingface_hub's
+    # requests as Kokoro loads. stdout carries only the report: --json's one line, or the verdict last.
+    with contextlib.redirect_stdout(sys.stderr):
+        checks = run_checks(args.provider)
     ok = all(check.ok for check in checks)
     if args.json:
         # A passing check needs no install command, so its install is null.

@@ -38,8 +38,11 @@ _STATEMENTS = {
 
 _SENTENCE_END = re.compile(r"[.!?]+")
 _THIRD_PERSON = re.compile(r"\bthe (learner|student|viewer|reader)s?\b", re.IGNORECASE)
-# lesson.validate's wording of the two mark errors, which this script reports as findings.
-_MARK_ERROR = re.compile(r"[^:]+: (marks\[.*\] = .* past the word count \d+|lands mark .* not in marks)")
+# lesson.validate's wording of the mark errors, which this script reports as findings.
+_MARK_ERROR = re.compile(
+    r"[^:]+: (marks\[.*\] = .* past the word count \d+|lands mark .* not in marks"
+    r"|mark name .* (is taken by the beat's .* frame|has a character outside .*))"
+)
 
 
 def _beats(lesson: dict) -> list[dict]:
@@ -183,6 +186,9 @@ def mark_findings(lesson: dict) -> list[dict]:
             if not (isinstance(land.get("mark"), str) and land["mark"] in marks):
                 names.append(land.get("mark"))
         findings.extend(_finding(beat["id"], None, f"mark '{name}' does not resolve to a word") for name in names)
+        # frames.py names a file after each mark, so a name that cannot be one is a storyboard defect too.
+        unsafe = filter(None, map(mtv_lesson.mark_name_error, marks))
+        findings.extend(_finding(beat["id"], None, error) for error in unsafe)
     return findings
 
 

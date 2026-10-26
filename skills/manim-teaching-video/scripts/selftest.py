@@ -1600,6 +1600,19 @@ class TestStoryboardCheck(ExampleLessonCase):
         self.assertEqual(cp.returncode, 1, cp.stderr)
         self.assertIn("s02-b03 - mark 'gone' does not resolve to a word", cp.stdout.splitlines())
 
+    def test_unsafe_mark_name_is_a_finding(self):
+        # validate rejects these names too, yet a storyboard defect must fail this gate as a round
+        # (exit 1), not read as a malformed return (exit 2, spec 7.1 and 7.2).
+        for name, text in (
+            ("first", "mark name 'first' is taken by the beat's first frame"),
+            ("a/b", "mark name 'a/b' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'"),
+        ):
+            with self.subTest(name=name):
+                self.edit(lambda lesson: lesson["scenes"][0]["beats"][0].__setitem__("marks", {name: 0}))
+                cp = run_script("storyboard_check", "lesson.json", cwd=self.run_dir)
+                self.assertEqual(cp.returncode, 1, cp.stderr)
+                self.assertIn(f"s01-b01 - {text}", cp.stdout.splitlines())
+
     def test_other_schema_error_exits_2_without_writing(self):
         self.edit(lambda lesson: lesson["scenes"][0].__setitem__("scene_kind", "2d"))
         before = self.lesson_path.read_text()

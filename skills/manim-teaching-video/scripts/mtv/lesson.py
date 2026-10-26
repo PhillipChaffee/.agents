@@ -217,10 +217,9 @@ def _beat_errors(beat: Any, scene_id: str | None, path: str, beat_ids: set[str])
             errors.append(f"{owner}: patterns value '{value}' not a PATTERN_TAGS key")
     marks = _typed(errors, owner, beat, "marks", dict) or {}
     for name, index in marks.items():
-        if name in _FRAME_NAMES:
-            errors.append(f"{owner}: mark name '{name}' is taken by the beat's {name} frame")
-        elif not (isinstance(name, str) and _MARK_NAME.fullmatch(name)):
-            errors.append(f"{owner}: mark name '{name}' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'")
+        name_error = mark_name_error(name)
+        if name_error is not None:
+            errors.append(f"{owner}: {name_error}")
         if not (_is_int(index) and 0 <= index < len(words)):
             errors.append(f"{owner}: marks['{name}'] = {index!r} past the word count {len(words)}")
     for k, land in enumerate(_typed(errors, owner, beat, "lands", list) or []):
@@ -231,6 +230,16 @@ def _beat_errors(beat: Any, scene_id: str | None, path: str, beat_ids: set[str])
     if "tail_s" in beat and not _is_non_negative_number(beat["tail_s"]):
         errors.append(f"{owner}: tail_s must be a non-negative number")
     return errors
+
+
+def mark_name_error(name: Any) -> str | None:
+    """Why ``name`` cannot name a mark, or None when it can; storyboard_check.py reports the
+    same rule as a storyboard finding."""
+    if name in _FRAME_NAMES:
+        return f"mark name '{name}' is taken by the beat's {name} frame"
+    if not (isinstance(name, str) and _MARK_NAME.fullmatch(name)):
+        return f"mark name '{name}' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'"
+    return None
 
 
 def stage_inputs(lesson: dict, stage: str) -> str:

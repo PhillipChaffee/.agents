@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -254,6 +255,13 @@ def run_cmd(
             log.write(completed.stdout)
             log.write(completed.stderr)
     return completed
+
+
+def scripts_pythonpath(scripts_dir: Path) -> str:
+    """PYTHONPATH for a manim process that runs a generated scenes file: ``scripts_dir`` first, so
+    that a scene's "from mtv..." imports this skill's package, then the inherited entries."""
+    inherited = os.environ.get("PYTHONPATH", "").split(os.pathsep)
+    return os.pathsep.join([str(scripts_dir), *(part for part in inherited if part and part != str(scripts_dir))])
 
 
 def ffprobe_json(path: Path) -> dict:

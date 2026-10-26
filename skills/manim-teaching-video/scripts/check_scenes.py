@@ -144,7 +144,7 @@ def dry_run(lesson_py: Path, classes: list[str], cwd: Path, lesson_path: Path) -
     lines go to stdout, so the manim error text precedes the verdict.
     """
     env = {key: value for key, value in os.environ.items() if key != "MTV_RUN_LOG"}
-    env.update(PYTHONPATH=str(SCRIPTS_DIR), MTV_LESSON=str(lesson_path.resolve()))
+    env.update(PYTHONPATH=common.scripts_pythonpath(SCRIPTS_DIR), MTV_LESSON=str(lesson_path.resolve()))
     results = {}
     for scene_class in classes:
         # CE global option, manim/cli/render/global_options.py:112; the class goes last.

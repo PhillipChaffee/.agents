@@ -1561,6 +1561,20 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertFalse(checks["pass"])
         self.assertIn("ValueError: S01BadThing failed its dry run", cp.stdout)
 
+    def test_dry_run_and_render_share_one_pythonpath(self):
+        # Both run the same scenes file, so a package it imports from the inherited PYTHONPATH
+        # must load in the dry run as it does in the render.
+        inherited = str(self.run_dir.parent / "site-packages")
+        completed = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch.dict(os.environ, {"PYTHONPATH": inherited, "MTV_RUN_LOG": "stale.log"}), \
+                mock.patch.object(check_scenes.common, "run_cmd", return_value=completed) as run_cmd:
+            check_scenes.dry_run(self.run_dir / "lesson.py", ["S01WorkingThing"], self.run_dir, self.lesson_path)
+            render_env = render.scene_env(render.SCRIPTS_DIR, self.run_dir / "run.log", self.lesson_path)
+        env = run_cmd.call_args.kwargs["env"]
+        self.assertEqual(env["PYTHONPATH"].split(os.pathsep), [str(SCRIPTS_DIR), inherited])
+        self.assertEqual(env["PYTHONPATH"], render_env["PYTHONPATH"])
+        self.assertNotIn("MTV_RUN_LOG", env)
+
     def test_lint_reads_the_syntax_tree(self):
         # Words in comments and docstrings are not code, and an import names a module.
         self.assertEqual(check_scenes.banned_findings('"""Never open a file."""\n# no ImageMobject here\n'), [])

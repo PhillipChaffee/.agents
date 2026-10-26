@@ -43,18 +43,12 @@ def scene_command(lesson_py: Path, scene_class: str, cfg: Path, media_dir: Path,
     return [*argv, str(lesson_py), scene_class]
 
 
-def _pythonpath(scripts_dir: Path) -> str:
-    # First, so that a scene's "from mtv..." imports this skill's package whatever else is set.
-    inherited = os.environ.get("PYTHONPATH", "").split(os.pathsep)
-    return os.pathsep.join([str(scripts_dir), *(part for part in inherited if part and part != str(scripts_dir))])
-
-
 def scene_env(scripts_dir: Path, run_log: Path, lesson_path: Path) -> dict[str, str]:
     """manim's environment: the scene imports mtv from ``scripts_dir``, the mixin appends one
     line per beat to MTV_RUN_LOG, and load_lesson reads the lesson named by MTV_LESSON."""
     return {
         **os.environ,
-        "PYTHONPATH": _pythonpath(scripts_dir),
+        "PYTHONPATH": common.scripts_pythonpath(scripts_dir),
         "MTV_RUN_LOG": str(run_log),
         "MTV_LESSON": str(lesson_path.resolve()),
     }
@@ -252,7 +246,7 @@ def _first_line(argv: list[str], env: dict[str, str] | None = None, cwd: Path | 
 
 
 def record_env(lesson: dict, scripts_dir: Path) -> None:
-    pythonpath = _pythonpath(scripts_dir)
+    pythonpath = common.scripts_pythonpath(scripts_dir)
     # The font comes from the interpreter and path the scenes run with, since look.py imports manim.
     # python -c puts its working directory first on sys.path, so the probe runs in scripts_dir,
     # where that entry is the package PYTHONPATH names first, not an mtv the caller's directory holds.

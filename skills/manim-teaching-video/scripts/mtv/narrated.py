@@ -107,13 +107,7 @@ class NarratedMixin:
             tail_s=entry["tail_s"],
             marks_s=entry["marks_s"],
             enter_s=enter_s,
-            # Cumulative from the scene start, so a pad rounded to whole frames in one beat is
-            # made up in the next instead of adding up over the scene; but never before the beat's
-            # own narration has played from where it entered, so an earlier beat's overrun cannot
-            # cut this one's speech, which assemble.py would trim (spec 12.5 amendment 3).
-            target_end=max(
-                self._mtv_cursor + entry["duration_s"] + entry["tail_s"], enter_s + entry["duration_s"] + 1 / fps
-            ),
+            target_end=common.beat_end_s(self._mtv_cursor, enter_s, entry["duration_s"], entry["tail_s"], fps),
             fps=fps,
             clock=lambda: self.time,
         )

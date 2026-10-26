@@ -1410,6 +1410,27 @@ class TestNarratedMixin(ExampleLessonCase):
             pass
         self.assertAlmostEqual(scene.time, b.duration + 0.4 + b2.duration + 0.4, places=6)
 
+    def test_short_tail_does_not_drift(self):
+        # A beat's own floor (spec 12.5 amendment 3) must not round every beat of a short-tailed
+        # scene up by a frame or two: the scene still ends within a frame of its narration.
+        lesson = mtv_lesson.load(self.lesson_path)
+        beats = lesson["scenes"][0]["beats"]
+        for beat, duration_s in zip(beats, (3.63, 2.01, 4.52)):  # off the frame grid
+            beat.update(duration_s=duration_s, tail_s=0)
+        mtv_lesson.save(lesson, self.lesson_path)
+        narrated_s = sum(beat["duration_s"] for beat in beats)
+        # A body that ends early leaves the exit pad to end the beat; one that ends on b.remaining()
+        # lands past the target, where the pad's one-frame floor (spec 6.10) adds a last frame.
+        for scene_class, remaining, frames in ((StubScene, False, 1), (FrameClockScene, False, 1),
+                                               (StubScene, True, 2), (FrameClockScene, True, 2)):
+            with self.subTest(scene=scene_class.__name__, remaining=remaining):
+                scene = scene_class()
+                scene.load_lesson("s01", self.lesson_path)
+                for beat in beats:
+                    with scene.beat(beat["id"]) as b:
+                        scene.play(b.remaining() if remaining else 0.5)
+                self.assertLess(abs(scene.time - narrated_s), frames / 15 + 1e-9)
+
     def test_overrun_logged_and_line_shape(self):
         scene = StubScene()
         scene.load_lesson("s01", self.lesson_path)

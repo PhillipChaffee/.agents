@@ -7,3 +7,4 @@ __pycache__/
 /scripts/*
 !/scripts/install.sh
 !/scripts/validate.sh
+!/scripts/pstack-verbatim.txt

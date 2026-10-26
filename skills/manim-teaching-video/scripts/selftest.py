@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import configparser
 import importlib
+import json
 import os
 import re
 import shutil
@@ -30,6 +31,7 @@ ASSETS_DIR = SKILL_DIR / "assets"
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import check_scenes  # noqa: E402
 import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
 import mtv.tts as tts  # noqa: E402
@@ -84,6 +86,74 @@ def example_run_dir(parent: Path) -> Path:
     run_dir.mkdir()
     shutil.copyfile(ASSETS_DIR / "lesson.example.json", run_dir / "lesson.json")
     return run_dir
+
+
+# ManimCE is absent where the self-test runs, so the scripts under test find this stand-in
+# first on PATH. Its dry run fails for a class whose name contains Bad, so a test can take
+# the failing path with a scenes file that is otherwise clean.
+FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
+import json
+import os
+import sys
+from pathlib import Path
+
+argv = sys.argv[1:]
+with open(Path(__file__).resolve().parent / "calls.jsonl", "a", encoding="utf-8") as calls:
+    calls.write(json.dumps(argv) + "\n")
+if "--version" in argv:
+    print("Manim Community v0.22.0")
+    sys.exit(0)
+if "--dry_run" in argv:
+    # A real dry run still executes construct, whose load_lesson reads MTV_LESSON.
+    if not os.environ.get("MTV_LESSON"):
+        sys.exit("ValueError: MTV_LESSON is not set")
+    if "Bad" in argv[-1]:
+        sys.exit(f"ValueError: {argv[-1]} failed its dry run")
+    sys.exit(0)
+sys.exit("fake manim: no render branch")
+'''
+
+# The example lesson's two scene classes, each with the base its flat scene_kind needs.
+CLEAN_TWO_CLASS_SOURCE = """from manim import *
+from mtv.narrated import NarratedScene
+
+
+class S01WorkingThing(NarratedScene):
+    def construct(self):
+        pass
+
+
+class S02OneNeuron(NarratedScene):
+    def construct(self):
+        pass
+"""
+
+
+def write_fake_manim(bin_dir: Path) -> Path:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    path = bin_dir / "manim"
+    path.write_text(f"#!{sys.executable}\n{FAKE_MANIM_SOURCE}", encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
+def env_with_fake_manim(bin_dir: Path) -> dict[str, str]:
+    """This process's environment with ``bin_dir`` first on PATH; the fake manim there
+    records every call's argv as one JSON line in ``bin_dir/calls.jsonl``."""
+    return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+class ExampleLessonCase(unittest.TestCase):
+    """Gives each test its own run directory holding the example lesson, under one class scratch."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.run_dir = example_run_dir(self.scratch.path)
+        self.lesson_path = self.run_dir / "lesson.json"
 
 
 class TestVocabularies(unittest.TestCase):
@@ -546,16 +616,7 @@ class TestNarrate(unittest.TestCase):
         self.assertRegex(cp.stdout.strip().splitlines()[-1], r"^PASS warmup null rtf=\d+\.\d{3}$")
 
 
-class TestStoryboardCheck(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.scratch = Scratch()
-        cls.addClassCleanup(cls.scratch.cleanup)
-
-    def setUp(self):
-        self.run_dir = example_run_dir(self.scratch.path)
-        self.lesson_path = self.run_dir / "lesson.json"
-
+class TestStoryboardCheck(ExampleLessonCase):
     def edit(self, fn):
         lesson = mtv_lesson.load(self.lesson_path)
         fn(lesson)
@@ -622,6 +683,79 @@ class TestStoryboardCheck(unittest.TestCase):
         self.assertEqual(len(blocks), 30)
         named = {b[:3] for b in blocks if "Check (storyboard): storyboard_check.py" in b}
         self.assertEqual(named, set(storyboard_check.PREDICATES))
+
+
+class TestCheckScenes(ExampleLessonCase):
+    def setUp(self):
+        super().setUp()
+        self.bin_dir = self.run_dir.parent / "bin"
+        write_fake_manim(self.bin_dir)
+        self.env = env_with_fake_manim(self.bin_dir)
+
+    def test_every_banned_name_once(self):
+        lines = [f"x{i} = {name}" for i, name in enumerate(sorted(common.BANNED_NAMES))]
+        lines += ["self.frame.scale(2)", "self.play(mob.shift, UP)", "c = TEAL",
+                  "class S01WorkingThing(Narrated3DScene):\n    pass",
+                  "class S02OneNeuron(NarratedScene):\n    def construct(self):\n        zoom_to(self, m)\n        orbit_with_hud(self, h)"]
+        source = "\n".join(lines) + "\n"
+        findings = check_scenes.lint_source(source, mtv_lesson.load(self.lesson_path))
+        names = [f["name"] for f in findings]
+        for name in common.BANNED_NAMES:
+            self.assertEqual(names.count(name), 1, name)
+        for name in ("self.frame", "play(mob.method)", "TEAL", "S01WorkingThing", "zoom_to+orbit_with_hud"):
+            self.assertIn(name, names)
+        self.assertEqual(len({f["line"] for f in findings if f["name"] in common.BANNED_NAMES}), len(common.BANNED_NAMES))
+
+    def test_cli_exit_1_one_finding_per_line_and_no_dry_run(self):
+        (self.run_dir / "lesson.py").write_text("from manim import *\nfrom mtv.narrated import NarratedScene\nx = ShowCreation\n")
+        cp = run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 1)
+        checks = mtv_lesson.load(self.lesson_path)["checks"]["scenes"]
+        self.assertEqual(checks["dry_run"], {})
+        self.assertEqual([f["line"] for f in checks["findings"] if f["name"] == "ShowCreation"], [3])
+
+    def test_clean_file_runs_dry_run_per_class(self):
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE)
+        cp = run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["checks"]["scenes"]["dry_run"],
+                         {"S01WorkingThing": True, "S02OneNeuron": True})
+        calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
+        self.assertTrue(all("--dry_run" in c for c in calls))
+
+    def test_missing_manim_exits_2(self):
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE)
+        env = {**os.environ, "PATH": str(self.scratch.path)}
+        self.assertEqual(run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=env).returncode, 2)
+
+    def test_findings_decide_when_manim_is_missing(self):
+        # A finding fails the gate whatever the environment, so it outranks the missing manim.
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE + "x = ShowCreation\n")
+        env = {**os.environ, "PATH": str(self.scratch.path)}
+        self.assertEqual(run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=env).returncode, 1)
+
+    def test_failed_dry_run_exits_1_with_its_output(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["scene_class"] = "S01BadThing"
+        mtv_lesson.save(lesson, self.lesson_path)
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE.replace("S01WorkingThing", "S01BadThing"))
+        cp = run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        checks = mtv_lesson.load(self.lesson_path)["checks"]["scenes"]
+        self.assertEqual(checks["dry_run"], {"S01BadThing": False, "S02OneNeuron": True})
+        self.assertFalse(checks["pass"])
+        self.assertIn("ValueError: S01BadThing failed its dry run", cp.stdout)
+
+    def test_lint_reads_the_syntax_tree(self):
+        # Words in comments and docstrings are not code, and an import names a module.
+        self.assertEqual(check_scenes.banned_findings('"""Never open a file."""\n# no ImageMobject here\n'), [])
+        imports = check_scenes.banned_findings("import manimlib\nfrom urllib.request import urlopen\n")
+        self.assertEqual([(f["line"], f["name"]) for f in imports], [(1, "manimlib"), (2, "urllib")])
+        broken = check_scenes.banned_findings("x = 1\ndef f(:\n")
+        self.assertEqual([(f["line"], f["name"]) for f in broken], [(2, "syntax error")])
+        missing = check_scenes.lint_source(CLEAN_TWO_CLASS_SOURCE.replace("S02OneNeuron", "S02Other"),
+                                           mtv_lesson.load(self.lesson_path))
+        self.assertEqual([(f["name"], f["fix"]) for f in missing], [("S02OneNeuron", "define class S02OneNeuron")])
 
 
 def main() -> int:

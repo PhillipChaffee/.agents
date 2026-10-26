@@ -277,6 +277,14 @@ def make_tone(path: Path, duration_s: float, rate: int = 24000) -> None:
     ]).check_returncode()
 
 
+def make_av(path: Path, video_src: str) -> None:
+    """An MP4 of the lavfi source ``video_src`` over a 440 Hz tone, as a finished video would carry."""
+    common.run_cmd([
+        "ffmpeg", "-y", "-f", "lavfi", "-i", video_src, "-f", "lavfi", "-i", "sine=frequency=440:duration=12",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(path),
+    ]).check_returncode()
+
+
 def make_rendered_lesson(run_dir: Path, colors: list[str], tone_s: float = 1.5) -> Path:
     """Write ``run_dir/lesson.json`` as render.py would leave it, with one two-beat scene per color.
 
@@ -390,6 +398,18 @@ MANIMCE_S01_RUN_LOG = (
     {"enter_s": 4.066666666666672, "exit_s": 13.599999999999987, "audio_s": 9.2, "tail_s": 0.4, "overrun_s": 0.0},
     {"enter_s": 13.599999999999987, "exit_s": 21.39999999999998, "audio_s": 6.8, "tail_s": 1.0, "overrun_s": 0.0},
 )
+
+
+class ScratchCase(unittest.TestCase):
+    """Gives each test its own empty work directory under one class scratch."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
 
 
 class ExampleLessonCase(unittest.TestCase):
@@ -1759,15 +1779,43 @@ class TestVerifyManimCEOutput(ExampleLessonCase):
         self.assertFalse(sync.passed)
 
 
-class TestPreflight(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.scratch = Scratch()
-        cls.addClassCleanup(cls.scratch.cleanup)
+class TestVerifyExternal(ScratchCase):
+    """verify.py --external judges an MP4 made without a lesson, a baseline run's included."""
 
-    def setUp(self):
-        self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+    def test_black_frozen_good(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        make_av(d / "black.mp4", "color=c=black:s=854x480:r=15:d=12")
+        make_av(d / "frozen.mp4", "color=c=blue:s=854x480:r=15:d=12")
+        make_av(d / "good.mp4", "testsrc=size=854x480:rate=15:duration=12")
+        codes = [run_script("verify", "--external", str(d / name), cwd=d).returncode for name in ("black.mp4", "frozen.mp4", "good.mp4")]
+        self.assertEqual(codes, [1, 1, 0])
 
+    def test_rows_name_the_failing_gates_and_nothing_is_written(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        # Under ten seconds, so the samples are the first frame and the midpoint.
+        make_av(d / "black.mp4", "color=c=black:s=854x480:r=15:d=4")
+        make_av(d / "good.mp4", "testsrc=size=854x480:rate=15:duration=4")
+        self.assertEqual({g.gate for g in verify.external(d / "black.mp4") if not g.passed}, {"not black", "not frozen"})
+        self.assertTrue(all(g.passed for g in verify.external(d / "good.mp4")))
+        absent = {g.gate: g for g in verify.external(d / "absent.mp4")}
+        self.assertEqual(list(absent), ["exists", "streams", "container vs audio", "no manimlib beside", "not black", "not frozen"])
+        self.assertEqual(absent["exists"].measured, verify.MISSING)
+        self.assertFalse(any(g.passed for name, g in absent.items() if name != "no manimlib beside"))
+        (d / "scene.py").write_text("from manimlib import *\n")
+        before = sorted(d.iterdir())
+        cp = run_script("verify", "--external", str(d / "good.mp4"), cwd=d)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        lines = cp.stdout.splitlines()
+        self.assertEqual(len(lines), 7, cp.stdout)
+        self.assertEqual(lines[-1], "FAIL verify --external: no manimlib beside")
+        self.assertEqual(sorted(d.iterdir()), before)
+
+
+class TestPreflight(ScratchCase):
     def test_preflight_json_reports_install_lines(self):
         cp = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir)
         report = json.loads(cp.stdout)

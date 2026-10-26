@@ -7,12 +7,16 @@ machine without them still runs every other case and exits 0.
 from __future__ import annotations
 
 import argparse
+import base64
 import configparser
 import importlib
 import json
+import math
 import os
+import platform
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -20,8 +24,9 @@ import unittest
 import unittest.mock
 import wave
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import NoReturn
+from unittest import mock
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPTS_DIR.parent
@@ -33,10 +38,14 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import check_scenes  # noqa: E402
+import exemplars  # noqa: E402
+import frames  # noqa: E402
 import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
+import mtv.narrated as narrated  # noqa: E402
 import mtv.tts as tts  # noqa: E402
 import narrate  # noqa: E402
+import render  # noqa: E402
 import storyboard_check  # noqa: E402
 
 
@@ -91,11 +100,18 @@ def example_run_dir(parent: Path) -> Path:
 
 # ManimCE is absent where the self-test runs, so the scripts under test find this stand-in
 # first on PATH. Its dry run fails for a class whose name contains Bad, so a test can take
-# the failing path with a scenes file that is otherwise clean.
+# the failing path with a scenes file that is otherwise clean. Its render writes what CE's
+# --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
+# MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
+# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang, or real MP4s;
+# MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit.
 FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
+import ast
 import json
 import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 argv = sys.argv[1:]
@@ -111,7 +127,44 @@ if "--dry_run" in argv:
     if "Bad" in argv[-1]:
         sys.exit(f"ValueError: {argv[-1]} failed its dry run")
     sys.exit(0)
-sys.exit("fake manim: no render branch")
+lesson_py, scene_class = Path(argv[-2]), argv[-1]
+# Like CE, the class is looked up in the scenes file; lesson.json supplies only its beats.
+if scene_class not in {node.name for node in ast.parse(lesson_py.read_text()).body if isinstance(node, ast.ClassDef)}:
+    sys.exit("There are no scenes inside that module")
+if os.environ.get("MTV_FAKE_FAIL") == "1":
+    sys.exit("TypeError: Passing Mobject methods to Scene.play is no longer supported. Use Mobject.animate instead.")
+if os.environ.get("MTV_FAKE_HANG") == "1" and "--disable_caching" not in argv:
+    time.sleep(30)
+lesson = json.loads(Path(os.environ["MTV_LESSON"]).read_text())
+beats = next(scene for scene in lesson["scenes"] if scene["scene_class"] == scene_class)["beats"]
+sections_dir = Path(argv[argv.index("--media_dir") + 1]) / "videos" / lesson_py.stem / "480p15" / "sections"
+sections_dir.mkdir(parents=True, exist_ok=True)
+entries, enter_s = [], 0.0
+with open(os.environ["MTV_RUN_LOG"], "a", encoding="utf-8") as run_log:
+    for index, beat in enumerate(beats):
+        audio_s = 2.0 if beat["duration_s"] is None else beat["duration_s"]
+        tail_s = beat.get("tail_s") or 0.0
+        duration = audio_s + tail_s
+        video = f"{scene_class}_{index:04d}_{beat['id']}.mp4"
+        if os.environ.get("MTV_FAKE_FFMPEG") == "1":
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                            f"color=c=blue:s=854x480:r=15:d={duration}", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                            str(sections_dir / video)], check=True)
+        else:
+            (sections_dir / video).touch()
+        # CE writes nb_frames and duration as strings (manim/utils/commands.py:62-63).
+        entries.append({"name": beat["id"], "type": "default.normal", "video": video, "width": 854, "height": 480,
+                        "nb_frames": str(round(duration * 15)), "duration": f"{duration:.6f}",
+                        "avg_frame_rate": "15/1", "codec_name": "h264", "pix_fmt": "yuv420p"})
+        record = {"beat": beat["id"], "enter_s": enter_s, "exit_s": enter_s + duration,
+                  "audio_s": audio_s, "tail_s": tail_s, "overrun_s": 0.0, "boxes": []}
+        if os.environ.get("MTV_FAKE_RUN_LOG") == "nobeat":
+            del record["beat"]
+        if os.environ.get("MTV_FAKE_RUN_LOG") != "none":
+            run_log.write(json.dumps(record) + "\n")
+        enter_s += duration
+(sections_dir / f"{scene_class}.json").write_text(json.dumps(entries, indent=4))
+print("File ready")
 '''
 
 # The example lesson's two scene classes, each with the base its flat scene_kind needs.
@@ -142,6 +195,141 @@ def env_with_fake_manim(bin_dir: Path) -> dict[str, str]:
     """This process's environment with ``bin_dir`` first on PATH; the fake manim there
     records every call's argv as one JSON line in ``bin_dir/calls.jsonl``."""
     return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+# A 1x1 JPEG that Pillow wrote (Image.new("RGB", (1, 1)).save(buf, "JPEG")), so a synthetic
+# pack's contact sheets need no Pillow at test time.
+TINY_JPEG_B64 = (
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAx"
+    "NDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy"
+    "MjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUF"
+    "BAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVW"
+    "V1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi"
+    "4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAEC"
+    "AxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVm"
+    "Z2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq"
+    "8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD5/ooooA//2Q=="
+)
+
+# (tag, exemplar id, confidence) of every entry in a clean synthetic pack.
+PACK_ENTRIES = (
+    ("numbers-before-symbols", "aaaaaaaaaaa-s01-b01", 0.9),
+    ("numbers-before-symbols", "bbbbbbbbbbb-s02-b01", 0.85),
+    ("working-thing-first", "ccccccccccc-s01-b01", 0.8),
+    ("provenance-transform", "ddddddddddd-s01-b01", 0.7),
+    ("viewer-voice", "orig-fixture-lesson-s01-b01", 1.0),
+    ("one-then-all", "eeeeeeeeeee-s01-b01", 0.6),
+)
+
+
+def make_pack(pack_dir: Path, broken: bool) -> None:
+    """A synthetic exemplar pack in the layout M2 builds: index.json, and one sheet and one
+    excerpt per entry under its tag. ``broken`` adds exactly three check findings: an entry
+    under an unknown tag, a deleted sheet and a tiles count of 7."""
+    rows = PACK_ENTRIES + ((("made-up-tag", "fffffffffff-s01-b01", 0.5),) if broken else ())
+    tags: dict[str, list[dict]] = {}
+    for tag, exemplar_id, confidence in rows:
+        entry = {
+            "id": exemplar_id,
+            "tiles": 4,
+            "sheet": f"{tag}/{exemplar_id}.jpg",
+            "excerpt": f"{tag}/{exemplar_id}.md",
+            "rule_ids": ["R07"],
+            "gist": "fixture gist",
+            "confidence": confidence,
+        }
+        if exemplar_id.startswith("orig-"):
+            entry.update(source="original", lesson_slug="fixture-lesson", scene_id="s01", beat_id="s01-b01",
+                         helpers=["NumericColumn"], report="report.md")
+        else:
+            video_id, section_id, beat_id = exemplar_id.rsplit("-", 2)
+            entry.update(source="corpus", video_id=video_id, section_id=section_id, beat_id=beat_id,
+                         t_start=0.0, t_end=10.0)
+        (pack_dir / tag).mkdir(parents=True, exist_ok=True)
+        (pack_dir / entry["sheet"]).write_bytes(base64.b64decode(TINY_JPEG_B64))
+        (pack_dir / entry["excerpt"]).write_text(f"# {exemplar_id}\nfixture excerpt\n", encoding="utf-8")
+        tags.setdefault(tag, []).append(entry)
+    if broken:
+        (pack_dir / tags["numbers-before-symbols"][1]["sheet"]).unlink()
+        tags["one-then-all"][0]["tiles"] = 7
+    index = {
+        "schema": "mtv-exemplars/1",
+        "corpus_commit": "0123abcd",
+        "built": "2026-11-20T10:00:00Z",
+        "license_note": "local use only: contains frames and transcript excerpts from 3Blue1Brown videos; never redistribute",
+        "tags": tags,
+    }
+    common.dump_json(index, pack_dir / "index.json")
+
+
+def make_clip(path: Path, color: str, duration_s: float, fps: int = 15, size: str = "854x480") -> None:
+    common.run_cmd([
+        "ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c={color}:s={size}:r={fps}:d={duration_s}",
+        "-pix_fmt", "yuv420p", str(path),
+    ]).check_returncode()
+
+
+def make_tone(path: Path, duration_s: float, rate: int = 24000) -> None:
+    common.run_cmd([
+        "ffmpeg", "-y", "-f", "lavfi", "-i", f"sine=frequency=440:duration={duration_s}",
+        "-ar", str(rate), "-ac", "1", str(path),
+    ]).check_returncode()
+
+
+def make_rendered_lesson(run_dir: Path, colors: list[str], tone_s: float = 1.5) -> Path:
+    """Write ``run_dir/lesson.json`` as render.py would leave it, with one two-beat scene per color.
+
+    The example lesson's header and its env, attempts, checks and stages blocks are kept,
+    so the result validates and later stages name their outputs after its slug and title.
+    Every beat renders as a 2 s clip of its scene's color over a ``tone_s`` narration tone.
+    """
+    lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+    lesson.update(tier="draft", provider="null", scenes=[])
+    (run_dir / "audio").mkdir(parents=True, exist_ok=True)
+    marks = {"scene": 5}
+    for n, color in enumerate(colors, 1):
+        scene_id, scene_class = f"s{n:02d}", f"S{n:02d}Fixture"
+        out_dir = run_dir / "render" / "draft" / scene_id
+        out_dir.mkdir(parents=True)
+        (out_dir / "render.log").write_text("")
+        scene = {
+            "id": scene_id, "title": f"Fixture scene {n}", "scene_class": scene_class, "scene_kind": "flat",
+            "opening_state": "black" if n == 1 else "continue", "closing_state": "held", "beats": [],
+        }
+        sections = []
+        for index, ordinal in enumerate(("one", "two")):
+            beat_id = f"{scene_id}-b{index + 1:02d}"
+            video = f"{scene_class}_{index:04d}_{beat_id}.mp4"
+            make_clip(out_dir / video, color, 2.0)
+            make_tone(run_dir / "audio" / f"{beat_id}.wav", tone_s)
+            sections.append({
+                "name": beat_id, "type": "default.normal", "video": video, "width": 854, "height": 480,
+                "nb_frames": "30", "duration": "2.000000", "avg_frame_rate": "15/1", "codec_name": "h264",
+                "pix_fmt": "yuv420p",
+            })
+            scene["beats"].append({
+                "id": beat_id, "narration": f"This is beat {ordinal} of scene {scene_id}.", "marks": marks,
+                "visual": f"a full-frame {color} field", "patterns": [],
+                "moves": ["hook"] if n == 1 and index == 0 else ["concrete"],
+                "introduces": [], "shows_value_of": [], "symbol_introduced": [], "lands": [], "tail_s": 0.5,
+                "audio": f"audio/{beat_id}.wav", "duration_s": tone_s, "words": None,
+                "marks_s": tts.interpolate(tone_s, 7, marks), "interpolated": False,
+                "render": {
+                    "index": index, "video": f"render/draft/{scene_id}/{video}", "duration_s": 2.0, "frames": [],
+                    "log": {"enter_s": 2.0 * index, "exit_s": 2.0 * (index + 1), "audio_s": tone_s, "tail_s": 0.5,
+                            "overrun_s": 0.0, "boxes": []},
+                },
+            })
+        common.dump_json(sections, out_dir / "sections.json")
+        lesson["scenes"].append(scene)
+    classes = "".join(
+        f"\n\nclass {scene['scene_class']}(NarratedScene):\n    def construct(self):\n        pass\n"
+        for scene in lesson["scenes"]
+    )
+    (run_dir / "lesson.py").write_text("from manim import *\nfrom mtv.narrated import NarratedScene\n" + classes)
+    lesson_path = run_dir / "lesson.json"
+    mtv_lesson.save(lesson, lesson_path)
+    return lesson_path
 
 
 class ExampleLessonCase(unittest.TestCase):
@@ -489,6 +677,27 @@ class TestLessonStages(unittest.TestCase):
         lesson["scenes"][0]["beats"][0]["marks"]["reveal"] = 8
         self.assertTrue(mtv_lesson.needs_rerun(lesson, "storyboard"))
 
+    def test_scenes_file_edit_reruns_render_stages(self):
+        # The fix loop (spec 6.6 step 8) edits only the generated lesson.py, so a resume must see
+        # that edit in the render stages' hash, though the digest never reaches lesson.json.
+        self.assertIsNone(mtv_lesson.load(ASSETS_DIR / "lesson.example.json")[mtv_lesson.SCENES_FILE_SHA256])
+        scratch = Scratch()
+        self.addCleanup(scratch.cleanup)
+        lesson_path = example_run_dir(scratch.path) / "lesson.json"
+        scenes_py = lesson_path.parent / "lesson.py"
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE)
+        lesson = mtv_lesson.load(lesson_path)
+        for stage in mtv_lesson.STAGES:
+            mtv_lesson.mark_done(lesson, stage, {})
+        mtv_lesson.save(lesson, lesson_path)
+        self.assertNotIn(mtv_lesson.SCENES_FILE_SHA256, common.load_json(lesson_path))
+        lesson = mtv_lesson.load(lesson_path)
+        self.assertEqual([stage for stage in mtv_lesson.STAGES if mtv_lesson.needs_rerun(lesson, stage)], [])
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE + "# fix pass\n")
+        lesson = mtv_lesson.load(lesson_path)
+        self.assertEqual([stage for stage in mtv_lesson.STAGES if mtv_lesson.needs_rerun(lesson, stage)],
+                         ["render.draft", "frames", "render.standard", "assemble", "verify"])
+
     def test_bump_counters(self):
         lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
         self.assertEqual(mtv_lesson.bump(lesson, "script_retries"), 1)
@@ -735,6 +944,279 @@ class TestNarrate(unittest.TestCase):
         self.assertRegex(cp.stdout.strip().splitlines()[-1], r"^PASS warmup null rtf=\d+\.\d{3}$")
 
 
+class StubScene(narrated.NarratedMixin):
+    """Stands in for a ManimCE scene: records the calls the mixin makes, and its wait and play
+    advance a clock instead of rendering frames."""
+
+    frame_rate = 15.0
+
+    def __init__(self) -> None:
+        self.time = 0.0
+        self.mobjects: list = []
+        self.calls: list = []
+
+    def next_section(self, name: str) -> None:
+        self.calls.append(("next_section", name))
+
+    def add_subcaption(self, text: str, duration: float) -> None:
+        self.calls.append(("add_subcaption", text, duration))
+
+    def wait(self, seconds: float) -> None:
+        self.calls.append(("wait", seconds))
+        self.time += seconds
+
+    def play(self, seconds: float) -> None:
+        self.time += seconds
+
+
+class StubMobject:
+    """Has CE's corner rule over its own points (CE manim/mobject/mobject.py:2395-2420) and no family."""
+
+    def __init__(self, *points: tuple[float, float, float]) -> None:
+        self.points = list(points)
+
+    def get_all_points(self) -> list:
+        return self.points
+
+    def get_corner(self, direction) -> list[float]:
+        return [(min if direction[d] < 0 else max)(p[d] for p in self.points) for d in range(3)]
+
+
+class CairoClock:
+    """CE's Cairo clock and section index, standing behind the mixin as ManimCE's Scene does.
+
+    A segment rendered afresh writes whole frames: a play's count rounds up and each frame
+    advances the clock (CE manim/scene/scene.py:1128-1129), a static wait's count rounds down
+    and advances it in one step (CE manim/renderer/cairo_renderer.py:210,221-225). A segment
+    found in ``cache`` is reused with the frames it was rendered with, while the clock advances
+    by the exact run time and skip_animations stays set (cairo_renderer.py:104-110). A scene
+    replaying the same calls hashes them the same, so a shared cache makes every play of a
+    second render a hit.
+    """
+
+    frame_rate = 15.0
+
+    def __init__(self, cache: set | None = None) -> None:
+        self.renderer = SimpleNamespace(time=0.0, skip_animations=False)
+        self.mobjects: list = []
+        self.cache = set() if cache is None else cache
+        # CE opens every scene with an autocreated section (scene_file_writer.py:264).
+        self.sections: list[list] = [["autocreated", 0]]
+        self.duration = 0.0
+        self.frozen = False
+        self.plays = self.hits = 0
+
+    @property
+    def time(self) -> float:
+        return self.renderer.time
+
+    def next_section(self, name: str) -> None:
+        self.sections.append([name, 0])
+
+    def add_subcaption(self, text: str, duration: float) -> None:
+        pass
+
+    def is_current_animation_frozen_frame(self) -> bool:
+        return self.frozen
+
+    def wait(self, seconds: float) -> None:
+        self.play(seconds, frozen=True)
+
+    def play(self, seconds: float, frozen: bool = False) -> None:
+        dt = 1 / self.frame_rate
+        self.duration, self.frozen = max(seconds, dt), frozen
+        frames = int(self.duration / dt) if frozen else math.ceil(self.duration / dt)
+        self.sections[-1][1] += frames
+        key = (self.plays, self.duration, frozen)
+        self.plays += 1
+        self.renderer.skip_animations = key in self.cache
+        if self.renderer.skip_animations:
+            self.hits += 1
+            self.renderer.time += self.duration
+            return
+        self.cache.add(key)
+        if frozen:
+            self.renderer.time += frames * dt
+        else:
+            for _ in range(frames):
+                self.renderer.time += dt
+
+    def index_spans(self) -> dict[str, tuple[float, float]]:
+        """Each section's start and end as ruling F32 reads the index: a running sum in file order."""
+        spans, start = {}, 0.0
+        for name, frames in self.sections:
+            spans[name] = (start, start + frames / self.frame_rate)
+            start = spans[name][1]
+        return spans
+
+
+class FrameClockScene(narrated.NarratedMixin, CairoClock):
+    """The mixin on CE's clock, as a generated scene subclasses it."""
+
+
+class TestNarratedMixin(ExampleLessonCase):
+    def setUp(self):
+        super().setUp()
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        run_log = str(self.run_dir / "run.log")
+        # StubScene stands in for a scene, so the no-manim path is taken even where ManimCE is
+        # installed: there config.frame_rate comes from whatever manim.cfg is in the working
+        # directory, and look.apply would change the global config.
+        for patcher in (mock.patch.dict(os.environ, {"MTV_LESSON": str(self.lesson_path), "MTV_RUN_LOG": run_log}),
+                        mock.patch.object(narrated, "MANIM_AVAILABLE", False)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_until_and_remaining_clamp(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            reveal = b.marks_s["reveal"]
+            self.assertAlmostEqual(b.until("reveal"), reveal - 0.2)
+            self.assertAlmostEqual(b.until("reveal", lead=0.0), reveal)
+            scene.wait(b.duration + 1.0)
+            self.assertAlmostEqual(b.until("reveal"), 1 / 15)
+            self.assertAlmostEqual(b.remaining(), 1 / 15)
+        self.assertEqual(scene.calls[0], ("next_section", "s01-b01"))
+        self.assertEqual(scene.calls[1][:2], ("add_subcaption", "Here is a network that already reads handwritten digits."))
+
+    def test_exit_pads_to_target_end_and_cursor_accumulates(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            scene.wait(1.0)
+        self.assertAlmostEqual(scene.time, b.duration + 0.4, places=6)
+        with scene.beat("s01-b02") as b2:
+            pass
+        self.assertAlmostEqual(scene.time, b.duration + 0.4 + b2.duration + 0.4, places=6)
+
+    def test_next_beat_takes_up_an_overrun(self):
+        # Beat ends count from the scene start, so one beat's overrun does not push back the rest.
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            scene.wait(b.duration + 0.4 + 0.5)
+        with scene.beat("s01-b02") as b2:
+            pass
+        self.assertAlmostEqual(scene.time, b.duration + 0.4 + b2.duration + 0.4, places=6)
+
+    def test_overrun_logged_and_line_shape(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            scene.wait(b.duration + 0.4 + 1.39)
+        line = json.loads(Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()[-1])
+        self.assertEqual(list(line), ["beat", "enter_s", "exit_s", "audio_s", "tail_s", "overrun_s", "boxes"])
+        self.assertAlmostEqual(line["overrun_s"], 1.39, places=3)
+        self.assertEqual(line["beat"], "s01-b01")
+        self.assertAlmostEqual(line["audio_s"], b.duration)
+
+    def test_load_lesson_requires_path_or_env(self):
+        os.environ.pop("MTV_LESSON", None)
+        with self.assertRaises(ValueError):
+            StubScene().load_lesson("s01")
+
+    def test_exception_inside_beat_is_neither_padded_nor_logged(self):
+        # Spec 7.1: render.py surfaces the traceback of a beat missing from its logs.
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with self.assertRaises(ZeroDivisionError), scene.beat("s01-b01"):
+            1 / 0
+        self.assertEqual([call[0] for call in scene.calls], ["next_section", "add_subcaption"])
+        self.assertFalse(Path(os.environ["MTV_RUN_LOG"]).exists())
+
+    def test_boxes_cover_top_level_mobjects_with_points(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        LayeredNetwork = type("LayeredNetwork", (StubMobject,), {})
+        scene.mobjects = [LayeredNetwork((-5.1, 0.4, 0.0), (5.1, -3.2, 0.0)), StubMobject()]
+        # DL and UR exist only where ManimCE imports; these are their values (CE manim/constants.py:151,154).
+        with mock.patch.multiple(narrated, DL=(-1, -1, 0), UR=(1, 1, 0), create=True), scene.beat("s01-b01"):
+            pass
+        line = json.loads(Path(os.environ["MTV_RUN_LOG"]).read_text())
+        self.assertEqual(line["boxes"], [{"name": "LayeredNetwork", "x0": -5.1, "y0": -3.2, "x1": 5.1, "y1": 0.4}])
+
+    def test_run_log_times_chain_on_a_frame_clock(self):
+        # The sync gate compares these times with CE's section index, which sums whole frames:
+        # each beat enters where the last one left and ends within a frame of its narrated end.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["duration_s"] = 3.63  # off the frame grid, as synthesized audio is
+        mtv_lesson.save(lesson, self.lesson_path)
+        scene = FrameClockScene()
+        scene.load_lesson("s01", self.lesson_path)
+        for beat_id in ("s01-b01", "s01-b02", "s01-b03"):
+            with scene.beat(beat_id):
+                scene.play(0.5)  # 7.5 frames at 15 fps, so 8 frames
+        lines = [json.loads(text) for text in Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()]
+        self.assertEqual([line["beat"] for line in lines], ["s01-b01", "s01-b02", "s01-b03"])
+        self.assertEqual(lines[0]["enter_s"], 0.0)
+        target_end = 0.0
+        for previous, line in zip([None, *lines], lines):
+            if previous:
+                self.assertEqual(line["enter_s"], previous["exit_s"])
+            target_end += line["audio_s"] + line["tail_s"]
+            self.assertLess(abs(line["exit_s"] - target_end), 1 / 15 + 1e-9)
+        self.assertEqual(lines[-1]["exit_s"], scene.time)
+
+    def test_cached_rerender_keeps_run_log_on_the_section_index(self):
+        # A re-render reuses CE's cached segments, whose clock advances by exact run times while
+        # the reused files hold whole frames; the run log must still match the index the sync gate
+        # reads, and the pads must replay unchanged so every segment stays cached.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["duration_s"] = 3.63  # off the frame grid, as synthesized audio is
+        mtv_lesson.save(lesson, self.lesson_path)
+        run_log = Path(os.environ["MTV_RUN_LOG"])
+        cache: set = set()
+        renders = []
+        for _ in range(2):
+            run_log.unlink(missing_ok=True)
+            scene = FrameClockScene(cache)
+            scene.load_lesson("s01", self.lesson_path)
+            for beat_id, mark in (("s01-b01", "reveal"), ("s01-b02", "lights"), ("s01-b03", "zoom")):
+                with scene.beat(beat_id) as b:
+                    for _ in range(3):
+                        scene.play(0.5)  # 7.5 frames at 15 fps, so 8 frames
+                    scene.wait(0.37)  # 5.55 frames, so 5 frames
+                    scene.play(b.until(mark))
+            lines = [json.loads(text) for text in run_log.read_text().splitlines()]
+            spans = scene.index_spans()
+            for line in lines:
+                self.assertAlmostEqual(line["enter_s"], spans[line["beat"]][0], places=9)
+                self.assertAlmostEqual(line["exit_s"], spans[line["beat"]][1], places=9)
+            renders.append((lines, scene.hits, scene.plays))
+        (first, first_hits, _), (second, second_hits, second_plays) = renders
+        self.assertEqual(first_hits, 0)
+        self.assertEqual(second_hits, second_plays)
+        self.assertEqual(second, first)
+
+    def test_no_run_log_without_mtv_run_log(self):
+        # check_scenes.py's dry run leaves MTV_RUN_LOG unset: beats are still padded, nothing is written.
+        os.environ.pop("MTV_RUN_LOG")
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01"):
+            pass
+        self.assertEqual(scene.calls[-1][0], "wait")
+        self.assertFalse((self.run_dir / "run.log").exists())
+
+    def test_manim_path_takes_the_tier_frame_rate_and_applies_the_look(self):
+        # Where ManimCE imports, the frame rate is the render tier's config value, not the scene's
+        # attribute, and look.py styles the scene once per load.
+        applied = []
+        look = ModuleType("mtv.look")
+        look.apply = applied.append
+        scene = StubScene()
+        with (mock.patch.object(narrated, "MANIM_AVAILABLE", True),
+              mock.patch.object(narrated, "config", mock.Mock(frame_rate=30.0), create=True),
+              mock.patch("mtv.look", look, create=True)):
+            scene.load_lesson("s01", self.lesson_path)
+            with scene.beat("s01-b01") as b:
+                scene.wait(b.duration + 1.0)
+                self.assertAlmostEqual(b.remaining(), 1 / 30)
+        self.assertEqual(applied, [scene])
+
+
 class TestStoryboardCheck(ExampleLessonCase):
     def edit(self, fn):
         lesson = mtv_lesson.load(self.lesson_path)
@@ -875,6 +1357,279 @@ class TestCheckScenes(ExampleLessonCase):
         missing = check_scenes.lint_source(CLEAN_TWO_CLASS_SOURCE.replace("S02OneNeuron", "S02Other"),
                                            mtv_lesson.load(self.lesson_path))
         self.assertEqual([(f["name"], f["fix"]) for f in missing], [("S02OneNeuron", "define class S02OneNeuron")])
+
+
+class TestRender(ExampleLessonCase):
+    def setUp(self):
+        super().setUp()
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE)
+        self.bin_dir = self.run_dir.parent / "bin"
+        write_fake_manim(self.bin_dir)
+        self.env = env_with_fake_manim(self.bin_dir)
+
+    def test_render_fills_render_and_env(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--jobs", "2", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        for i, (scene, beat) in enumerate(mtv_lesson.beats(lesson)):
+            self.assertEqual(beat["render"]["index"], i % 3)
+            self.assertTrue((self.run_dir / beat["render"]["video"]).exists())
+            self.assertAlmostEqual(beat["render"]["duration_s"], beat["duration_s"] + beat["tail_s"], places=2)
+            self.assertEqual(set(beat["render"]["log"]), {"enter_s", "exit_s", "audio_s", "tail_s", "overrun_s", "boxes"})
+        self.assertEqual(lesson["env"]["manim"], "Manim Community v0.22.0")
+        self.assertEqual(lesson["env"]["python"], platform.python_version())
+        self.assertTrue((self.run_dir / "render" / "draft" / "s01" / "sections.json").exists())
+        self.assertIn("render.draft", lesson["stages"])
+
+    def test_hang_is_killed_and_retried_with_disable_caching(self):
+        env = {**self.env, "MTV_FAKE_HANG": "1"}
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", "--hang-timeout-s", "1",
+                        cwd=self.run_dir, env=env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
+        self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False, True])
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["attempts"]["render_retries"], {"s01": 1})
+
+    def test_error_table_match_in_verdict(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
+                        env={**self.env, "MTV_FAKE_FAIL": "1"})
+        self.assertEqual(cp.returncode, 1)
+        self.assertIn(common.ERROR_TABLE[0].fix_text, cp.stdout.strip().splitlines()[-1])
+
+    def test_missing_class_exits_1_without_traceback(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["scene_class"] = "S01Missing"
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 1)
+        self.assertNotIn("Traceback", cp.stderr)
+        self.assertIn("There are no scenes inside that module", cp.stdout)  # the render.log tail, printed before the verdict
+        self.assertIn(common.ERROR_TABLE[18].gl_idiom, cp.stdout.strip().splitlines()[-1])  # row 19 in the verdict
+
+    def test_failed_rerender_leaves_no_stale_video(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        before = mtv_lesson.load(self.lesson_path)
+        # The fix loop edits lesson.py before it re-renders the scene (spec 6.6 step 8).
+        scenes_py = self.run_dir / "lesson.py"
+        scenes_py.write_text(scenes_py.read_text() + "# fix pass\n")
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
+                        env={**self.env, "MTV_FAKE_FAIL": "1"})
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        after = mtv_lesson.load(self.lesson_path)
+        # A failed render writes no render block and leaves the earlier stage, so s01's beats now
+        # name videos that are gone, while s02, which was not re-rendered, keeps its own. The kept
+        # stage no longer matches, because its hash covers lesson.py, so a resume renders again.
+        self.assertEqual((after["stages"], after["scenes"]), (before["stages"], before["scenes"]))
+        self.assertTrue(mtv_lesson.needs_rerun(after, "render.draft"))
+        s01, s02 = (self.run_dir / "render" / "draft" / scene_id for scene_id in ("s01", "s02"))
+        self.assertEqual(sorted(path.name for path in s01.iterdir() if path.is_file()), ["render.log", "run.log"])
+        self.assertTrue((s02 / "sections.json").exists())
+        for scene, beat in mtv_lesson.beats(after):
+            self.assertEqual((self.run_dir / beat["render"]["video"]).exists(), scene["id"] == "s02")
+
+    def test_failed_read_back_leaves_no_stale_video(self):
+        # manim exits 0, so its MP4s are already copied when reading its run log fails; the copies
+        # keep the earlier file names, so left in place they would pass for s01's earlier render.
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        before = mtv_lesson.load(self.lesson_path)
+        s01 = self.run_dir / "render" / "draft" / "s01"
+        for mode, reason in (("none", "missing from run.log"),
+                             ("nobeat", "mtv: run.log line without a beat key")):
+            with self.subTest(mode=mode):
+                cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
+                                env={**self.env, "MTV_FAKE_RUN_LOG": mode})
+                self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+                self.assertNotIn("Traceback", cp.stderr)
+                self.assertIn(reason, cp.stdout.strip().splitlines()[-1])
+                after = mtv_lesson.load(self.lesson_path)
+                self.assertEqual((after["stages"], after["scenes"]), (before["stages"], before["scenes"]))
+                left = sorted(path.name for path in s01.iterdir() if path.is_file())
+                self.assertEqual(left, ["render.log", "run.log"])
+                self.assertFalse(render._rendered(after["scenes"][0], "draft", self.run_dir))
+
+    def test_record_env_font_probe(self):
+        # mtv.look arrives with Task 17 and imports manim, so a stub package stands in for it on
+        # the probe's path; "" is pick_font's answer when no candidate is installed (Pango's default).
+        for i, (body, font) in enumerate((('return "CMU Serif"', "CMU Serif"), ('return ""', ""),
+                                          ('raise ImportError("manim")', None))):
+            with self.subTest(font=font):
+                scripts = self.run_dir.parent / f"stub-scripts-{i}"
+                (scripts / "mtv").mkdir(parents=True)
+                (scripts / "mtv" / "__init__.py").write_text("")
+                (scripts / "mtv" / "look.py").write_text(f"def pick_font():\n    {body}\n")
+                lesson = {}
+                render.record_env(lesson, scripts)
+                self.assertEqual(lesson["env"]["font"], font)
+                self.assertEqual(lesson["env"]["pythonpath"].split(os.pathsep)[0], str(scripts))
+
+
+class TestExemplars(ExampleLessonCase):
+    def setUp(self):
+        super().setUp()
+        self.pack = self.run_dir.parent / "pack"
+
+    def test_check_broken_pack_three_findings(self):
+        make_pack(self.pack, broken=True)
+        findings = exemplars.check(self.pack)
+        self.assertEqual(len(findings), 3, findings)
+        self.assertTrue(any("not in TECHNIQUE_TAGS" in f for f in findings))
+        self.assertTrue(any("sheet" in f and "missing" in f for f in findings))
+        self.assertTrue(any("tiles 7 outside 2 to 6" in f for f in findings))
+        self.assertEqual(run_script("exemplars", "check", str(self.pack), cwd=self.run_dir).returncode, 1)
+
+    def test_check_clean_pack_exit_0(self):
+        make_pack(self.pack, broken=False)
+        self.assertEqual(exemplars.check(self.pack), [])
+        self.assertEqual(run_script("exemplars", "check", str(self.pack), cwd=self.run_dir).returncode, 0)
+
+    def test_check_missing_dir_exit_1(self):
+        cp = run_script("exemplars", "check", str(self.pack / "nope"), cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        self.assertIn("index.json missing", cp.stdout)
+        self.assertNotIn("Traceback", cp.stderr)
+
+    def test_pick_storyboarder_deterministic(self):
+        make_pack(self.pack, broken=False)
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        first = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env).stdout
+        second = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env).stdout
+        self.assertEqual(first, second)
+        ids = [p["id"] for p in json.loads(first)]
+        self.assertEqual(ids[1], "aaaaaaaaaaa-s01-b01")  # numbers-before-symbols, confidence 0.9 beats 0.85
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["exemplars"]["used"]["storyboarder"], ids)
+        self.assertTrue(len(ids) <= 8)
+
+    def test_pick_frame_critic_reachable_tags(self):
+        make_pack(self.pack, broken=False)
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        cp = run_script("exemplars", "pick", "--role", "frame-critic", "--scene", "s02", "lesson.json", cwd=self.run_dir, env=env)
+        picks = json.loads(cp.stdout)
+        self.assertTrue(1 <= len(picks) <= 4)
+        scene = mtv_lesson.scene_by_id(mtv_lesson.load(self.lesson_path), "s02")
+        reachable = set()
+        for beat in scene["beats"]:
+            for p in beat["patterns"]:
+                reachable.update(common.PATTERN_TAGS[p])
+            for m in beat["moves"]:
+                reachable.add(common.MOVE_TAGS[m])
+        self.assertTrue({p["tag"] for p in picks} <= reachable)
+
+    def test_check_defaults_to_env_and_prints_index_sha256(self):
+        # The brief stage copies the printed hash into exemplars.index_sha256.
+        make_pack(self.pack, broken=False)
+        cp = run_script("exemplars", "check", cwd=self.run_dir, env={**os.environ, "MTV_EXEMPLARS": str(self.pack)})
+        sha = common.sha256_file(self.pack / "index.json")
+        self.assertEqual(cp.stdout.splitlines(), [f"index.json sha256 {sha}", "PASS 6 exemplars under 5 tags"])
+        unset = {name: value for name, value in os.environ.items() if name != "MTV_EXEMPLARS"}
+        self.assertEqual(run_script("exemplars", "check", cwd=self.run_dir, env=unset).returncode, 2)
+
+    def test_jpeg_size_and_oversized_sheet(self):
+        make_pack(self.pack, broken=False)
+        sheet = self.pack / "working-thing-first" / "ccccccccccc-s01-b01.jpg"
+        self.assertEqual(exemplars.jpeg_size(sheet), (1, 1))
+        data = sheet.read_bytes()
+        sof = data.index(b"\xff\xc0")
+        # A frame header holds its length and precision, then the height and the width.
+        sheet.write_bytes(data[: sof + 5] + struct.pack(">HH", 481, 1281) + data[sof + 9 :])
+        self.assertEqual(exemplars.jpeg_size(sheet), (1281, 481))
+        self.assertEqual(exemplars.check(self.pack), ["ccccccccccc-s01-b01: sheet 1281x481 larger than 1280x480"])
+        sheet.write_bytes(b"not a jpeg")
+        with self.assertRaises(ValueError):
+            exemplars.jpeg_size(sheet)
+        self.assertEqual(exemplars.check(self.pack),
+                         ["ccccccccccc-s01-b01: sheet 'working-thing-first/ccccccccccc-s01-b01.jpg' is not a JPEG"])
+
+    def test_pick_budgets_and_camera_tag(self):
+        make_pack(self.pack, broken=False)
+        (self.pack / "viewer-voice" / "orig-fixture-lesson-s01-b01.md").write_text("# long\n" + "word " * 40)
+        index = common.load_json(self.pack / "index.json")
+        index["tags"]["camera-as-narrator"] = [dict(index["tags"]["working-thing-first"][0], id="ggggggggggg-s01-b01")]
+        lesson = mtv_lesson.load(self.lesson_path)
+        picks = exemplars.pick_storyboarder(index, lesson, self.pack, max_words=20)
+        # Each fixture excerpt has 4 words and stays whole; the 42-word one gets what is left.
+        self.assertEqual([(p["id"], p["words"]) for p in picks], [
+            ("ccccccccccc-s01-b01", 4), ("aaaaaaaaaaa-s01-b01", 4),
+            ("ddddddddddd-s01-b01", 4), ("orig-fixture-lesson-s01-b01", 8),
+        ])
+        lesson["scenes"][1]["scene_kind"] = "camera"
+        self.assertEqual(exemplars.pick_storyboarder(index, lesson, self.pack)[-1]["id"], "ggggggggggg-s01-b01")
+        self.assertEqual(len(exemplars.pick_storyboarder(index, lesson, self.pack, max_images=2)), 2)
+
+    def test_pick_usage_errors_exit_2_without_writing(self):
+        make_pack(self.pack, broken=True)
+        env = {**os.environ, "MTV_EXEMPLARS": str(self.pack)}
+        for args in (
+            ("--role", "frame-critic"),
+            ("--role", "frame-critic", "--scene", "s09"),
+            ("--role", "storyboarder"),
+        ):
+            cp = run_script("exemplars", "pick", *args, "lesson.json", cwd=self.run_dir, env=env)
+            self.assertEqual(cp.returncode, 2, args)
+            self.assertEqual(cp.stdout, "", args)
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["exemplars"]["used"], {"storyboarder": [], "frame-critic": {}})
+
+
+class TestFrames(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.run_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+
+    def test_continuity_jump_fails_at_threshold(self):
+        require_tool("ffmpeg", "frames continuity")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue", "blue", "white"])
+        cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        cont = common.load_json(self.run_dir / "frames" / "continuity.json")
+        self.assertEqual(cont["threshold"], common.CONTINUITY_THRESHOLD)
+        self.assertEqual([b["pass"] for b in cont["boundaries"]], [True, False])
+        self.assertLess(cont["boundaries"][0]["mad"], common.CONTINUITY_THRESHOLD)
+        # blue to white measures 0.886 here, so the jump still fails after the M1 calibration
+        # raises the threshold to at most 0.30; blue to red (0.184) would not
+        self.assertGreater(cont["boundaries"][1]["mad"], common.CONTINUITY_THRESHOLD)
+        lesson = mtv_lesson.load(lesson_path)
+        self.assertIn("frames/s01/s01-b02-last.png", lesson["scenes"][0]["beats"][1]["render"]["frames"])
+        self.assertIn("frames/s02/s02-b01-first.png", lesson["scenes"][1]["beats"][0]["render"]["frames"])
+
+    def test_mark_past_end_is_clamped(self):
+        require_tool("ffmpeg", "frames clamp")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"])
+        lesson = mtv_lesson.load(lesson_path)
+        lesson["scenes"][0]["beats"][0]["marks_s"] = {"late": 2.4}
+        mtv_lesson.save(lesson, lesson_path)
+        cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertTrue((self.run_dir / "frames" / "s01" / "s01-b01-late.png").exists())
+        self.assertAlmostEqual(frames.clamp_time(2.4, 2.0, 15), 2.0 - 1 / 15)
+
+    def test_unrendered_beat_exits_2_without_writing(self):
+        require_tool("ffmpeg", "frames unrendered")
+        lesson_path = self.run_dir / "lesson.json"
+        shutil.copyfile(ASSETS_DIR / "lesson.example.json", lesson_path)
+        before = lesson_path.read_text()
+        cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("s01-b01: no draft render.video", cp.stderr)
+        self.assertEqual(lesson_path.read_text(), before)
+        self.assertFalse((self.run_dir / "frames").exists())
+
+    def test_sheet_requires_pil(self):
+        require_tool("ffmpeg", "frames sheet")
+        require("PIL", "frames sheet")
+        clip = Path(self.scratch.path) / "c.mp4"
+        make_clip(clip, "blue", 2.0)
+        out = Path(self.scratch.path) / "sheet.jpg"
+        self.assertTrue(frames.sheet(clip, 2.0, 0.0, out))
+        from PIL import Image
+        with Image.open(out) as image:
+            self.assertEqual(image.size, (1278, 480))
 
 
 def main() -> int:

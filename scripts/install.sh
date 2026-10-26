@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sync kit content from this repo (canonical) into ~/.agents (the .agents
 # protocol layout). Non-destructive by default; manages only paths listed in
-# its own stamp manifest.
+# its own stamp manifest. Skill assets retain their source bytes and modes.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -91,7 +91,7 @@ build_mapping() {
 			skills/*/SKILL.md) continue ;;
 			esac
 			printf 'skills/%s/%s\tskills/%s/%s\n' "$id" "$rel" "$id" "$rel"
-		done < <(cd "$skill_dir" && find . -type f -name '*.md' ! -name 'SKILL.md' | sed 's|^\./||')
+		done < <(cd "$skill_dir" && find . -type f ! -name 'SKILL.md' ! -name '.DS_Store' ! -path '*/node_modules/*' | sed 's|^\./||' | LC_ALL=C sort)
 	done
 	for f in agents/*/; do
 		id=$(basename "$f")
@@ -105,6 +105,9 @@ build_mapping() {
 	# collision with a pre-existing unstamped ~/.agents/agents.md (SKIP
 	# unless byte-identical or --force).
 	printf 'agents.kit.md\tagents.md\n'
+	for f in LICENSE THIRD-PARTY-NOTICES.md; do
+		[ ! -f "$f" ] || printf '%s\t%s\n' "$f" "$f"
+	done
 }
 
 MAPPING=$(build_mapping)
@@ -183,6 +186,9 @@ copy_one() {
 	else
 		mkdir -p "$(dirname "$dest_abs")"
 		cp "$src_abs" "$dest_abs"
+		if [ -x "$src_abs" ]; then
+			chmod +x "$dest_abs"
+		fi
 		echo "$action $dest"
 	fi
 	return 0
@@ -221,7 +227,7 @@ EOF
 		if grep -Fxq -- "$p" "$MANIFEST_TMP"; then
 			continue
 		fi
-		if [ -f "$STAMP_DIR/$p" ]; then
+		if [ "$PRUNE" -eq 0 ] && [ -f "$STAMP_DIR/$p" ]; then
 			printf '%s\n' "$p" >>"$MANIFEST_TMP"
 		fi
 	done <<EOF
@@ -252,7 +258,7 @@ MCP setup (configure in your harness's own config; the kit never writes MCP file
   GitHub   https://github.com/github/github-mcp-server
   GitLab   https://docs.gitlab.com/ee/user/gitlab_duo/mcp/
   Linear   https://mcp.linear.app/sse
-Models: the kit pins none; configure your harness's subagent model (see rules/subagents.md).
+Models: configure model choices in your harness; the kit does not select them.
 done: target=agents version=$KIT_VERSION wrote/updated=$wrote skipped=$skipped
 GUIDE
 }

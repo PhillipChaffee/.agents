@@ -60,10 +60,10 @@ for d in skills:
         fail(f"{rel}: missing or malformed frontmatter")
         continue
     keys, order = top_keys(fm)
-    for k in ("description", "enabled", "id", "name"):
+    for k in ("description", "name"):
         if k not in keys:
             fail(f"{rel}: missing frontmatter key '{k}'")
-    if keys.get("id", "").split("id:", 1)[-1].strip() != d.name:
+    if "id" in keys and keys["id"].split("id:", 1)[-1].strip() != d.name:
         fail(f"{rel}: id does not match directory name")
     if order != sorted(order):
         warn(f"{rel}: frontmatter keys not sorted")
@@ -109,6 +109,9 @@ md_files = sorted(Path("skills").rglob("*.md")) if Path("skills").is_dir() else 
 for md in md_files:
     text = md.read_text()
     rel = str(md)
+    # Byte-preserved upstream examples use plugin-local links and illustrative commands.
+    if rel.startswith("skills/writing-skills/"):
+        continue
     # 3. Agent references resolve
     for ref in set(AGENT_REF.findall(text)):
         if agents and ref not in agent_ids:

@@ -1,3 +1,9 @@
 .DS_Store
 dists/
 opencode.json
+.kit-stamp
+__pycache__/
+# Home-only helpers must not enter the public mirror.
+/scripts/*
+!/scripts/install.sh
+!/scripts/validate.sh

@@ -1513,6 +1513,37 @@ class TestFrames(unittest.TestCase):
             self.assertEqual(image.size, (1278, 480))
 
 
+class TestPreflight(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+
+    def test_preflight_json_reports_install_lines(self):
+        cp = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir)
+        report = json.loads(cp.stdout)
+        checks = {c["name"]: c for c in report["checks"]}
+        self.assertEqual(list(checks), ["python", "manim", "latex", "dvisvgm", "ffmpeg", "ffprobe", "provider", "font", "disk", "cpu", "exemplars"])
+        py_ok = sys.version_info[:2] in ((3, 11), (3, 12))
+        self.assertEqual(checks["python"]["ok"], py_ok)
+        if not py_ok:
+            self.assertEqual(checks["python"]["install"], "uv venv --python 3.12")
+        self.assertTrue(checks["provider"]["ok"])
+        self.assertIn("rtf=", checks["provider"]["detail"])
+        self.assertTrue(checks["exemplars"]["ok"])
+        broken = self.work_dir / "broken-pack"
+        make_pack(broken, broken=True)
+        cp2 = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir, env={**os.environ, "MTV_EXEMPLARS": str(broken)})
+        ex = {c["name"]: c for c in json.loads(cp2.stdout)["checks"]}["exemplars"]
+        self.assertTrue(ex["ok"])
+        self.assertEqual(ex["detail"], "3 findings (continuing without exemplars)")
+        self.assertEqual(cp.returncode, 0 if report["ok"] else 1)
+        self.assertEqual(report["ok"], all(c["ok"] for c in report["checks"]))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run the self-test; arguments not listed here (for example -k NAME) go to unittest.",

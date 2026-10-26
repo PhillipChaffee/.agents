@@ -297,7 +297,7 @@ async function check(tools, model, { work, out, role }, expected) {
   const shown = published(work, out);
   const traces = [];
   for (const rule of rules) {
-    const file = path.join(tlcDir, `${name}-${rule}`);
+    const file = path.join(tlcDir, `${name}-${encodeURIComponent(rule)}`);
     const cfg = `${cfgWithoutRules}INVARIANT ${rule}\nCONSTRAINT ${rule}\n`;
     let result = await run(cfg, file, { workers: "auto" });
     // Several workers can reach a bad state by a longer path first. One worker searches breadth
@@ -310,7 +310,7 @@ async function check(tools, model, { work, out, role }, expected) {
   }
   const temporal = [];
   for (const property of properties) {
-    const file = path.join(tlcDir, `${name}-${property}`);
+    const file = path.join(tlcDir, `${name}-${encodeURIComponent(property)}`);
     const { stdout } = await run(`${cfgWithoutRules}PROPERTY ${property}\n`, file, {
       workers: "auto",
     });

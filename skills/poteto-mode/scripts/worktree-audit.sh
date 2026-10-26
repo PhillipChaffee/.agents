@@ -118,13 +118,14 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	# real signal; merge-base only catches fast-forward/rebase merges.
 	git merge-base --is-ancestor "$head" "$base" 2>/dev/null && merged=YES || merged=no
 
-	# Distinguish real WIP (tracked edits) from disposable untracked scratch.
-	porcelain=$(git -C "$wt" status --porcelain 2>/dev/null)
-	if [ -z "$porcelain" ]; then
+	# Untracked and ignored files can contain work that no branch preserves.
+	if ! porcelain=$(git -C "$wt" status --porcelain=v1 --untracked-files=all --ignored --ignore-submodules=none 2>/dev/null); then
+		dirty=unknown
+	elif [ -z "$porcelain" ]; then
 		dirty=clean
-	elif printf '%s\n' "$porcelain" | grep -qv '^??'; then
-		dirty="wip:$(printf '%s\n' "$porcelain" | grep -cv '^??')"
-	else dirty="scratch:$(printf '%s\n' "$porcelain" | grep -c '^??')"; fi
+	else
+		dirty="wip:$(printf '%s\n' "$porcelain" | wc -l | tr -d ' ')"
+	fi
 
 	branch=$(git -C "$wt" symbolic-ref --quiet --short HEAD 2>/dev/null || echo "")
 	if [ -z "$branch" ]; then
@@ -153,7 +154,7 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	fi
 	recent=$([ "$last_ts" -gt 0 ] 2>/dev/null && [ $(((now - last_ts) / 86400)) -le 4 ] && echo yes || echo no)
 
-	case "$dirty" in wip:*) bucket=hold-wip ;; *)
+	case "$dirty" in unknown) bucket=hold-unknown ;; wip:*) bucket=hold-wip ;; *)
 		case "$pr" in */open | */draft) bucket=hold-open-pr ;; *)
 			if [ "$recent" = yes ]; then
 				bucket=verify-recent-chat

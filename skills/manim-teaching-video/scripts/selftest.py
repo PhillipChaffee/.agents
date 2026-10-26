@@ -332,6 +332,16 @@ def make_rendered_lesson(run_dir: Path, colors: list[str], tone_s: float = 1.5) 
     return lesson_path
 
 
+def shift_run_log(lesson_path: Path, seconds: float) -> None:
+    """Move every beat's run-log entry and exit by ``seconds``, as a render whose clock drifted would."""
+    lesson = mtv_lesson.load(lesson_path)
+    for _, beat in mtv_lesson.beats(lesson):
+        log = beat["render"]["log"]
+        log["enter_s"] += seconds
+        log["exit_s"] += seconds
+    mtv_lesson.save(lesson, lesson_path)
+
+
 class ExampleLessonCase(unittest.TestCase):
     """Gives each test its own run directory holding the example lesson, under one class scratch."""
 
@@ -1575,6 +1585,55 @@ class TestAssemble(ExampleLessonCase):
         self.assertIn("s01-b02: no audio", cp.stderr)
         self.assertEqual(lesson_path.read_text(), before)
         self.assertFalse((self.run_dir / "out").exists())
+
+
+class TestVerify(ExampleLessonCase):
+    """Each test verifies a freshly rendered, reviewed and assembled two-scene lesson."""
+
+    def setUp(self):
+        super().setUp()
+        require_tool("ffmpeg", "verify")
+        require_tool("ffprobe", "verify")
+        make_rendered_lesson(self.run_dir, ["blue", "blue"], tone_s=1.5)
+        for script in ("frames", "assemble"):
+            cp = run_script(script, "lesson.json", "--tier", "draft", cwd=self.run_dir)
+            self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+
+    def test_verify_passes_then_shifted_log_fails_sync(self):
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        gates = {g["gate"]: g for g in lesson["checks"]["verify"]["gates"]}
+        self.assertEqual(len(gates), 10)
+        self.assertTrue(all(g["pass"] for g in gates.values()))
+        self.assertEqual(gates["run log vs section index"]["tolerance"], common.SYNC_BEAT_TOLERANCE_S)
+        self.assertEqual(gates["container duration"]["tolerance"], common.SYNC_CONTAINER_TOLERANCE_S)
+        self.assertEqual(gates["banned names"]["measured"], 0)
+        report = (self.run_dir / "report.md").read_text()
+        self.assertTrue(report.startswith("# What a neuron computes\n"))
+        self.assertIn("Hard gates:", report)
+        shift_run_log(self.lesson_path, 0.5)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
+        self.assertFalse(gates["run log vs section index"]["pass"])
+
+    def test_wav_longer_than_beat_fails(self):
+        make_tone(self.run_dir / "audio" / "s01-b01.wav", 2.6)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1)
+        gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
+        self.assertFalse(gates["wav within beat"]["pass"])
+
+    def test_overrun_and_continuity_gates(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["render"]["log"]["overrun_s"] = 1.2
+        mtv_lesson.save(lesson, self.lesson_path)
+        (self.run_dir / "frames" / "continuity.json").unlink()
+        run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
+        self.assertFalse(gates["overrun"]["pass"])
+        self.assertEqual(gates["continuity"]["measured"], "missing")
 
 
 class TestPreflight(unittest.TestCase):

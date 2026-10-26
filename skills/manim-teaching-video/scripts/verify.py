@@ -33,13 +33,13 @@ UNREADABLE = "unreadable"
 LATEX_ERROR = "latex error converting to"
 RUBRIC_MAX = 32  # sixteen items scored 0 to 2
 SAMPLE_EVERY_S = 10
-# A real ManimCE draft of thin 3b1b strokes on BLACK has a frame mean under 8 of 255 and changes
-# by as little as 0.004 between samples, so spec 6.12's frame mean of 8 and difference of 0.01
-# would call it black and frozen, while a black frame has almost no lit pixel and two samples of a
-# still picture differ by 0.0000.
-LIT_LUMA = 8  # of 255: spec 6.12's black level per pixel, above the 3 ffmpeg 6.1's scale reads for black
+# 3b1b-style lessons sit on near-black backgrounds, so a frame mean under spec 6.12's 8 of 255 is
+# normal: not black detects absent content, not darkness. The cut of 32 also clears the up-to-3
+# that ffmpeg 6.1.1's bicubic scale reads for black. A narrated hold longer than SAMPLE_EVERY_S
+# yields identical samples, so not frozen fails only a video that never changes.
+LIT_LUMA = 32  # of 255: a pixel above this shows content
 BLACK_LIT_SHARE = 0.01  # a frame with a smaller share of lit pixels is black
-IDENTICAL_MAD = 0.001  # samples closer than this are identical
+IDENTICAL_MAD = 0.01  # consecutive samples closer than this show the same picture
 
 
 @dataclass
@@ -305,9 +305,10 @@ def _samples(mp4: Path, probe: dict | None) -> list[bytes]:
 def _frame_rows(mp4: Path, probe: dict | None) -> list[GateResult]:
     """not black and not frozen over the sampled frames; an unreadable frame fails both, with the reason.
 
-    Each judges a median, of the samples' lit shares and of the changes between consecutive samples:
-    a lesson's black opening, a fade through black at a scene boundary and a long hold are
-    deliberate, while a video that is black or still for most of its length is broken.
+    not black judges the median sample's lit share and not frozen the largest change between
+    consecutive samples: a lesson's black opening, a fade through black at a scene boundary and a
+    long hold are deliberate, while a video that is black for most of its length or never changes is
+    broken.
     """
     try:
         samples = _samples(mp4, probe)
@@ -318,7 +319,7 @@ def _frame_rows(mp4: Path, probe: dict | None) -> list[GateResult]:
             GateResult("not frozen", unreadable, IDENTICAL_MAD, False),
         ]
     lit = statistics.median(sum(pixel > LIT_LUMA for pixel in frame) / len(frame) for frame in samples)
-    change = statistics.median(frames.mad(a, b) for a, b in zip(samples, samples[1:]))
+    change = max(frames.mad(a, b) for a, b in zip(samples, samples[1:]))
     return [
         GateResult("not black", round(lit, 4), BLACK_LIT_SHARE, lit >= BLACK_LIT_SHARE),
         GateResult("not frozen", round(change, 6), IDENTICAL_MAD, change >= IDENTICAL_MAD),

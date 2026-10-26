@@ -1860,6 +1860,15 @@ class TestVerifyExternal(ScratchCase):
         self.assertEqual(lesson[0].measured, round(56 / (64 * 36), 4))
         self.assertEqual([g.passed for g in rows(black, black, picture(2))], [False, True])
         self.assertEqual([g.passed for g in rows(picture(0), picture(0), picture(0), picture(1))], [True, False])
+        # A picture held past a sample, then another held: only the largest change counts.
+        moved = bytearray(picture(0))
+        moved[2000:2040] = bytes([200]) * 40
+        self.assertGreaterEqual(frames.mad(picture(0), bytes(moved)), verify.IDENTICAL_MAD)
+        held = rows(picture(0), picture(0), picture(0), bytes(moved), bytes(moved))
+        self.assertEqual([g.passed for g in held], [True, True], [g.as_dict() for g in held])
+        # A uniform 20-of-255 frame is dim and empty: no pixel shows content.
+        dim = bytes([20]) * (64 * 36)
+        self.assertEqual([g.passed for g in rows(dim, dim, dim)], [False, False])
 
 
 class TestPreflight(ScratchCase):

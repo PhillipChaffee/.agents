@@ -1964,7 +1964,9 @@ class TestFrames(unittest.TestCase):
 
     def test_sheet_requires_pil(self):
         require_tool("ffmpeg", "frames sheet")
-        require("PIL", "frames sheet")
+        # A system Pillow built for another interpreter imports PIL but not its C core, which
+        # ImageDraw loads, and frames.py imports ImageDraw.
+        require("PIL.ImageDraw", "frames sheet")
         clip = Path(self.scratch.path) / "c.mp4"
         make_clip(clip, "blue", 2.0)
         out = Path(self.scratch.path) / "sheet.jpg"
@@ -2201,6 +2203,33 @@ class TestVerify(ExampleLessonCase):
         cp = common.run_cmd(["markdownlint-cli2", "report.md"], cwd=self.run_dir)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
 
+    def test_report_names_rubric_exemplars_and_render(self):
+        pack = self.run_dir.parent / "pack"
+        make_pack(pack, broken=False)
+        lesson = mtv_lesson.load(self.lesson_path)
+        scores = {f"R{n:02d}": 2 for n in range(1, 17)}
+        lesson["checks"].update(
+            storyboard={"pass": True},
+            frames={"scenes": {"s01": {"scores": scores}, "s02": {"scores": {**scores, "R03": 0}}},
+                    "final": {"scores": {**scores, "R03": 0}, "zeros": ["R03"]}},
+        )
+        lesson["exemplars"].update(dir=str(pack), index_sha256=common.sha256_file(pack / "index.json"),
+                                   used={"storyboarder": ["aaaaaaaaaaa-s01-b01"], "frame-critic": {"s02": []}})
+        mtv_lesson.mark_done(lesson, "render.draft", {"wall_clock_s": "12.5", "jobs": "3"})
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        paragraphs = (self.run_dir / "report.md").read_text().split("\n\n")
+        for paragraph in (
+            "Narration: null, voice af_heart, model n/a",
+            "Font: n/a",
+            "Exemplars: corpus 0123abcd; storyboarder aaaaaaaaaaa-s01-b01; frame-critic s02 none",
+            "Rubric: storyboard pass; frames per scene s01: 32/32, s02: 30/32; final 30/32 (minimum per item"
+            " across scenes), zeros: R03",
+            "Render: draft 12.5 s wall clock, standard n/a wall clock, jobs 3",
+        ):
+            self.assertIn(paragraph, paragraphs)
+
     def test_wav_longer_than_beat_fails(self):
         make_tone(self.run_dir / "audio" / "s01-b01.wav", 2.6)
         cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
@@ -2277,6 +2306,33 @@ class TestVerifyExternal(ScratchCase):
         self.assertEqual(lines[-1], "FAIL verify --external: no manimlib beside")
         self.assertEqual(sorted(d.iterdir()), before)
 
+    def test_streams_and_audio_gates_fail_on_real_files_and_usage_exits_2(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        silent = d / "silent.mp4"
+        make_clip(silent, "blue", 4.0)
+        rows = {g.gate: g for g in verify.external(silent)}
+        self.assertEqual((rows["streams"].measured, rows["streams"].passed), ("video", False))
+        self.assertEqual((rows["container vs audio"].measured, rows["container vs audio"].passed),
+                         (verify.MISSING, False))
+        # The narration stops 4 s before the picture does.
+        make_av(d / "short-tone.mp4", "testsrc=size=854x480:rate=15:duration=6", tone_s=2, shortest=False)
+        row = {g.gate: g for g in verify.external(d / "short-tone.mp4")}["container vs audio"]
+        self.assertGreater(row.measured, common.SYNC_CONTAINER_TOLERANCE_S)
+        self.assertFalse(row.passed)
+        no_tools = {**os.environ, "PATH": str(d)}
+        for args, env, error in (
+            (("--external", str(silent), "--tier", "draft"), None, "--external takes the MP4 alone"),
+            (("lesson.json", "--external", str(silent)), None, "--external takes the MP4 alone"),
+            (("--external", str(silent)), no_tools, "ffmpeg and ffprobe not on PATH"),
+            ((), None, "lesson.json and --tier are required"),
+        ):
+            with self.subTest(args=args):
+                cp = run_script("verify", *args, cwd=d, env=env)
+                self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+                self.assertIn(error, cp.stderr)
+
     def test_samples_follow_the_video_stream(self):
         require_tool("ffmpeg", "verify external")
         require_tool("ffprobe", "verify external")
@@ -2298,8 +2354,9 @@ class TestVerifyExternal(ScratchCase):
             self.assertFalse(rows[gate].passed)
 
     def test_frame_gates_judge_the_typical_sample(self):
-        # Thin strokes on BLACK, as a real draft has: 56 of 64x36 pixels lit (mean luma 4.9 of 255),
-        # and 20 of them changing between samples (mean absolute difference 0.0068).
+        # Thin strokes on BLACK, lit as a real draft is: 56 of 64x36 pixels lit (mean luma 4.9 of 255).
+        # A step moves 10 of them, a mean absolute difference of 0.0068 between samples, under
+        # IDENTICAL_MAD: on their own, such steps read as frozen.
         def picture(step: int) -> bytes:
             frame = bytearray(64 * 36)
             frame[:46] = bytes([200]) * 46
@@ -2313,7 +2370,8 @@ class TestVerifyExternal(ScratchCase):
                 return verify._frame_rows(Path("draft.mp4"), {"streams": [video]})
 
         black = bytes(64 * 36)
-        # One sample falls in a fade through black, as at a scene boundary or in a closing tail.
+        # One sample falls in a fade through black, as at a scene boundary or in a closing tail; its
+        # change, not the steps', is what passes not frozen.
         lesson = rows(picture(0), picture(1), black, picture(3), picture(4))
         self.assertEqual([g.passed for g in lesson], [True, True], [g.as_dict() for g in lesson])
         self.assertEqual(lesson[0].measured, round(56 / (64 * 36), 4))

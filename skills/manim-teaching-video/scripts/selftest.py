@@ -1154,6 +1154,18 @@ class TestNarratedMixin(ExampleLessonCase):
         self.assertEqual([call[0] for call in scene.calls], ["next_section", "add_subcaption"])
         self.assertFalse(Path(os.environ["MTV_RUN_LOG"]).exists())
 
+    def test_float_error_at_beat_end_is_no_overrun_and_no_frame(self):
+        # CE's clock in a 3D scene ends a beat about 4e-15 s off its narrated end, either side.
+        for error_s in (4e-15, -4e-15):
+            scene = StubScene()
+            scene.load_lesson("s01", self.lesson_path)
+            entry = scene._mtv_beats["s01-b01"]
+            with scene.beat("s01-b01"):
+                scene.play(entry["duration_s"] + entry["tail_s"] + error_s)
+            self.assertNotIn("wait", [call[0] for call in scene.calls])
+            lines = Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()
+            self.assertEqual(json.loads(lines[-1])["overrun_s"], 0.0)
+
     def test_boxes_cover_top_level_mobjects_with_points(self):
         scene = StubScene()
         scene.load_lesson("s01", self.lesson_path)

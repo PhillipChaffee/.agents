@@ -30,6 +30,12 @@ except ImportError:
     _UNDRAWN_TYPES = ()
 
 
+# Seconds of clock difference that are float error, not time: CE sums its clock frame by
+# frame in floats, and a 3D scene's clock ends a beat about 4e-15 s past its narrated end.
+# Read as time, that would log an overrun and pad a whole extra frame.
+CLOCK_EPSILON_S = 1e-9
+
+
 @dataclass
 class Beat:
     """One beat's narrated timing, read against the scene clock while the beat's body runs."""
@@ -102,8 +108,11 @@ class NarratedMixin:
         # Not in a try/finally: a beat whose body raised is neither padded nor logged, so
         # render.py finds it missing and surfaces the traceback.
         yield timing
-        overrun_s = max(self.time - timing.target_end, 0.0)
-        self.wait(max(timing.target_end - self.time, 1 / fps))  # CE manim/scene/scene.py:1242-1283
+        pad_s = timing.target_end - self.time
+        overrun_s = -pad_s if pad_s < -CLOCK_EPSILON_S else 0.0
+        # A clock already on the narrated end needs no pad; the one-frame floor would add a frame.
+        if abs(pad_s) > CLOCK_EPSILON_S:
+            self.wait(max(pad_s, 1 / fps))  # CE manim/scene/scene.py:1242-1283
         if self._mtv_run_log:
             # Opened per beat so each line lands at once; render.py's hang detector watches it grow.
             with open(self._mtv_run_log, "a", encoding="utf-8") as run_log:

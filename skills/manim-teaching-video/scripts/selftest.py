@@ -277,6 +277,18 @@ def make_tone(path: Path, duration_s: float, rate: int = 24000) -> None:
     ]).check_returncode()
 
 
+def make_av(path: Path, video_src: str, tone_s: float = 12, shortest: bool = True) -> None:
+    """An MP4 of the lavfi source ``video_src`` over a 440 Hz tone, as a finished video would carry.
+
+    Without ``shortest`` the tone plays on past the video's last frame, as it may in a video
+    muxed without the skill.
+    """
+    common.run_cmd([
+        "ffmpeg", "-y", "-f", "lavfi", "-i", video_src, "-f", "lavfi", "-i", f"sine=frequency=440:duration={tone_s}",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", *(["-shortest"] if shortest else []), str(path),
+    ]).check_returncode()
+
+
 def make_rendered_lesson(run_dir: Path, colors: list[str], tone_s: float = 1.5) -> Path:
     """Write ``run_dir/lesson.json`` as render.py would leave it, with one two-beat scene per color.
 
@@ -390,6 +402,18 @@ MANIMCE_S01_RUN_LOG = (
     {"enter_s": 4.066666666666672, "exit_s": 13.599999999999987, "audio_s": 9.2, "tail_s": 0.4, "overrun_s": 0.0},
     {"enter_s": 13.599999999999987, "exit_s": 21.39999999999998, "audio_s": 6.8, "tail_s": 1.0, "overrun_s": 0.0},
 )
+
+
+class ScratchCase(unittest.TestCase):
+    """Gives each test its own empty work directory under one class scratch."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
 
 
 class ExampleLessonCase(unittest.TestCase):
@@ -1759,15 +1783,86 @@ class TestVerifyManimCEOutput(ExampleLessonCase):
         self.assertFalse(sync.passed)
 
 
-class TestPreflight(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.scratch = Scratch()
-        cls.addClassCleanup(cls.scratch.cleanup)
+class TestVerifyExternal(ScratchCase):
+    """verify.py --external judges an MP4 made without a lesson, a baseline run's included."""
 
-    def setUp(self):
-        self.work_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+    def test_black_frozen_good(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        make_av(d / "black.mp4", "color=c=black:s=854x480:r=15:d=12")
+        make_av(d / "frozen.mp4", "color=c=blue:s=854x480:r=15:d=12")
+        make_av(d / "good.mp4", "testsrc=size=854x480:rate=15:duration=12")
+        codes = [run_script("verify", "--external", str(d / name), cwd=d).returncode for name in ("black.mp4", "frozen.mp4", "good.mp4")]
+        self.assertEqual(codes, [1, 1, 0])
 
+    def test_rows_name_the_failing_gates_and_nothing_is_written(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        # Too short for two samples ten seconds apart, so they sit a third and two thirds of the way in.
+        make_av(d / "black.mp4", "color=c=black:s=854x480:r=15:d=4")
+        make_av(d / "good.mp4", "testsrc=size=854x480:rate=15:duration=4")
+        self.assertEqual({g.gate for g in verify.external(d / "black.mp4") if not g.passed}, {"not black", "not frozen"})
+        self.assertTrue(all(g.passed for g in verify.external(d / "good.mp4")))
+        absent = {g.gate: g for g in verify.external(d / "absent.mp4")}
+        self.assertEqual(list(absent), ["exists", "streams", "container vs audio", "no manimlib beside", "not black", "not frozen"])
+        self.assertEqual(absent["exists"].measured, verify.MISSING)
+        self.assertFalse(any(g.passed for name, g in absent.items() if name != "no manimlib beside"))
+        (d / "scene.py").write_text("from manimlib import *\n")
+        before = sorted(d.iterdir())
+        cp = run_script("verify", "--external", str(d / "good.mp4"), cwd=d)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        lines = cp.stdout.splitlines()
+        self.assertEqual(len(lines), 7, cp.stdout)
+        self.assertEqual(lines[-1], "FAIL verify --external: no manimlib beside")
+        self.assertEqual(sorted(d.iterdir()), before)
+
+    def test_samples_follow_the_video_stream(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        # The tone runs 0.3 s past the last frame, inside the container gate's 0.5 s; samples
+        # taken against the file's 20.3 s would seek to 20 s, after the video has ended.
+        make_av(d / "long-tone.mp4", "testsrc=size=854x480:rate=15:duration=20", tone_s=20.3, shortest=False)
+        gates = verify.external(d / "long-tone.mp4")
+        self.assertTrue(all(g.passed for g in gates), [g.as_dict() for g in gates])
+        # Never the first frame, which a lesson opening from black renders black; never past the
+        # last frame's start, even when the stream's duration runs past it as PyAV's can.
+        self.assertEqual(verify._sample_times(55.666667, 15), [10.0, 20.0, 30.0, 40.0, 50.0])
+        self.assertLessEqual(verify._sample_times(30.0003, 15)[-1], 30.0003 - 1 / 15)
+        reason = "ffmpeg read no frame at 10.000 s of long-tone.mp4: Output file is empty"
+        with mock.patch.object(verify.frames, "gray_small", side_effect=RuntimeError(reason)):
+            rows = {g.gate: g for g in verify.external(d / "long-tone.mp4")}
+        for gate in ("not black", "not frozen"):
+            self.assertEqual(rows[gate].measured, f"{verify.UNREADABLE}: {reason}")
+            self.assertFalse(rows[gate].passed)
+
+    def test_frame_gates_judge_the_typical_sample(self):
+        # Thin strokes on BLACK, as a real draft has: 56 of 64x36 pixels lit (mean luma 4.9 of 255),
+        # and 20 of them changing between samples (mean absolute difference 0.0068).
+        def picture(step: int) -> bytes:
+            frame = bytearray(64 * 36)
+            frame[:46] = bytes([200]) * 46
+            frame[1000 + 10 * step:1010 + 10 * step] = bytes([200]) * 10
+            return bytes(frame)
+
+        def rows(*samples: bytes) -> list[verify.GateResult]:
+            # Samples fall every ten seconds after the start, so a video 10 n + 5 s long gives n of them.
+            video = {"codec_type": "video", "duration": str(10 * len(samples) + 5), "avg_frame_rate": "15/1"}
+            with mock.patch.object(verify.frames, "gray_small", side_effect=samples):
+                return verify._frame_rows(Path("draft.mp4"), {"streams": [video]})
+
+        black = bytes(64 * 36)
+        # One sample falls in a fade through black, as at a scene boundary or in a closing tail.
+        lesson = rows(picture(0), picture(1), black, picture(3), picture(4))
+        self.assertEqual([g.passed for g in lesson], [True, True], [g.as_dict() for g in lesson])
+        self.assertEqual(lesson[0].measured, round(56 / (64 * 36), 4))
+        self.assertEqual([g.passed for g in rows(black, black, picture(2))], [False, True])
+        self.assertEqual([g.passed for g in rows(picture(0), picture(0), picture(0), picture(1))], [True, False])
+
+
+class TestPreflight(ScratchCase):
     def test_preflight_json_reports_install_lines(self):
         cp = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir)
         report = json.loads(cp.stdout)

@@ -14,14 +14,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: ./scripts/validate.sh
+      - name: Installation regression tests (sandboxed)
+        run: python3 -m unittest discover -s tests
       - name: Install smoke test (sandboxed)
         run: |
           SBX=$(mktemp -d)
           HOME="$SBX" ./scripts/install.sh --dry-run --target agents >/dev/null
           HOME="$SBX" ./scripts/install.sh --target agents >/dev/null
-          test -f "$SBX/.agents/skills/code-review/skill.md"
-          test -f "$SBX/.agents/skills/research/skill.md"
-          test -f "$SBX/.agents/agents/cr-security/agent.md"
+          test -f "$SBX/.agents/skills/writing-skills/skill.md"
+          test -f "$SBX/.agents/agents/researcher-lite/agent.md"
+          test -f "$SBX/.agents/LICENSE"
+          test -f "$SBX/.agents/THIRD-PARTY-NOTICES.md"
           test -f "$SBX/.agents/rules/look-it-up.md"
           test -f "$SBX/.agents/agents.md"
           rm -rf "$SBX"
@@ -101,9 +104,9 @@ jobs:
       - name: Copy-paste detection (jscpd v5.2.0)
         run: jscpd
       - name: Shell lint (shellcheck v0.11.0)
-        run: for sh in $(git ls-files "*.sh"); do shellcheck "$sh"; done
+        run: for sh in $(git ls-files "scripts/*.sh" "skills/*/scripts/*.sh"); do shellcheck "$sh"; done
       - name: Shell format (shfmt v3.14.0)
-        run: for sh in $(git ls-files "*.sh"); do shfmt -d "$sh"; done
+        run: for sh in $(git ls-files "scripts/*.sh" "skills/*/scripts/*.sh"); do shfmt -d "$sh"; done
       - name: Workflow YAML lint (yamllint v1.38.0)
         run: yamllint ./.github/workflows/*.yml
       - name: Workflow lint (actionlint v1.7.12)

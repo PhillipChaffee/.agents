@@ -6,4 +6,5 @@
 # resolve in CI contexts that lychee accepts.
 max_retries = 2
 timeout = 20
-exclude_path = ["./coverage"]
+# Upstream skill documents contain plugin-local and illustrative links.
+exclude_path = ["./coverage", "./skills/writing-skills", "./skills-disabled"]

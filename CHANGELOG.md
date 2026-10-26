@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+Synced the approved home setup, including deletions.
+
+- Removed eleven review agents, six rules, and the `code-review` and `research`
+  skills absent from the home tree; retained five research agents.
+- Imported `writing-skills`, four current rules, the home instruction file,
+  public provenance lockfiles, and the 37-skill disabled archive.
+- Excluded home scripts and the generated installation stamp from publication.
+- Retained repository support and added upstream license notices. Byte-preserved
+  upstream copies are excluded from cosmetic lint, not secret scanning.
+- Installations include all skill assets and legal notices; pruning removes
+  retired managed paths without removing unmanaged files.
+
 Stripped the owner's work stack from the review Agents (#22).
 
 - The seven domain-review Agents (`cr-architecture`, `cr-correctness`,

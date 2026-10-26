@@ -309,13 +309,15 @@ ERROR_TABLE: tuple[ErrorRow, ...] = (
         "guard empty lists before play",
         "Guard empty lists before play, so a call whose unpacked animation list comes out empty is skipped.",
     ),
-    # manim/scene/scene.py:1141-1168
+    # manim/scene/scene.py:1148-1152 names the parameter its caller passes: play's total run_time,
+    # wait's and pause's duration, wait_until's max_time (scene.py:1185, 1269, 1293, 1309); a
+    # negative Animation run_time raises at manim/animation/animation.py:176-180 instead.
     ErrorRow(
-        re.compile(r"has a run_time of .* <= 0 seconds"),
+        re.compile(r"has a (total run_time|duration|max_time) of .* <= 0 seconds|run_time of .* cannot be negative"),
         "a run_time computed from audio came out non-positive",
         "b.until(mark) and b.remaining(), which clamp to one frame",
-        "Pass run_time=b.until(mark) or run_time=b.remaining(), which clamp to one frame, instead of a run_time"
-        " computed from the audio.",
+        "Take every run_time and wait duration inside a beat from b.until(mark) or b.remaining(), which clamp to"
+        " one frame, instead of computing it from the audio.",
     ),
     # manim/mobject/mobject.py:2290-2293
     ErrorRow(
@@ -399,7 +401,8 @@ ERROR_TABLE: tuple[ErrorRow, ...] = (
         "install dvisvgm (the D13 package)",
         "Install the dvisvgm system package, version 2.4 or newer, then rerun preflight.py before rendering again.",
     ),
-    # manim/mobject/text/text_mobject.py:490
+    # manim/mobject/text/text_mobject.py:490 logs this as a warning, which match_error skips, so
+    # the row serves the manimce.md table and the retry prompt, never render.log.
     ErrorRow(
         re.compile(r"Font .* not in \["),
         "a font Pango does not have",
@@ -487,8 +490,22 @@ ERROR_TABLE: tuple[ErrorRow, ...] = (
 )
 
 
+# Lines that cannot name the failure, dropped before the search. CE prints an uncaught exception
+# with Rich (manim/cli/render/commands.py:123-125), whose panel quotes three source lines around
+# every frame, and that source holds some rows' texts beside frames that raise something else:
+# row 2's at scene.py:1338 beside the compile_animations call at 1340, row 21's at
+# vectorized_mobject.py:1660 beside the empty-points check at 1662. Rich falls back to ASCII
+# borders when the output encoding is not UTF-8. A logger WARNING record never fails a render,
+# yet an early one (row 14's font warning) would shadow every later row.
+_RICH_PANEL_LINE = re.compile(r"[│╭╰|+]")
+_WARNING_RECORD = re.compile(r"(\[[^\]]*\])?\s*WARNING\s")
+
+
 def match_error(log_text: str) -> ErrorRow | None:
+    failure_text = "\n".join(
+        line for line in log_text.splitlines() if not (_RICH_PANEL_LINE.match(line) or _WARNING_RECORD.match(line))
+    )
     for row in ERROR_TABLE:
-        if row.pattern.search(log_text):
+        if row.pattern.search(failure_text):
             return row
     return None

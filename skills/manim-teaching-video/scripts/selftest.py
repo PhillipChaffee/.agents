@@ -167,12 +167,19 @@ class TestErrorTable(unittest.TestCase):
     def test_each_row_matches_its_own_message(self):
         # The text each failure writes to render.log: CE 0.22.0's message at the row's cited
         # line, render.py's line for row 16, pip's for row 24, the symptom wording for row 15.
-        # A mistyped pattern, or an earlier row that shadows a later one, fails here.
+        # A mistyped pattern, or an earlier row that shadows a later one, fails here. Row 14's
+        # text is a CE warning, which match_error skips because no warning fails a render.
         samples = (
             (1, "TypeError: Passing Mobject methods to Scene.play is no longer supported."
                 " Use Mobject.animate instead."),
             (2, "ValueError: Called Scene.play with no animations"),
-            (3, "ValueError: Scene.play() has a run_time of 0 <= 0 seconds which Manim cannot render."),
+            (3, "ValueError: S01Intro.play() has a total run_time of 0 <= 0 seconds which Manim cannot render."
+                " The total run_time must be a positive number."),
+            (3, "ValueError: S01Intro.wait() has a duration of -0.2 <= 0 seconds which Manim cannot render."
+                " The duration must be a positive number."),
+            (3, "ValueError: S01Intro.wait_until() has a max_time of 0 <= 0 seconds which Manim cannot render."
+                " The max_time must be a positive number."),
+            (3, "ValueError: The run_time of FadeIn cannot be negative. The given value was -0.2."),
             (4, "Exception: Trying to restore without having saved"),
             (5, "ValueError: MoveToTarget called on mobjectwithout attribute 'target'"),
             (6, "TypeError: Only values of type VMobject can be added as submobjects of VGroup, but the value"
@@ -188,7 +195,6 @@ class TestErrorTable(unittest.TestCase):
             (12, "ValueError: latex error converting to dvi. See log output above or the log file: media/Tex/a.log"),
             (13, "ValueError: Your installation does not support converting .dvi files to SVG."
                  " Consider updating dvisvgm to at least version 2.4."),
-            (14, "WARNING  Font Comic Sans not in ['DejaVu Sans', 'Noto Sans']."),
             (15, "the updaters did nothing"),
             (16, "mtv: beat s01-b02 missing from the section index"),
             (17, "ValueError: --output_file can only be used when rendering exactly one scene."
@@ -204,17 +210,61 @@ class TestErrorTable(unittest.TestCase):
             (24, "ERROR: Ignored the following versions that require a different python version:"
                  " 0.22.0 Requires-Python >=3.11"),
         )
-        self.assertEqual({row for row, _ in samples}, set(range(1, 25)))
+        self.assertEqual({row for row, _ in samples}, set(range(1, 25)) - {14})
         for row, message in samples:
             with self.subTest(row=row, message=message):
                 self.assertIs(common.match_error(message), common.ERROR_TABLE[row - 1])
+        font_warning = "[10/26/26 02:48:56] WARNING  Font Comic Sans not in ['DejaVu Sans', 'Noto Sans']."
+        self.assertTrue(common.ERROR_TABLE[13].pattern.search(font_warning))
+        self.assertIsNone(common.match_error(font_warning))
+
+    def test_match_error_ignores_quoted_source_and_warnings(self):
+        # Lines from Rich 15's rendering of CE 0.22.0 tracebacks, as print_exception draws them
+        # (manim/cli/render/commands.py:124), with frame headers and other frames left out: each
+        # panel quotes CE source that holds row 2's or row 21's text beside the frame that failed,
+        # and the font warning holds row 14's.
+        def panel(*source_lines: str) -> tuple[str, ...]:
+            top = "╭" + "─" * 31 + " Traceback (most recent call last) " + "─" * 32 + "╮"
+            return (top, *(f"│ {line:<96} │" for line in source_lines), "╰" + "─" * 98 + "╯")
+
+        warning = "[10/26/26 02:48:56] WARNING  Font Comic Sans not in ['DejaVu Sans', 'Noto Sans']."
+        play_mobject = (
+            warning,
+            *panel('❱ 581 │   raise TypeError(f"Object {anim} cannot be converted to an animation")'),
+            "TypeError: Object Square cannot be converted to an animation",
+            "",
+            "The above exception was the direct cause of the following exception:",
+            "",
+            *panel(
+                "  1337 │   │   if len(animations) == 0:",
+                '  1338 │   │   │   raise ValueError("Called Scene.play with no animations")',
+                "  1339 │   │",
+                "❱ 1340 │   │   self.animations = self.compile_animations(*animations, **play_kwargs)",
+            ),
+            "TypeError: Unexpected argument Square passed to Scene.play().",
+        )
+        self.assertIs(common.match_error("\n".join(play_mobject)), common.ERROR_TABLE[6])
+        empty_points = (
+            warning,
+            *panel(
+                '  1660 │   │   │   raise ValueError(f"Alpha {alpha} not between 0 and 1.")',
+                "  1661 │   │",
+                "❱ 1662 │   │   self._throw_error_if_no_points()",
+            ),
+            "ValueError: VMobject has no points, but a method which requires points was called",
+        )
+        self.assertIsNone(common.match_error("\n".join(empty_points)))
+        # Rich's ASCII borders, drawn when the output encoding is not UTF-8.
+        ascii_line = '|   1660             raise ValueError(f"Alpha {alpha} not between 0 and 1.")   |'
+        self.assertIsNone(common.match_error(ascii_line))
 
     def test_error_table_matches_manimce_reference(self):
         ref = SKILL_DIR / "references" / "manimce.md"
         if not ref.exists():
             print("SKIP error table: references/manimce.md not present (M2 writes it)")
             raise unittest.SkipTest("references absent")
-        text = ref.read_text()
+        # The table sets code in backticks, which the rows' plain-text fields do not carry.
+        text = ref.read_text().replace("`", "")
         for row in common.ERROR_TABLE:
             self.assertIn(row.gl_idiom, text)
             self.assertIn(row.ce_replacement, text)

@@ -29,6 +29,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import mtv.common as common  # noqa: E402
+import mtv.lesson as mtv_lesson  # noqa: E402
 
 
 def _skip(fixture: str, dependency: str) -> NoReturn:
@@ -307,6 +308,78 @@ class TestErrorTable(unittest.TestCase):
         for row in common.ERROR_TABLE:
             self.assertIn(row.gl_idiom, text)
             self.assertIn(row.ce_replacement, text)
+
+
+class TestLessonSchema(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def test_schema_accept(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        self.assertEqual(mtv_lesson.validate(lesson), [])
+        self.assertEqual(lesson["colors"], common.ROLE_COLORS)
+
+    def test_schema_reject_five_distinct_errors(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        b = lesson["scenes"][0]["beats"][0]
+        b["moves"].append("intro")
+        b["patterns"].append("Flash")
+        lesson["scenes"][0]["scene_kind"] = "2d"
+        b["lands"].append({"mark": "nope", "visual": "x", "lead_s": 0.2})
+        b["marks"]["reveal"] = 99
+        errors = mtv_lesson.validate(lesson)
+        self.assertEqual(len(set(errors)), 5)
+        self.assertIn("s01-b01: moves value 'intro' not in MOVES", errors)
+        self.assertIn("s01-b01: patterns value 'Flash' not a PATTERN_TAGS key", errors)
+        self.assertIn("s01: scene_kind '2d' not in RUNTIME_SCENE_KINDS", errors)
+        self.assertIn("s01-b01: lands mark 'nope' not in marks", errors)
+        self.assertIn("s01-b01: marks['reveal'] = 99 past the word count 9", errors)
+
+    def test_schema_reject_empty_narration(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        lesson["scenes"][0]["beats"][0]["narration"] = " ... "
+        lesson["scenes"][0]["beats"][0]["marks"] = {}
+        lesson["scenes"][0]["beats"][0]["lands"] = []
+        self.assertIn("s01-b01: narration has no words", mtv_lesson.validate(lesson))
+
+    def test_tail_defaults(self):
+        path = Path(self.scratch.path) / "lesson.json"
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        for _, beat in mtv_lesson.beats(lesson):
+            del beat["tail_s"]
+        mtv_lesson.save(lesson, path)
+        tails = [beat["tail_s"] for _, beat in mtv_lesson.beats(mtv_lesson.load(path))]
+        self.assertEqual(tails, [0.4, 0.4, 1.0, 0.4, 0.4, 1.0])
+
+    def test_beats_order_and_ids(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        self.assertEqual([b["id"] for _, b in mtv_lesson.beats(lesson)],
+                         ["s01-b01", "s01-b02", "s01-b03", "s02-b01", "s02-b02", "s02-b03"])
+
+    def test_early_stage_lesson_and_missing_fields(self):
+        # Spec 6.6 validates the brief before any scene exists and the script before any
+        # storyboard field does, so only schema, seed, the ids and narration are required.
+        self.assertEqual(mtv_lesson.validate({"schema": "mtv-lesson/1", "seed": 1}), [])
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        for scene in lesson["scenes"]:
+            for key in set(scene) - {"id", "title", "beats"}:
+                del scene[key]
+            for beat in scene["beats"]:
+                for key in set(beat) - {"id", "narration"}:
+                    del beat[key]
+        self.assertEqual(mtv_lesson.validate(lesson), [])
+        del lesson["seed"]
+        del lesson["scenes"][1]["beats"][0]["narration"]
+        del lesson["scenes"][1]["beats"][1]["id"]
+        lesson["scenes"][1]["beats"][2]["marks"] = ["picture"]
+        self.assertEqual(mtv_lesson.validate(lesson), [
+            "missing field 'seed'",
+            "s02-b01: missing field 'narration'",
+            "scenes[1].beats[1]: missing field 'id'",
+            "s02-b03: marks must be an object",
+        ])
 
 
 def main() -> int:

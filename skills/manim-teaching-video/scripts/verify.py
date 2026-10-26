@@ -16,6 +16,7 @@ import sys
 import wave
 from collections.abc import Callable
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -239,9 +240,13 @@ def continuity(lesson: dict, run_dir: Path, tier: str) -> list[GateResult]:
     return [GateResult("continuity", worst, threshold, all(b.get("pass") is True for b in continuing))]
 
 
+def _first_stream(probe: dict | None, kind: str) -> dict:
+    """The probe's first stream of ``kind``, such as "audio", or {} when it has none."""
+    return next((stream for stream in (probe or {}).get("streams", []) if stream.get("codec_type") == kind), {})
+
+
 def _audio_s(probe: dict | None) -> float | None:
-    audio = [stream for stream in (probe or {}).get("streams", []) if stream.get("codec_type") == "audio"]
-    return _seconds(audio[0].get("duration")) if audio else None
+    return _seconds(_first_stream(probe, "audio").get("duration"))
 
 
 def _manimlib_beside(mp4: Path) -> GateResult:
@@ -254,39 +259,59 @@ def _manimlib_beside(mp4: Path) -> GateResult:
     return GateResult("no manimlib beside", count, None, count == 0)
 
 
-def _sample_times(duration_s: float) -> list[float]:
-    """Every SAMPLE_EVERY_S seconds from the start, plus the midpoint when that gives one sample."""
-    times, t_s = [], 0.0
-    while t_s < duration_s:
-        times.append(t_s)
-        t_s += SAMPLE_EVERY_S
-    if len(times) < 2:
-        times.append(duration_s / 2)
-    return times
-
-
-def _samples(mp4: Path, duration_s: float | None) -> list[bytes] | None:
-    """The sampled frames in frames.py's 64x36 grayscale; None when one cannot be read."""
-    if duration_s is None:
-        return None
+def _frame_rate(stream: dict) -> float | None:
+    """The stream's average frame rate, which ffprobe gives as a fraction such as 15/1."""
     try:
-        return [frames.gray_small(mp4, t_s) for t_s in _sample_times(duration_s)]
-    except RuntimeError:
+        rate = float(Fraction(str(stream.get("avg_frame_rate"))))
+    except (ValueError, ZeroDivisionError):
         return None
+    return rate if rate > 0 else None
 
 
-def _not_black(samples: list[bytes] | None) -> GateResult:
-    if not samples:
-        return GateResult("not black", UNREADABLE, BLACK_MEAN_LUMA, False)
+def _sample_times(duration_s: float, fps: float | None) -> list[float]:
+    """Every SAMPLE_EVERY_S seconds after the start, or a third and two thirds of the way through a
+    video too short for two of those.
+
+    The first frame is never sampled: a lesson that opens from black renders it black. ffmpeg
+    returns the first frame at or after a seek, so a seek past the last frame's start reads
+    nothing; samples stay half a frame before it, which also covers a stream duration that runs a
+    fraction of a millisecond past the last frame, as PyAV's can.
+    """
+    times = [float(t_s) for t_s in range(SAMPLE_EVERY_S, math.ceil(duration_s), SAMPLE_EVERY_S)]
+    if len(times) < 2:
+        times = [duration_s / 3, 2 * duration_s / 3]
+    return times if fps is None else [min(t_s, duration_s - 1.5 / fps) for t_s in times]
+
+
+def _samples(mp4: Path, probe: dict | None) -> list[bytes]:
+    """The sampled frames in frames.py's 64x36 grayscale; RuntimeError, naming the reason, when one
+    cannot be read.
+
+    Samples follow the video stream, which can end before the audio does.
+    """
+    video = _first_stream(probe, "video")
+    duration_s = _seconds(video.get("duration"))
+    if duration_s is None or duration_s <= 0:
+        raise RuntimeError("no video stream duration")
+    return [frames.gray_small(mp4, t_s) for t_s in _sample_times(duration_s, _frame_rate(video))]
+
+
+def _frame_rows(mp4: Path, probe: dict | None) -> list[GateResult]:
+    """not black and not frozen over the sampled frames; an unreadable frame fails both, with the reason."""
+    try:
+        samples = _samples(mp4, probe)
+    except RuntimeError as exc:
+        unreadable = f"{UNREADABLE}: {exc}"
+        return [
+            GateResult("not black", unreadable, BLACK_MEAN_LUMA, False),
+            GateResult("not frozen", unreadable, FROZEN_MAD, False),
+        ]
     darkest = min(sum(frame) / len(frame) for frame in samples)
-    return GateResult("not black", round(darkest, 3), BLACK_MEAN_LUMA, darkest >= BLACK_MEAN_LUMA)
-
-
-def _not_frozen(samples: list[bytes] | None) -> GateResult:
-    if len(samples or []) < 2:
-        return GateResult("not frozen", UNREADABLE, FROZEN_MAD, False)
     least = min(frames.mad(a, b) for a, b in zip(samples, samples[1:]))
-    return GateResult("not frozen", round(least, 6), FROZEN_MAD, least >= FROZEN_MAD)
+    return [
+        GateResult("not black", round(darkest, 3), BLACK_MEAN_LUMA, darkest >= BLACK_MEAN_LUMA),
+        GateResult("not frozen", round(least, 6), FROZEN_MAD, least >= FROZEN_MAD),
+    ]
 
 
 def external(mp4: Path) -> list[GateResult]:
@@ -294,14 +319,12 @@ def external(mp4: Path) -> list[GateResult]:
     present = mp4.is_file()
     probe = _probe(mp4) if present else None
     container_s = _seconds(_dig(probe, "format", "duration"))
-    samples = _samples(mp4, container_s)
     return [
         GateResult("exists", "present" if present else MISSING, None, present),
         _stream_row(probe),
         _within("container vs audio", container_s, _audio_s(probe), common.SYNC_CONTAINER_TOLERANCE_S),
         _manimlib_beside(mp4),
-        _not_black(samples),
-        _not_frozen(samples),
+        *_frame_rows(mp4, probe),
     ]
 
 

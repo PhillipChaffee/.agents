@@ -277,11 +277,15 @@ def make_tone(path: Path, duration_s: float, rate: int = 24000) -> None:
     ]).check_returncode()
 
 
-def make_av(path: Path, video_src: str) -> None:
-    """An MP4 of the lavfi source ``video_src`` over a 440 Hz tone, as a finished video would carry."""
+def make_av(path: Path, video_src: str, tone_s: float = 12, shortest: bool = True) -> None:
+    """An MP4 of the lavfi source ``video_src`` over a 440 Hz tone, as a finished video would carry.
+
+    Without ``shortest`` the tone plays on past the video's last frame, as it may in a video
+    muxed without the skill.
+    """
     common.run_cmd([
-        "ffmpeg", "-y", "-f", "lavfi", "-i", video_src, "-f", "lavfi", "-i", "sine=frequency=440:duration=12",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(path),
+        "ffmpeg", "-y", "-f", "lavfi", "-i", video_src, "-f", "lavfi", "-i", f"sine=frequency=440:duration={tone_s}",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", *(["-shortest"] if shortest else []), str(path),
     ]).check_returncode()
 
 
@@ -1796,7 +1800,7 @@ class TestVerifyExternal(ScratchCase):
         require_tool("ffmpeg", "verify external")
         require_tool("ffprobe", "verify external")
         d = self.work_dir
-        # Under ten seconds, so the samples are the first frame and the midpoint.
+        # Too short for two samples ten seconds apart, so they sit a third and two thirds of the way in.
         make_av(d / "black.mp4", "color=c=black:s=854x480:r=15:d=4")
         make_av(d / "good.mp4", "testsrc=size=854x480:rate=15:duration=4")
         self.assertEqual({g.gate for g in verify.external(d / "black.mp4") if not g.passed}, {"not black", "not frozen"})
@@ -1813,6 +1817,26 @@ class TestVerifyExternal(ScratchCase):
         self.assertEqual(len(lines), 7, cp.stdout)
         self.assertEqual(lines[-1], "FAIL verify --external: no manimlib beside")
         self.assertEqual(sorted(d.iterdir()), before)
+
+    def test_samples_follow_the_video_stream(self):
+        require_tool("ffmpeg", "verify external")
+        require_tool("ffprobe", "verify external")
+        d = self.work_dir
+        # The tone runs 0.3 s past the last frame, inside the container gate's 0.5 s; samples
+        # taken against the file's 20.3 s would seek to 20 s, after the video has ended.
+        make_av(d / "long-tone.mp4", "testsrc=size=854x480:rate=15:duration=20", tone_s=20.3, shortest=False)
+        gates = verify.external(d / "long-tone.mp4")
+        self.assertTrue(all(g.passed for g in gates), [g.as_dict() for g in gates])
+        # Never the first frame, which a lesson opening from black renders black; never past the
+        # last frame's start, even when the stream's duration runs past it as PyAV's can.
+        self.assertEqual(verify._sample_times(55.666667, 15), [10.0, 20.0, 30.0, 40.0, 50.0])
+        self.assertLessEqual(verify._sample_times(30.0003, 15)[-1], 30.0003 - 1 / 15)
+        reason = "ffmpeg read no frame at 10.000 s of long-tone.mp4: Output file is empty"
+        with mock.patch.object(verify.frames, "gray_small", side_effect=RuntimeError(reason)):
+            rows = {g.gate: g for g in verify.external(d / "long-tone.mp4")}
+        for gate in ("not black", "not frozen"):
+            self.assertEqual(rows[gate].measured, f"{verify.UNREADABLE}: {reason}")
+            self.assertFalse(rows[gate].passed)
 
 
 class TestPreflight(ScratchCase):

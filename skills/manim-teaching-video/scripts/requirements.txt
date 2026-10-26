@@ -1,0 +1,5 @@
+manim==0.22.0
+soundfile==0.14.0
+elevenlabs==2.74.1
+num2words==0.5.14
+Pillow==13.0.0

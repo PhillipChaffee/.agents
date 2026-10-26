@@ -1,0 +1,8 @@
+[CLI]
+pixel_width = 1920
+pixel_height = 1080
+frame_rate = 30
+background_color = BLACK
+save_sections = True
+disable_caching_warning = True
+tex_template =

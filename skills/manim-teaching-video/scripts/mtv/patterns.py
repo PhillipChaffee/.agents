@@ -22,7 +22,6 @@ import manim
 from manim import (
     DOWN,
     ITALIC,
-    PURE_YELLOW,
     RIGHT,
     UP,
     Animation,
@@ -41,6 +40,7 @@ from manim import (
     Square,
     Succession,
     Text,
+    UpdateFromAlphaFunc,
     ValueTracker,
     VGroup,
     VMobject,
@@ -50,7 +50,7 @@ from manim import (
 )
 
 from .common import CLOCK_EPSILON_S, FRAME_HEIGHT, FRAME_WIDTH
-from .look import ROLE_COLORS
+from .look import role_color
 from .narrated import Narrated3DScene, NarratedCameraScene
 
 __all__ = [
@@ -65,8 +65,8 @@ _MAX_SHOWN_NODES = 16
 
 
 def _sign_color(value: float) -> manim.ManimColor:
-    """The role color of a weight's sign, resolved from its CE constant name."""
-    return getattr(manim, ROLE_COLORS["weight_pos" if value >= 0 else "weight_neg"])
+    """The palette's color for a weight's sign: the lesson's weight_pos or weight_neg role."""
+    return role_color("weight_pos" if value >= 0 else "weight_neg")
 
 
 class LayeredNetwork(VGroup):
@@ -81,6 +81,8 @@ class LayeredNetwork(VGroup):
 
     def __init__(self, sizes: list[int], seed: int, **kwargs) -> None:
         super().__init__(**kwargs)
+        # The true sizes, which count_parameters counts; a drawn layer may show fewer nodes.
+        self.sizes = list(sizes)
         rng = random.Random(seed)
         self._nodes: list[list[Dot]] = []
         self.layers: list[VGroup] = []
@@ -151,15 +153,22 @@ def numbers_to_symbol(column: VGroup, symbol: MathTex, run_time: float = 2.0) ->
 
 
 @contextlib.contextmanager
-def save_and_restore_layout(scene, group: VGroup) -> Iterator[None]:
-    """Saves ``group`` state, yields, restores with ``Restore`` on exit."""
+def save_and_restore_layout(scene, group: VGroup, run_time: float = 1.0) -> Iterator[None]:
+    """Saves ``group`` state, yields, restores with ``Restore`` on exit.
+
+    The restore takes ``run_time`` seconds, so a beat can land it at a mark.
+    """
     group.save_state()  # CE manim/mobject/mobject.py:2272
     yield
-    scene.play(Restore(group))  # CE manim/animation/transform.py:598-625
+    scene.play(Restore(group), run_time=run_time)  # CE manim/animation/transform.py:598-625
 
 
-def flash_along(path: VMobject, color=PURE_YELLOW, time_width: float = 1.0) -> Animation:
-    """``ShowPassingFlash`` along a copy of the path."""
+def flash_along(path: VMobject, color=None, time_width: float = 1.0) -> Animation:
+    """``ShowPassingFlash`` along a copy of the path.
+
+    ``color`` defaults to the lesson's emphasis role.
+    """
+    color = role_color("emphasis") if color is None else color
     # CE manim/animation/indication.py:274-316
     return ShowPassingFlash(path.copy().set_stroke(color, 6, opacity=1.0), time_width=time_width)
 
@@ -168,14 +177,35 @@ def focus_and_dim(group: VGroup, keep: list[Mobject], opacity: float = 0.2) -> A
     """Everything in ``group`` but ``keep`` fades to ``opacity``, nothing is removed.
 
     ``keep`` may name mobjects nested at any depth, such as ``network.node(1, 3)``: a member
-    holding one is opened up and only its other parts fade. ValueError when nothing would
-    fade, since an empty play is a CE error.
+    holding one is opened up and only its other parts fade. A part already fainter than
+    ``opacity`` stays as it is, and the group keeps its draw order. ValueError when nothing
+    would fade, since an empty play is a CE error.
     """
     dimmed = _dim_targets(group, keep)
     if not dimmed:
         raise ValueError("focus_and_dim: every member of group is in keep, so nothing would dim")
-    # CE manim/mobject/types/vectorized_mobject.py:478, manim/animation/composition.py:30
-    return AnimationGroup(*(m.animate.set_opacity(opacity) for m in dimmed))
+    # group=group: played, the group puts ``group`` itself in the scene, not a new Group of the
+    # dimmed parts drawn over the kept ones (CE manim/animation/composition.py:30).
+    return AnimationGroup(*(_fade_to_at_most(m, opacity) for m in dimmed), group=group)
+
+
+def _fade_to_at_most(mob: Mobject, opacity: float) -> Animation:
+    """Each fill and stroke in ``mob``'s family fades to ``opacity`` or stays, if already fainter.
+
+    set_opacity would set every one to ``opacity``, raising a faint edge or a nearly empty fill.
+    """
+    parts = [m for m in mob.get_family() if isinstance(m, VMobject)]
+    start: list[tuple[float, float]] = []
+
+    def fade(_, alpha: float) -> None:
+        # Read on the first call, which CE makes as the play begins (alpha 0), not when built.
+        if not start:
+            start.extend((m.get_fill_opacity(), m.get_stroke_opacity()) for m in parts)
+        for m, (fill, stroke) in zip(parts, start):
+            m.set_fill(opacity=fill + alpha * (min(fill, opacity) - fill), family=False)
+            m.set_stroke(opacity=stroke + alpha * (min(stroke, opacity) - stroke), family=False)
+
+    return UpdateFromAlphaFunc(mob, fade)  # CE manim/animation/updaters/update.py:43
 
 
 def _dim_targets(group: Mobject, keep: list[Mobject]) -> list[Mobject]:
@@ -205,8 +235,9 @@ def nudge_and_return(mob: Mobject, amount: float = 0.1) -> Animation:
 def count_parameters(network: LayeredNetwork) -> tuple[DecimalNumber, Animation]:
     """A counter that increments as edges light up.
 
-    Returns the counter, to be placed and added by the scene, and the 3 s animation that
-    counts to the number of edges while each edge brightens to full opacity in turn.
+    Returns the counter, to be placed and added by the scene, and the 3 s animation that counts
+    to the network's number of weights (each pair of adjacent layers' sizes multiplied, summed:
+    12960 for 784-16-16-10) while each drawn edge brightens to full opacity in turn.
     """
     tracker = ValueTracker(0)  # CE manim/mobject/value_tracker.py:21,83-97
     counter = DecimalNumber(0, num_decimal_places=0)
@@ -215,7 +246,8 @@ def count_parameters(network: LayeredNetwork) -> tuple[DecimalNumber, Animation]
     lighting = LaggedStart(*(edge.animate.set_stroke(opacity=1.0) for edge in network.edges), lag_ratio=0.1)
     # The group stretches its parts in proportion to fit 3 s, so the count gets the lighting's
     # own length and pace: unstretched it would be done before the first few edges lit.
-    counting = tracker.animate(run_time=lighting.run_time, rate_func=linear).set_value(len(network.edges))
+    weights = sum(a * b for a, b in zip(network.sizes, network.sizes[1:]))
+    counting = tracker.animate(run_time=lighting.run_time, rate_func=linear).set_value(weights)
     # group=network: played, the group puts the network itself in the scene, not a new Group
     # holding the edges and the tracker, which would draw the edges over the nodes and give
     # the run log a box stretching to the tracker's value.

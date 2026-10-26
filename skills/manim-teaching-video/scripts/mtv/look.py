@@ -1,16 +1,21 @@
 """The lesson's look: the TeX template, the text font, the role colors and the black background.
 
 manim.cfg leaves ``tex_template`` empty on purpose, so the template is set here in code, once
-per scene, by ``apply``; NarratedMixin.load_lesson calls it.
+per scene, by ``apply``; NarratedMixin.load_lesson calls it with the lesson's ``colors``, which
+become the active palette every color-bearing helper reads through ``role_color``.
 """
 
 from __future__ import annotations
 
+import manim
 from manim import BLACK, Scene, TexTemplate, TexTemplateLibrary, Text, config
 
 from .common import ROLE_COLORS
 
-__all__ = ["FONT_CANDIDATES", "ROLE_COLORS", "TEMPLATE", "apply", "pick_font"]
+__all__ = ["FONT_CANDIDATES", "ROLE_COLORS", "TEMPLATE", "apply", "pick_font", "role_color", "use_palette"]
+
+# The palette the helpers color by: the lesson's colors block, over ROLE_COLORS for any role it omits.
+_palette: dict[str, str] = dict(ROLE_COLORS)
 
 # The threeb1b preamble (CE manim/utils/tex_templates.py:64-67), plus the one macro the
 # lesson's formulas use for a typographic minus.
@@ -29,8 +34,21 @@ def pick_font() -> str:
     return next((font for font in FONT_CANDIDATES if font in available), "")
 
 
-def apply(scene: Scene) -> None:
-    """Give ``scene`` the lesson's background, TeX template and text font."""
+def use_palette(colors: dict[str, str] | None) -> None:
+    """Make ``colors`` (role to CE color name) the active palette, ROLE_COLORS filling the roles it omits."""
+    _palette.clear()
+    _palette.update(ROLE_COLORS)
+    _palette.update(colors or {})
+
+
+def role_color(role: str) -> manim.ManimColor:
+    """The CE color the active palette gives ``role``."""
+    return getattr(manim, _palette[role])
+
+
+def apply(scene: Scene, colors: dict[str, str] | None = None) -> None:
+    """Give ``scene`` the lesson's background, TeX template, text font and palette (its ``colors`` block)."""
+    use_palette(colors)
     config.background_color = BLACK  # CE manim/_config/utils.py:1203-1209
     # The scene's camera read the config when the scene was built, before construct calls
     # this (CE manim/camera/camera.py:134-139), so its background is set directly; the

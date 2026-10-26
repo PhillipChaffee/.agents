@@ -1388,7 +1388,7 @@ class TestNarratedMixin(ExampleLessonCase):
         # attribute, and look.py styles the scene once per load.
         applied = []
         look = ModuleType("mtv.look")
-        look.apply = applied.append
+        look.apply = lambda scene, colors=None: applied.append((scene, colors))
         scene = StubScene()
         with (mock.patch.object(narrated, "MANIM_AVAILABLE", True),
               mock.patch.object(narrated, "config", mock.Mock(frame_rate=30.0), create=True),
@@ -1397,7 +1397,8 @@ class TestNarratedMixin(ExampleLessonCase):
             with scene.beat("s01-b01") as b:
                 scene.wait(b.duration + 1.0)
                 self.assertAlmostEqual(b.remaining(), 1 / 30)
-        self.assertEqual(applied, [scene])
+        # The lesson's colors block becomes the helpers' palette.
+        self.assertEqual(applied, [(scene, mtv_lesson.load(self.lesson_path)["colors"])])
 
 
 class TestStoryboardCheck(ExampleLessonCase):
@@ -2456,8 +2457,12 @@ class TestPatterns(unittest.TestCase):
     """The helpers' own logic, built without rendering; --patterns renders them."""
 
     def setUp(self):
-        require("manim", "patterns")
+        manim = require("manim", "patterns")
         self.patterns = importlib.import_module("mtv.patterns")
+        # CE writes each formula's and each text's SVG under media_dir when it is built, so the
+        # cases keep media_dir in a scratch directory rather than the working directory.
+        media = self.enterContext(Scratch())
+        self.enterContext(manim.tempconfig({"media_dir": media}))
 
     def test_layered_network_shape_and_seed(self):
         net = self.patterns.LayeredNetwork([3, 20, 2], seed=7)
@@ -2487,12 +2492,48 @@ class TestPatterns(unittest.TestCase):
         self.assertIn(net.layers[0], dimmed)
         self.assertEqual(self.patterns.nudge_and_return(net.node(0, 0)).run_time, 1.0)
 
+    def test_lesson_palette_colors_the_helpers(self):
+        look = importlib.import_module("mtv.look")
+        manim = importlib.import_module("manim")
+        self.addCleanup(look.use_palette, None)
+        look.use_palette({"weight_pos": "GREEN"})
+        net = self.patterns.LayeredNetwork([2, 3], seed=1)
+        positive = [e for e in net.edges if e.get_stroke_color().to_hex() != manim.RED.to_hex()]
+        self.assertTrue(positive)
+        self.assertTrue(all(e.get_stroke_color().to_hex() == manim.GREEN.to_hex() for e in positive))
+        # Roles the lesson omits keep the default palette.
+        self.assertEqual(look.role_color("emphasis").to_hex(), manim.PURE_YELLOW.to_hex())
+
+    def test_focus_keeps_draw_order_and_never_brightens(self):
+        manim = importlib.import_module("manim")
+        net = self.patterns.LayeredNetwork([2, 3], seed=1)
+        faint = net.edges[0].set_stroke(opacity=0.05)
+        kept = net.node(1, 0)
+        # Played without writing frames or caching.
+        with manim.tempconfig({"dry_run": True, "disable_caching": True}):
+            scene = manim.Scene()
+            scene.add(net)
+            scene.play(self.patterns.focus_and_dim(net, [kept]))
+        family = scene.get_mobject_family_members()
+        # The kept dot still draws over the dimmed edges, and the network is not regrouped.
+        self.assertGreater(family.index(kept), family.index(net.edges[-1]))
+        self.assertEqual(scene.mobjects, [net])
+        self.assertAlmostEqual(faint.get_stroke_opacity(), 0.05)
+        self.assertAlmostEqual(net.edges[1].get_stroke_opacity(), min(net.edges[1].get_stroke_opacity(), 0.2))
+        self.assertLessEqual(net.edges[1].get_stroke_opacity(), 0.2 + 1e-9)
+        self.assertAlmostEqual(kept.get_fill_opacity(), 1.0)
+
     def test_count_keeps_pace_and_delayed_tolerates_float_error(self):
         net = self.patterns.LayeredNetwork([4, 20, 3], seed=1)
         _, counting = self.patterns.count_parameters(net)
         tracker_anim, lighting = counting.animations
         # Stretched together, the count runs exactly as long as the lighting.
         self.assertEqual(tracker_anim.run_time, lighting.run_time)
+        # It counts the network's weights, not the drawn edges: a layer of 20 shows 16 nodes.
+        tracker_anim.begin()
+        tracker_anim.finish()
+        self.assertEqual(round(tracker_anim.mobject.get_value()), 4 * 20 + 20 * 3)
+        self.assertEqual(len(lighting.animations), 4 * 16 + 16 * 3)
         self.assertIs(counting.group, net)
         manim = importlib.import_module("manim")
         exact = self.patterns.delayed(manim.FadeIn(manim.Dot(), run_time=0.2), 0.1, 0.3)

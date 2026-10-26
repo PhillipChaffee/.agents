@@ -78,7 +78,8 @@ class NarratedMixin:
         path = lesson_path or os.environ.get("MTV_LESSON")
         if not path:
             raise ValueError("no lesson to load: pass lesson_path or set MTV_LESSON")
-        self._mtv_scene = lesson.scene_by_id(lesson.load(Path(path)), scene_id)
+        data = lesson.load(Path(path))
+        self._mtv_scene = lesson.scene_by_id(data, scene_id)
         self._mtv_beats = {entry["id"]: entry for entry in self._mtv_scene["beats"]}
         self._mtv_cursor = 0.0
         self._mtv_run_log = os.environ.get("MTV_RUN_LOG")
@@ -86,7 +87,8 @@ class NarratedMixin:
             # Imported here because look.py needs ManimCE and this module must load without it.
             from . import look
 
-            look.apply(self)
+            # The lesson's colors become the helpers' palette before any of them runs.
+            look.apply(self, data.get("colors"))
 
     @contextlib.contextmanager
     def beat(self, beat_id: str) -> Iterator[Beat]:

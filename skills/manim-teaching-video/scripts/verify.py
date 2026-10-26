@@ -376,9 +376,14 @@ def main(argv: list[str] | None = None) -> int:
     ok = all(g.passed for g in gates)
     rows = [g.as_dict() for g in gates]
     lesson.setdefault("checks", {})["verify"] = {"pass": ok, "at": common.now_iso(), "gates": rows}
+    # The stage is the verify of the tier the lesson is delivered at: its hash holds lesson.tier
+    # but not --tier, and none of the outputs the gates read. So a failure, or a run at another
+    # tier, drops the stage, and a resumed run never takes an earlier pass for this verdict.
     # Marked before the report is written, so that its resume line counts this stage.
-    if ok:
+    if ok and args.tier == lesson.get("tier"):
         mtv_lesson.mark_done(lesson, "verify", {"tier": args.tier})
+    else:
+        (lesson.get("stages") or {}).pop("verify", None)
     write_report(lesson, run_dir, args.tier, gates)
     mtv_lesson.save(lesson, args.lesson)
     if ok:

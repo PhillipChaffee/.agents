@@ -1617,6 +1617,56 @@ class TestVerify(ExampleLessonCase):
         self.assertEqual(cp.returncode, 1)
         gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
         self.assertFalse(gates["run log vs section index"]["pass"])
+        # The failure drops the first run's verify stage, so neither a resume nor the report
+        # takes the earlier pass for this verdict.
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertNotIn("verify", lesson["stages"])
+        self.assertTrue(mtv_lesson.needs_rerun(lesson, "verify"))
+        resume = (self.run_dir / "report.md").read_text().splitlines()[-1]
+        self.assertTrue(resume.startswith("Resume:"), resume)
+        self.assertNotIn("verify", resume)
+
+    def test_pass_at_another_tier_leaves_verify_stage_undone(self):
+        # The verify stage's hash holds lesson.tier, not --tier, so a draft pass of a lesson
+        # delivered at standard must not stand for the standard file's verify.
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertIn("verify", lesson["stages"])
+        lesson["tier"] = "standard"
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertNotIn("verify", lesson["stages"])
+        self.assertTrue(mtv_lesson.needs_rerun(lesson, "verify"))
+
+    def test_report_with_every_warning_lints_clean(self):
+        # Task 22 lints the run directory with the kit's markdownlint gate. Of the rules that
+        # gate turns off, MD013 (line length) is the only one a report can trip, so only it is off.
+        require_tool("markdownlint-cli2", "verify report lint")
+        lesson = mtv_lesson.load(self.lesson_path)
+        first, second = lesson["scenes"][0]["beats"]
+        first["render"]["log"]["overrun_s"] = 1.2
+        second["interpolated"] = True
+        findings = ["index.json: corpus_commit missing", "sheet.png: not JPEG"]
+        lesson["exemplars"].update(dir="pack", check_findings=findings)
+        mtv_lesson.mark_done(lesson, "narrate", {"provider": "elevenlabs", "fallback": "kokoro"})
+        lesson["env"]["font"] = ""
+        scores = {"scores": {f"R{n:02d}": 2 for n in range(1, 17)}}
+        lesson["checks"].update(
+            storyboard={"pass": True},
+            frames={"scenes": {"s01": scores, "s02": scores}, "final": {**scores, "zeros": []}},
+        )
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("verify", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        report = (self.run_dir / "report.md").read_text()
+        for text in ("interpolated beats: s01-b02", "not JPEG", "provider fallback to kokoro", "overrun s01-b01"):
+            self.assertIn(text, report)
+        common.dump_json({"config": {"MD013": False}}, self.run_dir / ".markdownlint-cli2.jsonc")
+        cp = common.run_cmd(["markdownlint-cli2", "report.md"], cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
 
     def test_wav_longer_than_beat_fails(self):
         make_tone(self.run_dir / "audio" / "s01-b01.wav", 2.6)

@@ -773,6 +773,59 @@ class TestLessonSchema(unittest.TestCase):
             "s02-b03: marks must be an object",
         ])
 
+    def test_every_other_error_string(self):
+        lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+        s01, s02 = lesson["scenes"]
+        lesson.update(schema="mtv-lesson/0", seed=True, colors={"cost": "CRIMSON"})
+        s01.update(opening_state="fade", scene_class="class")
+        s01["beats"][1]["id"] = "s02-b02"
+        s01["beats"][2]["tail_s"] = -0.1
+        s02["beats"][0]["marks"] = {"value": "3"}
+        self.assertEqual(mtv_lesson.validate(lesson), [
+            "schema is 'mtv-lesson/0', expected 'mtv-lesson/1'",
+            "seed must be an integer",
+            "colors['cost'] = 'CRIMSON' is not a ManimCE color name",
+            "s01: opening_state 'fade' not in OPENING_STATES",
+            "s01: scene_class 'class' is not a Python identifier",
+            "s02-b02: id does not match s01-bNN",
+            "s01-b03: tail_s must be a non-negative number",
+            "s02-b01: marks['value'] = '3' past the word count 15",
+            "s02-b02: duplicate beat id",
+        ])
+        with self.assertRaises(KeyError):
+            mtv_lesson.scene_by_id(lesson, "s09")
+        scene, beat = mtv_lesson.beat_index(lesson)["s02-b03"]
+        self.assertEqual((scene["id"], beat["marks"]["picture"]), ("s02", 32))
+
+    def test_ids_and_mark_names_are_file_name_safe(self):
+        # Scene ids name render and frame directories, and beat ids and mark names name the files
+        # in them; frames.py writes <beat>-first.png and <beat>-last.png beside <beat>-<mark>.png.
+        def errors(edit) -> list[str]:
+            lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+            edit(lesson)
+            return mtv_lesson.validate(lesson)
+
+        def rename_scene(lesson: dict, i: int, scene_id: str, first_beat: int = 1) -> None:
+            scene = lesson["scenes"][i]
+            scene["id"] = scene_id
+            for n, beat in enumerate(scene["beats"], first_beat):
+                beat["id"] = f"{scene_id}-b{n:02d}"
+
+        self.assertEqual(errors(lambda l: l["scenes"][0]["beats"][0].update(id="s01-b\u0660\u0661")),
+                         ["s01-b\u0660\u0661: id does not match s01-bNN"])
+        self.assertEqual(errors(lambda l: rename_scene(l, 0, "intro")), ["intro: id does not match sNN"])
+        self.assertEqual(errors(lambda l: rename_scene(l, 0, "")), ["scenes[0]: id does not match sNN"])
+        # Renumbered beats keep the beat ids unique, so only the scene id repeats.
+        self.assertEqual(errors(lambda l: rename_scene(l, 1, "s01", first_beat=4)), ["s01: duplicate scene id"])
+        marks = {"last": 1, "first": 2, "a/b": 3, "\u00e9": 4, "ok.mark_2-x": 5}
+        self.assertEqual(errors(lambda l: l["scenes"][0]["beats"][0].update(marks=marks)), [
+            "s01-b01: mark name 'last' is taken by the beat's last frame",
+            "s01-b01: mark name 'first' is taken by the beat's first frame",
+            "s01-b01: mark name 'a/b' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'",
+            "s01-b01: mark name '\u00e9' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'",
+            "s01-b01: lands mark 'reveal' not in marks",
+        ])
+
 
 class TestLessonStages(unittest.TestCase):
     def test_stage_inputs_change_only_with_read_fields(self):
@@ -813,6 +866,14 @@ class TestLessonStages(unittest.TestCase):
         lesson = mtv_lesson.load(lesson_path)
         self.assertEqual([stage for stage in mtv_lesson.STAGES if mtv_lesson.needs_rerun(lesson, stage)],
                          ["render.draft", "frames", "render.standard", "assemble", "verify"])
+
+    def test_stage_rows_expand_their_parent_stages(self):
+        # verify's row names only assemble, which reaches brief through render.draft and its parents.
+        verify_fields = mtv_lesson.STAGE_FIELDS["verify"]
+        self.assertLessEqual({"schema", "seed", "beats[].narration", "beats[].marks", "beats[].audio",
+                              mtv_lesson.SCENES_FILE_SHA256, "tier"}, set(verify_fields))
+        self.assertFalse(set(verify_fields) & set(mtv_lesson.STAGES))
+        self.assertEqual(len(verify_fields), len(set(verify_fields)))
 
     def test_bump_counters(self):
         lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")

@@ -18,6 +18,13 @@ from . import common
 
 _KIND_NAMES = {str: "a string", list: "a list", dict: "an object"}
 
+# Scene ids name the render and frame directories, and beat ids and mark names the files in them,
+# so each keeps to file-name characters; [0-9], since \d also matches every other script's digits.
+_SCENE_ID = re.compile(r"s[0-9]{2}")
+_MARK_NAME = re.compile(r"[A-Za-z0-9._-]+")
+# frames.py writes <beat>-first.png and <beat>-last.png beside each mark's <beat>-<mark>.png.
+_FRAME_NAMES = ("first", "last")
+
 # Pipeline order: a resumed run starts again at the first stage whose inputs have changed.
 STAGES: tuple[str, ...] = (
     "brief", "script", "storyboard", "narrate", "scenes",
@@ -144,18 +151,25 @@ def validate(lesson: dict) -> list[str]:
     for role, value in (_typed(errors, "", lesson, "colors", dict) or {}).items():
         if not (isinstance(value, str) and value in common.COLOR_NAMES):
             errors.append(f"colors['{role}'] = '{value}' is not a ManimCE color name")
+    scene_ids: set[str] = set()
     beat_ids: set[str] = set()
     for i, scene in enumerate(_typed(errors, "", lesson, "scenes", list) or []):
-        errors.extend(_scene_errors(scene, f"scenes[{i}]", beat_ids))
+        errors.extend(_scene_errors(scene, f"scenes[{i}]", scene_ids, beat_ids))
     return errors
 
 
-def _scene_errors(scene: Any, path: str, beat_ids: set[str]) -> list[str]:
+def _scene_errors(scene: Any, path: str, scene_ids: set[str], beat_ids: set[str]) -> list[str]:
     if not isinstance(scene, dict):
         return [f"{path} must be an object"]
     errors: list[str] = []
     scene_id = _typed(errors, path, scene, "id", str, required=True)
     owner = scene_id or path
+    if scene_id is not None:
+        if not _SCENE_ID.fullmatch(scene_id):
+            errors.append(f"{owner}: id does not match sNN")
+        if scene_id in scene_ids:
+            errors.append(f"{owner}: duplicate scene id")
+        scene_ids.add(scene_id)
     for name, allowed, vocabulary in (
         ("scene_kind", common.RUNTIME_SCENE_KINDS, "RUNTIME_SCENE_KINDS"),
         ("opening_state", common.OPENING_STATES, "OPENING_STATES"),
@@ -176,7 +190,7 @@ def _beat_errors(beat: Any, scene_id: str | None, path: str, beat_ids: set[str])
     beat_id = _typed(errors, path, beat, "id", str, required=True)
     owner = beat_id or path
     if beat_id is not None:
-        if scene_id is not None and not re.fullmatch(re.escape(scene_id) + r"-b\d{2}", beat_id):
+        if scene_id is not None and not re.fullmatch(re.escape(scene_id) + r"-b[0-9]{2}", beat_id):
             errors.append(f"{owner}: id does not match {scene_id}-bNN")
         if beat_id in beat_ids:
             errors.append(f"{owner}: duplicate beat id")
@@ -195,6 +209,10 @@ def _beat_errors(beat: Any, scene_id: str | None, path: str, beat_ids: set[str])
             errors.append(f"{owner}: patterns value '{value}' not a PATTERN_TAGS key")
     marks = _typed(errors, owner, beat, "marks", dict) or {}
     for name, index in marks.items():
+        if name in _FRAME_NAMES:
+            errors.append(f"{owner}: mark name '{name}' is taken by the beat's {name} frame")
+        elif not (isinstance(name, str) and _MARK_NAME.fullmatch(name)):
+            errors.append(f"{owner}: mark name '{name}' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'")
         if not (_is_int(index) and 0 <= index < len(words)):
             errors.append(f"{owner}: marks['{name}'] = {index!r} past the word count {len(words)}")
     for k, land in enumerate(_typed(errors, owner, beat, "lands", list) or []):

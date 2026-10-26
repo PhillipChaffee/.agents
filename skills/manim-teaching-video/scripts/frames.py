@@ -46,8 +46,9 @@ def gray_small(video: Path, t_s: float) -> bytes:
         "ffmpeg", "-ss", f"{t_s:.6f}", "-i", str(video), "-frames:v", "1", "-vf", f"scale={width}:{height}",
         "-f", "rawvideo", "-pix_fmt", "gray", "-",
     ]
-    # Raw pixels on stdout are bytes, which common.run_cmd would decode as text.
-    completed = subprocess.run(argv, capture_output=True, check=False)
+    # Raw pixels on stdout are bytes, which common.run_cmd would decode as text; stdin is closed
+    # as common.run_cmd closes it.
+    completed = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, check=False)
     if completed.returncode != 0 or len(completed.stdout) != width * height:
         raise RuntimeError(_no_frame(video, t_s, completed.stderr.decode(errors="replace")))
     return completed.stdout

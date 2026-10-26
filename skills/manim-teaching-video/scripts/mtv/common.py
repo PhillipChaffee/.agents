@@ -244,7 +244,11 @@ def run_cmd(
     env: dict[str, str] | None = None,
     cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    completed = subprocess.run(argv, capture_output=True, text=True, env=env, cwd=cwd, check=False)
+    # On an inherited stdin a child reads input piped to this process (ffmpeg takes it as
+    # interactive keys) and stops a background job; manim prompts on it for a missing class.
+    completed = subprocess.run(
+        argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, env=env, cwd=cwd, check=False
+    )
     if log_path is not None:
         with open(log_path, "a", encoding="utf-8") as log:
             log.write(completed.stdout)

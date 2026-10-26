@@ -1788,6 +1788,29 @@ class TestFrames(unittest.TestCase):
             self.assertEqual(image.size, (1278, 480))
 
 
+class TestChildStdin(ScratchCase):
+    def test_children_never_read_stdin(self):
+        # A child that inherits stdin swallows input piped to the script that started it, and
+        # stops a background job that reads from the terminal.
+        bin_dir = self.work_dir / "bin"
+        bin_dir.mkdir()
+        fake_ffmpeg = bin_dir / "ffmpeg"
+        fake_ffmpeg.write_text(
+            f"#!{sys.executable}\nimport sys\nsys.stdout.buffer.write(bytes([len(sys.stdin.buffer.read())]) * 2304)\n"
+        )
+        fake_ffmpeg.chmod(0o755)
+        probe = (
+            "import sys\nfrom pathlib import Path\nimport frames\nfrom mtv import common\n"
+            "child = [sys.executable, '-c', 'import sys; print(len(sys.stdin.read()))']\n"
+            "print(common.run_cmd(child).stdout.strip(), frames.gray_small(Path('v.mp4'), 0.0)[0])\n"
+        )
+        env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+               "PYTHONPATH": str(SCRIPTS_DIR), "PYTHONDONTWRITEBYTECODE": "1"}
+        cp = subprocess.run([sys.executable, "-c", probe], input="piped", capture_output=True, text=True,
+                            env=env, cwd=self.work_dir, check=False)
+        self.assertEqual(cp.stdout.split(), ["0", "0"], cp.stderr)
+
+
 class TestAssemble(ExampleLessonCase):
     """make_rendered_lesson replaces the example lesson in each test's run directory."""
 

@@ -35,9 +35,7 @@ _MEASURED = {
 
 def _ffmpeg(*args: str) -> str:
     """Run ffmpeg and return its stderr, which carries loudnorm's report."""
-    # Without -nostdin ffmpeg reads its interactive keys from the inherited stdin, which
-    # swallows piped input and stops a background job.
-    completed = common.run_cmd(["ffmpeg", "-nostdin", *args])
+    completed = common.run_cmd(["ffmpeg", *args])
     completed.check_returncode()
     return completed.stderr
 

@@ -14,14 +14,12 @@ import platform
 import shlex
 import shutil
 import sys
-import tempfile
-import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import exemplars
 import narrate
-from mtv import common, tts
+from mtv import common
 
 PROVIDER_TEXT = "One two three four five six seven eight nine ten."
 MIN_FREE_BYTES = 5 * 1024**3
@@ -33,7 +31,23 @@ LATEX_INSTALL = (
     " texlive-fonts-extra texlive-science dvisvgm"
 )
 FFMPEG_INSTALL = "apt-get install -y ffmpeg"
-PROVIDER_INSTALL = "python scripts/narrate.py --warmup"
+SCRIPTS_DIR = Path(__file__).resolve().parent
+
+
+def provider_install(name: str) -> str | None:
+    """The command that makes provider ``name`` work, with absolute paths, so it runs from any
+    directory: install its requirements into this interpreter's venv, then speak one sentence
+    (which fetches Kokoro's weights). None for the null provider, which needs nothing."""
+    if name == "null":
+        return None
+    python = shlex.quote(sys.executable)
+    requirements = ["requirements.txt"] + (["requirements-kokoro.txt"] if name == "kokoro" else [])
+    install = f"uv pip install --python {python}" + "".join(
+        f" -r {shlex.quote(str(SCRIPTS_DIR / r))}" for r in requirements
+    )
+    key = "set ELEVENLABS_API_KEY, then " if name == "elevenlabs" else ""
+    warmup = f"{python} {shlex.quote(str(SCRIPTS_DIR / 'narrate.py'))} --warmup --provider {shlex.quote(name)}"
+    return f"{key}{install} && {warmup}"
 
 
 @dataclass
@@ -87,15 +101,11 @@ def _tool_check(tool: str, install: str) -> Check:
 def _provider_check(name: str) -> Check:
     try:
         provider = narrate.build_provider(name, narrate.voice_for(name, None))
-        with tempfile.TemporaryDirectory(prefix="mtv-preflight-") as tmp:
-            out_wav = Path(tmp) / "provider.wav"
-            start = time.perf_counter()
-            provider.synthesize(PROVIDER_TEXT, out_wav)
-            rtf = (time.perf_counter() - start) / tts.wav_duration(out_wav)
+        rtf = narrate.time_synthesis(provider, PROVIDER_TEXT)
     # A provider fails with whatever its library raises, and a failure is reported, not raised.
     except Exception as exc:
-        return Check("provider", False, f"{name}: {type(exc).__name__}: {exc}", PROVIDER_INSTALL)
-    return Check("provider", True, f"{name} rtf={rtf:.3f}", PROVIDER_INSTALL)
+        return Check("provider", False, f"{name}: {type(exc).__name__}: {exc}", provider_install(name))
+    return Check("provider", True, f"{name} rtf={rtf:.3f}", provider_install(name))
 
 
 def _font_check(manim_imports: bool) -> Check:
@@ -137,7 +147,9 @@ def main(argv: list[str] | None = None) -> int:
     checks = run_checks(args.provider)
     ok = all(check.ok for check in checks)
     if args.json:
-        print(json.dumps({"ok": ok, "checks": [asdict(check) for check in checks]}))
+        # A passing check needs no install command, so its install is null.
+        rows = [{**asdict(check), "install": None if check.ok else check.install} for check in checks]
+        print(json.dumps({"ok": ok, "checks": rows}))
         return 0 if ok else 1
     for check in checks:
         print(f"{check.name}: {'ok' if check.ok else 'FAIL'}, {check.detail}")

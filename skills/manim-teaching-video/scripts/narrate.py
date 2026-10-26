@@ -140,20 +140,27 @@ def _cached_tokens(sidecar: Path, key: str, wav: Path) -> list[tts.Word] | None:
         return None
 
 
+def time_synthesis(provider: tts.Provider, text: str) -> float:
+    """Speak ``text`` into a scratch WAV and return the real-time factor: seconds spent per second spoken.
+
+    The first call to a provider includes loading it (Kokoro's weights), so it reads high.
+    """
+    with tempfile.TemporaryDirectory(prefix="mtv-synthesis-") as tmp:
+        out_wav = Path(tmp) / "timed.wav"
+        start = time.perf_counter()
+        provider.synthesize(text, out_wav)
+        return (time.perf_counter() - start) / tts.wav_duration(out_wav)
+
+
 def warmup(name: str) -> int:
     """Synthesize one sentence, which makes Kokoro fetch its weights, and print the real-time factor."""
     try:
         provider = build_provider(name, voice_for(name, None))
+        rtf = time_synthesis(provider, WARMUP_TEXT)
     except ValueError as exc:
         return common.usage_error(str(exc))
-    with tempfile.TemporaryDirectory(prefix="mtv-warmup-") as tmp:
-        out_wav = Path(tmp) / "warmup.wav"
-        start = time.perf_counter()
-        try:
-            provider.synthesize(WARMUP_TEXT, out_wav)
-        except (OSError, tts.ProviderError) as exc:
-            return common.usage_error(f"provider '{name}' failed: {exc}")
-        rtf = (time.perf_counter() - start) / tts.wav_duration(out_wav)
+    except (OSError, tts.ProviderError) as exc:
+        return common.usage_error(f"provider '{name}' failed: {exc}")
     return common.verdict(True, f"warmup {name} rtf={rtf:.3f}")
 
 

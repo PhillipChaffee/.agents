@@ -2179,6 +2179,40 @@ class TestVerifyExternal(ScratchCase):
 
 
 class TestPreflight(ScratchCase):
+    def test_text_mode_prints_one_install_line_per_missing_tool(self):
+        # An empty PATH hides latex, dvisvgm, ffmpeg and ffprobe, whatever this machine has.
+        empty_bin = self.work_dir / "empty-bin"
+        empty_bin.mkdir()
+        cp = run_script("preflight", "--provider", "null", cwd=self.work_dir,
+                        env={**os.environ, "PATH": str(empty_bin)})
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        lines = cp.stdout.strip().splitlines()
+        failing = [line.split(":")[0] for line in lines if ": FAIL," in line]
+        self.assertTrue({"latex", "dvisvgm", "ffmpeg", "ffprobe"} <= set(failing))
+        self.assertEqual(lines[-1], f"FAIL preflight: {', '.join(failing)}")
+        # Each install line sits under the failing check it serves, and no passing check has one.
+        for i, line in enumerate(lines):
+            if line.startswith("  install: "):
+                self.assertIn(": FAIL,", lines[i - 1])
+        installs = [line for line in lines if line.startswith("  install: ")]
+        self.assertEqual(len(installs), len(failing))
+
+    def test_json_install_only_for_failing_checks_and_provider_lines_are_absolute(self):
+        cp = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir)
+        for check in json.loads(cp.stdout)["checks"]:
+            if check["ok"]:
+                self.assertIsNone(check["install"], check["name"])
+        preflight = importlib.import_module("preflight")
+        self.assertIsNone(preflight.provider_install("null"))
+        kokoro = preflight.provider_install("kokoro")
+        for needed in (str(SCRIPTS_DIR / "requirements.txt"), str(SCRIPTS_DIR / "requirements-kokoro.txt"),
+                       str(SCRIPTS_DIR / "narrate.py"), "--warmup --provider kokoro", sys.executable):
+            self.assertIn(needed, kokoro)
+        elevenlabs = preflight.provider_install("elevenlabs")
+        self.assertIn("ELEVENLABS_API_KEY", elevenlabs)
+        self.assertNotIn("requirements-kokoro.txt", elevenlabs)
+        self.assertIn("--provider elevenlabs", elevenlabs)
+
     def test_preflight_json_reports_install_lines(self):
         cp = run_script("preflight", "--json", "--provider", "null", cwd=self.work_dir)
         report = json.loads(cp.stdout)

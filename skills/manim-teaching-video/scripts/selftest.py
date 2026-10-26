@@ -11,7 +11,9 @@ import ast
 import base64
 import concurrent.futures
 import configparser
+import contextlib
 import importlib
+import io
 import json
 import math
 import os
@@ -1824,7 +1826,7 @@ class TestAssemble(ExampleLessonCase):
         info = common.ffprobe_json(out)
         self.assertEqual(sorted(s["codec_type"] for s in info["streams"]), ["audio", "video"])
         self.assertAlmostEqual(float(info["format"]["duration"]), 8.0, delta=0.5)
-        srt = (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text()
+        srt = (self.run_dir / "out" / "what-a-neuron-computes.draft.srt").read_text()
         self.assertEqual(srt.count(" --> "), 4)
         self.assertIn("00:00:02,000 --> ", srt)
         self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"]["tools"], {"saturation": "1.5"})
@@ -1854,10 +1856,70 @@ class TestAssemble(ExampleLessonCase):
         cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertEqual(
-            (self.run_dir / "out" / "what-a-neuron-computes.srt").read_text(),
+            (self.run_dir / "out" / "what-a-neuron-computes.draft.srt").read_text(),
             "1\n00:00:00,000 --> 00:00:01,200\nThis is beat one of scene s01.\n\n"
             "2\n00:00:02,000 --> 00:00:03,200\nThis is beat two of scene s01.\n",
         )
+
+    def test_other_tier_keeps_the_delivery_tier_stage_and_srt(self):
+        # The assemble stage's hash holds lesson.tier, not --tier, so a draft assemble of a lesson
+        # delivered at standard must not stand for the standard file, nor replace its subtitles.
+        require_tool("ffmpeg", "assemble other tier")
+        require_tool("ffprobe", "assemble other tier")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        lesson = mtv_lesson.load(lesson_path)
+        lesson["tier"] = "standard"
+        standard_stage = {"inputs_sha256": "standard", "done": "2026-10-26T10:00:00Z", "tools": {"saturation": "1.5"}}
+        lesson["stages"]["assemble"] = standard_stage
+        mtv_lesson.save(lesson, lesson_path)
+        standard_srt = self.run_dir / "out" / "what-a-neuron-computes.standard.srt"
+        standard_srt.parent.mkdir()
+        standard_srt.write_text("standard cues\n")
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertEqual(mtv_lesson.load(lesson_path)["stages"]["assemble"], standard_stage)
+        self.assertEqual(standard_srt.read_text(), "standard cues\n")
+        self.assertIn(" --> ", (self.run_dir / "out" / "what-a-neuron-computes.draft.srt").read_text())
+        self.assertFalse((self.run_dir / "out" / "what-a-neuron-computes.srt").exists())
+
+    def test_silent_narration_assembles(self):
+        # The null provider's silence measures -inf in loudnorm's first pass, which the second
+        # pass rejects; selftest.py --one-beat assembles exactly that narration.
+        require_tool("ffmpeg", "assemble silence")
+        require_tool("ffprobe", "assemble silence")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        for _, beat in mtv_lesson.beats(mtv_lesson.load(lesson_path)):
+            tts.get_provider("null").synthesize(beat["narration"], self.run_dir / beat["audio"])
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        info = common.ffprobe_json(self.run_dir / "out" / "what-a-neuron-computes.draft.mp4")
+        self.assertEqual(sorted(s["codec_type"] for s in info["streams"]), ["audio", "video"])
+
+    def test_unexpected_failures_exit_2_without_traceback(self):
+        require_tool("ffmpeg", "assemble failures")
+        require_tool("ffprobe", "assemble failures")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+        before = lesson_path.read_text()
+        # out/ cannot be created where a file holds its name.
+        (self.run_dir / "out").write_text("")
+        cp = run_script("assemble", "lesson.json", "--tier", "draft", "--saturation", "1.0", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertNotIn("Traceback", cp.stderr)
+        (self.run_dir / "out").unlink()
+        # An ffmpeg build that prints loudnorm's first pass without its JSON report.
+        real_ffmpeg = assemble._ffmpeg
+
+        def no_report(*args: str) -> str:
+            return "" if any("print_format=json" in arg for arg in args) else real_ffmpeg(*args)
+
+        stderr = io.StringIO()
+        with mock.patch.object(assemble, "_ffmpeg", side_effect=no_report), contextlib.redirect_stderr(stderr), \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = assemble.main([str(lesson_path), "--tier", "draft", "--saturation", "1.0"])
+        self.assertEqual(code, 2, stderr.getvalue())
+        self.assertIn("loudnorm", stderr.getvalue())
+        self.assertEqual(lesson_path.read_text(), before)
+        self.assertFalse((self.run_dir / "out" / "what-a-neuron-computes.draft.mp4").exists())
 
     def test_missing_audio_or_tier_video_exits_2_without_writing(self):
         require_tool("ffmpeg", "assemble missing inputs")

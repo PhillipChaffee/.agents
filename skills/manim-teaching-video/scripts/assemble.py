@@ -6,6 +6,7 @@ so each narration starts where its beat starts in the joined video.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import shlex
@@ -60,12 +61,21 @@ def pad_beat_audio(wav: Path, duration_s: float, out_wav: Path) -> None:
     )
 
 
+def _measurement(stderr: str) -> dict:
+    """The second-pass options from loudnorm's first-pass report, the last JSON object in
+    ``stderr``; ValueError when there is none or it lacks a key."""
+    try:
+        report = json.loads(stderr[stderr.rindex("{") : stderr.rindex("}") + 1])
+        return {option: report[key] for key, option in _MEASURED.items()}
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ValueError(f"loudnorm printed no usable measurement ({type(exc).__name__}: {exc})") from exc
+
+
 def loudnorm_two_pass(in_wav: Path, out_wav: Path) -> dict:
     """Normalize ``in_wav`` to ``LOUDNORM_TARGET`` into ``out_wav``; return the first pass's measurement."""
     stderr = _ffmpeg("-i", str(in_wav), "-af", f"loudnorm={LOUDNORM_TARGET}:print_format=json", "-f", "null", "-")
-    report = json.loads(stderr[stderr.rindex("{") : stderr.rindex("}") + 1])
-    measured = {option: report[key] for key, option in _MEASURED.items()}
-    if not math.isfinite(float(report["input_i"])):
+    measured = _measurement(stderr)
+    if not math.isfinite(float(measured["measured_I"])):
         # Silence (the null provider's narration) measures -inf, which the second pass
         # rejects as out of range, and has no loudness to correct.
         shutil.copyfile(in_wav, out_wav)
@@ -177,23 +187,32 @@ def main(argv: list[str] | None = None) -> int:
         return common.usage_error(f"run narrate.py and render.py --tier {args.tier} first: " + "; ".join(problems))
     beats = [beat for _, beat in mtv_lesson.beats(lesson)]
     final = run_dir / "out" / f"{slug}.{args.tier}.mp4"
-    srt = final.with_name(f"{slug}.srt")
-    final.parent.mkdir(exist_ok=True)
-    # A failed run leaves neither an earlier run's video and SRT nor a partial file, which
-    # verify.py would check in place of this run's.
-    final.unlink(missing_ok=True)
-    srt.unlink(missing_ok=True)
+    # Each tier has its own subtitles, since its beats' rendered durations place the cues.
+    srt = final.with_suffix(".srt")
     try:
+        final.parent.mkdir(exist_ok=True)
+        # A failed run leaves neither an earlier run's video and SRT nor a partial file, which
+        # verify.py would check in place of this run's.
+        final.unlink(missing_ok=True)
+        srt.unlink(missing_ok=True)
         _join(beats, run_dir, args.tier, final, args.saturation)
         duration_s = float(common.ffprobe_json(final)["format"]["duration"])
+        write_srt(_cues(beats), srt)
     # A beat file ffmpeg cannot read is bad input to this stage, not a failed gate.
     except subprocess.CalledProcessError as exc:
         final.unlink(missing_ok=True)
         lines = (exc.stderr or "").strip().splitlines()
         reason = lines[-1] if lines else f"exit status {exc.returncode}"
         return common.usage_error(f"{shlex.join(exc.cmd)} failed: {reason}")
-    write_srt(_cues(beats), srt)
-    mtv_lesson.mark_done(lesson, "assemble", {"saturation": str(args.saturation)})
+    # So is an unwritable out/ or an ffmpeg whose loudnorm report this script cannot read.
+    except (OSError, ValueError) as exc:
+        with contextlib.suppress(OSError):
+            final.unlink(missing_ok=True)
+        return common.usage_error(f"cannot assemble out/{final.name}: {exc}")
+    # The stage's hash holds lesson.tier, not --tier, so only an assemble at the delivery tier
+    # stands for it; another tier's outputs leave the delivery tier's files and stage as they were.
+    if args.tier == lesson.get("tier"):
+        mtv_lesson.mark_done(lesson, "assemble", {"saturation": str(args.saturation)})
     mtv_lesson.save(lesson, args.lesson)
     return common.verdict(True, f"assembled out/{final.name} ({duration_s:.2f} s)")
 

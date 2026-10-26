@@ -2230,6 +2230,26 @@ class TestAssemble(ExampleLessonCase):
         self.assertEqual(lesson_path.read_text(), before)
         self.assertFalse((self.run_dir / "out" / "what-a-neuron-computes.draft.mp4").exists())
 
+    def test_failed_srt_write_leaves_no_partial_file(self):
+        # A disk that fills while the subtitles are written leaves a truncated SRT, which
+        # verify.py and the user would take for this run's.
+        require_tool("ffmpeg", "assemble srt failure")
+        require_tool("ffprobe", "assemble srt failure")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"], tone_s=1.5)
+
+        def disk_full(cues, path):
+            path.write_text("1\n00:00:00,000 --> ", encoding="utf-8")
+            raise OSError(28, "No space left on device")
+
+        stderr = io.StringIO()
+        with mock.patch.object(assemble, "write_srt", disk_full), contextlib.redirect_stderr(stderr), \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = assemble.main([str(lesson_path), "--tier", "draft", "--saturation", "1.0"])
+        self.assertEqual(code, 2, stderr.getvalue())
+        self.assertIn("No space left on device", stderr.getvalue())
+        for suffix in ("mp4", "srt"):
+            self.assertFalse((self.run_dir / "out" / f"what-a-neuron-computes.draft.{suffix}").exists(), suffix)
+
     def test_missing_audio_or_tier_video_exits_2_without_writing(self):
         require_tool("ffmpeg", "assemble missing inputs")
         require_tool("ffprobe", "assemble missing inputs")

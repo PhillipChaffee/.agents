@@ -164,6 +164,14 @@ def _cues(beats: list[dict]) -> list[tuple[float, float, str]]:
     return cues
 
 
+def _discard(*paths: Path) -> None:
+    """Remove what a failed run wrote; a file that cannot be removed leaves the run's own error
+    as the one reported."""
+    for path in paths:
+        with contextlib.suppress(OSError):
+            path.unlink(missing_ok=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = common.lesson_parser("Join the rendered beats and their narration into the lesson's MP4 and SRT.")
     parser.add_argument("--tier", choices=tuple(common.TIERS), required=True, help="the render tier to assemble")
@@ -200,14 +208,13 @@ def main(argv: list[str] | None = None) -> int:
         write_srt(_cues(beats), srt)
     # A beat file ffmpeg cannot read is bad input to this stage, not a failed gate.
     except subprocess.CalledProcessError as exc:
-        final.unlink(missing_ok=True)
+        _discard(final, srt)
         lines = (exc.stderr or "").strip().splitlines()
         reason = lines[-1] if lines else f"exit status {exc.returncode}"
         return common.usage_error(f"{shlex.join(exc.cmd)} failed: {reason}")
     # So is an unwritable out/ or an ffmpeg whose loudnorm report this script cannot read.
     except (OSError, ValueError) as exc:
-        with contextlib.suppress(OSError):
-            final.unlink(missing_ok=True)
+        _discard(final, srt)
         return common.usage_error(f"cannot assemble out/{final.name}: {exc}")
     # The stage's hash holds lesson.tier, not --tier, so only an assemble at the delivery tier
     # stands for it; another tier's outputs leave the delivery tier's files and stage as they were.

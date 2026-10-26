@@ -2,116 +2,35 @@
 
 [![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-My personal agent kit — add-ons for my everyday coding workflow. The main
-flow is [Matt Pocock's skills](https://github.com/mattpocock/skills),
-installed separately; this kit layers on top of it: a combined two-tier code
-review, tiered research, worktree discipline, always-applied rules, and a
-harness-neutral port of [pstack](https://github.com/cursor/plugins/tree/main/pstack)
-for rigorous, playbook-driven work. Published as
-an [.agents Protocol](https://dotagentsprotocol.com) repo: the layout is
-vendor-neutral, version-controllable, and installable into any conformant
-consumer.
+My public agent setup, synced from `~/.agents`. Home additions, edits, and
+deletions define the published agent content. Repository documentation,
+installation, validation, and CI live alongside that content. A port of
+[pstack](https://github.com/cursor/plugins/tree/main/pstack) adds playbooks
+for rigorous coding, design, verification, and review.
 
-## The workflow
+## Contents
 
-My main flow is Matt Pocock's skills, not part of this kit:
+- **56 active skills:** the 55 pstack skills below, plus `writing-skills` from
+  [Superpowers](https://github.com/obra/superpowers). Its companion plugin skills
+  and runtime guides remain external dependencies.
+- **Seven agents:** the five research agents (`researcher-lite`, `researcher-mid`,
+  `researcher-deep`, `research-planner`, `research-synthesizer`) plus pstack's
+  `poteto-agent` and `comment-sicko`.
+- **Four rules:** `look-it-up`, `new-repo-setup`, `opencode-config-profiles`, and
+  `sleeps-and-polling`. Profile names and paths describe my setup, not required
+  consumer configuration.
+- **37 disabled skills:** the dated Matt Pocock archive in `skills-disabled/`.
+  These are preserved as source, not installed or activated.
 
-1. **Grill the idea** (`/grill-with-docs`) — interview it sharp, record decisions in `CONTEXT.md`
-2. **Spec it** (`/to-spec`), **split tickets** (`/to-tickets`) with blocking edges
-3. **Implement** each ticket (`/implement` driving `/tdd`), fresh context per ticket
-4. **Close with `/code-review`** — served by this kit's combined two-tier review (see below)
+`agents.kit.md` mirrors the home instruction file and installs as
+`~/.agents/agents.md`. The repository's own `agents.md` is separate.
+The lockfiles record public upstream provenance; `.kit-stamp` is generated
+installation state and is not published. Home `scripts/` are not published.
 
-`/triage` is the on-ramp for incoming issues; `/wayfinder` charts efforts too large
-for one session. For a task that needs rigor more than ceremony, `/poteto-mode`
-(see [pstack](#pstack-rigor-mode-and-playbooks) below) matches it to a playbook and
-runs the right skills as the steps fire.
-
-### Install the main flow first
-
-```sh
-npx skills@latest add mattpocock/skills
-```
-
-Pick the skills you want; run `/setup-matt-pocock-skills` once per repo to
-record the issue tracker, triage labels, and domain-doc layout in
-`docs/agents/`. Two names overlap deliberately: this kit's `code-review`
-(combined two-tier) and `research` (tiered, repo-file output) replace his
-two-axis `code-review` and `research` — skip those two when picking, or
-uninstall his copies after, so the kit's versions own the names. The pstack
-skills route `/tdd` and `/create-skill` to his copies, so keep those two.
-
-## What this kit adds
-
-The pieces his set doesn't ship, by what they get you in the flow:
-
-- **Worktree discipline** — every mutating agent session works in a git
-  worktree under `~/worktrees/`, never in the main checkout
-- **A more in-depth code review** — the combined two-tier review: a standard
-  two-axis pass, then when warranted a deep tier with a specialist subagent
-  panel, an adversarial verifier, a walkthrough, and fixes applied in place
-- **A better research skill** — tiered research from a direct answer up to a
-  full research→synthesis pipeline, writing a cited
-  `docs/research/<topic>.md` for the main flow to consume
-- **A rigor mode with playbooks** — pstack's `/poteto-mode` matches a task to
-  one of 23 playbooks (bug fix, feature, perf, babysit, shipping, orchestrate,
-  …), cites 24 one-principle skills, and routes to `how`, `why`, `architect`,
-  `arena`, `swarm`, `interrogate`, and the rest as the steps need them; ported
-  so it runs on any harness, any model provider, and any forge
-- **Specific subagent behavior** — delegation rules: when to work inline
-  versus dispatch, self-contained prompts, curated-not-pasted output, model
-  tiers pinned by the harness rather than the kit
-- **A look-it-up policy** — no answers from memory when a source exists;
-  official docs first, citations included
-- **New projects set up with full linting** — the `full-lint` reference
-  repo's `init-<lang>-repo` skills bootstrap a new project with the
-  strictest workable lint, type-check, docstring, formatter, and coverage
-  gates
-
-### What's inside
-
-#### Skills (57)
-
-The kit's own:
-
-| Skill | What it does |
-| --- | --- |
-| `code-review` | Two-tier review: standard = two-axis (Standards + Spec); deep = specialist panel + verifier + walkthrough + applied fixes |
-| `research` | Tiered research: direct answers, background research, or a full research→synthesis pipeline; Tier 2/3 write a cited file to `docs/research/` for the main flow to consume |
-
-The 55 pstack skills are listed under [pstack](#pstack-rigor-mode-and-playbooks).
-
-#### Sub-agents (18)
-
-| Group | Agents |
-| --- | --- |
-| Code review | `cr-planner`, `cr-security`, `cr-correctness`, `cr-performance`, `cr-architecture`, `cr-organization`, `cr-test-quality`, `cr-deployment-safety`, `cr-simplification`, `cr-verifier`, `cr-implementer` |
-| Research | `researcher-lite`, `researcher-mid`, `researcher-deep`, `research-planner`, `research-synthesizer` |
-| pstack | `poteto-agent` (the delegate wrapper for `/poteto-mode` runs), `comment-sicko` (the comment reviewer behind `/no-comments`) |
-
-#### Rules (7)
-
-| Rule | What it covers |
-| --- | --- |
-| `code-organization` | Every symbol goes where a reader would look; moves carry tests, imports, and patch targets along |
-| `comment-style` | Comments carry why, not what; present state only, host-docstring density |
-| `git-worktrees` | Mutating agent sessions work in a worktree under `~/worktrees/`; the main checkout stays unedited |
-| `look-it-up` | Look up what can be looked up — official docs first, then primary sources, cited |
-| `minimal-changes` | Smallest change that works; delete over work around |
-| `subagents` | Inline only for narrow checks; delegate the rest in parallel; self-contained prompts, curated output |
-| `writing-voice` | Opt-in: fill-in template for your own writing voice |
-
-Distilled into `agents.kit.md`, installed as `~/.agents/agents.md` (the
-auto-loaded instruction layer); full
-text in [rules/](rules/). The kit carries **no language rules** — per-language lint,
-type, docstring, and coverage enforcement lives in the
-[full-lint](https://github.com/PhillipChaffee/full-lint) reference
-repo, applied per project by its `init-<lang>` skills; the kit's own repo-wide
-hygiene gates are copied from that repo.
-
-#### Domain docs
-
-`CONTEXT.md` (glossary) + `docs/agents/` (tracker, triage labels,
-domain-doc consumer rules).
+The home-imported third-party directories retain their source bytes. Their formatting and
+example links are excluded from cosmetic lint, but not from secret scanning.
+See [third-party notices](THIRD-PARTY-NOTICES.md) for licenses and pinned sources.
+Historical design decisions are retained in [docs/adr/](docs/adr/).
 
 ## pstack: rigor mode and playbooks
 
@@ -119,9 +38,8 @@ domain-doc consumer rules).
 Cursor plugin for writing less, higher-quality code: one entry skill that
 routes a task to a playbook, a set of principles it cites by name, and
 situational skills for understanding, designing, verifying, and shipping.
-This kit carries a port of pstack 0.15.32 that keeps every skill's steps and
-voice and changes only what tied it to one harness, one model provider, or
-one forge (ADR-0008):
+This kit carries a port of pstack 0.15.32 with harness, model, and forge
+adapters (ADR-0008), plus safety fixes for cleanup and generated output paths:
 
 - **Any harness.** Cursor tool names, subagent fields, paths, and features are
   replaced by a neutral vocabulary, mapped to Cursor, Claude Code, and
@@ -141,11 +59,14 @@ Get started: run `/setup-pstack` once, then type `/poteto-mode` and describe
 the task with a way to check it. The [pstack guide](docs/pstack-guide/README.md)
 walks through a first task; `/poteto-help` answers "which skill?" questions.
 
-Not ported: `tdd` (the main flow's `/tdd` serves), `typescript-best-practices`
+Not ported: `tdd` (use an external `/tdd` skill), `typescript-best-practices`
 (ADR-0002), `make-bot-ui` (a Grok Bot feature), the `benny` automation pack
 (Cursor Automations only), and the GitHub-bound `watch-pr` and `orch` tools;
 the babysit and orchestrate playbooks describe the same loops over forge
 operations and plain files.
+
+`/tdd` and `/create-skill` remain external dependencies; install them separately.
+Their presence in a disabled archive does not activate them.
 
 <details>
 <summary>the 23 playbooks</summary>
@@ -252,43 +173,36 @@ operations and plain files.
 ## Install
 
 ```sh
-git clone https://github.com/PhillipChaffee/.agents.git && cd .agents && ./scripts/install.sh --target agents
+git clone https://github.com/PhillipChaffee/.agents.git
+cd .agents
+./scripts/install.sh --target agents
 ```
 
-Installs into `~/.agents/` (protocol layout, lowercase `skill.md`), read by
-protocol consumers such as OpenCode. The installer is non-destructive by
-default: it manages only the paths in its own stamp manifest, skips unstamped
-files that differ (use `--force`), and supports `--dry-run`, `--prune`,
-`--uninstall`, and `--pull` (reverse-sync edits from the target back into the
-repo). A skill ships every file under its directory, including the node and
-shell scripts a few pstack skills run.
+The installer copies active skills and their assets, agents, rules, the home
+instruction file, and license notices into `~/.agents`. It does not install
+the disabled archive, source lockfiles, or repository-only scripts.
+Skill entry points retain both `skill.md` and `SKILL.md` spellings for tools
+that require the uppercase filename on case-sensitive filesystems.
 
-On install you choose your harness's fast/main/deep models and the installer
-writes a consumer-local `models.json` beside the kit — the kit itself pins no
-models. The pstack roles resolve to those tiers; run `/setup-pstack` to pin a
-role to a specific model or build a cross-family review panel. MCP setup is
-printed as guidance, never written.
+Unstamped files that differ are skipped unless `--force` is supplied. Managed
+files can be overwritten: preserve local edits before reinstalling. `--dry-run`
+previews changes; `--prune` removes obsolete managed files; `--uninstall` removes
+managed files while preserving unmanaged files. `--pull` updates existing
+mapped source files only; it does not import new paths or deletions.
 
-## Prerequisites and notes
+An interactive installation records consumer-local fast/main/deep choices in
+`models.json`; `/setup-pstack` can configure individual role overrides.
 
-- The Matt Pocock skills listed above are the assumed workflow environment;
-  install them separately (see [the workflow](#the-workflow)).
-- The kit is forge-agnostic: its skills, rules, and agents reference no
-  specific code host. Issue tracking is per-repo configuration, recorded by
-  `/setup-matt-pocock-skills` in `docs/agents/issue-tracker.md` — GitHub,
-  GitLab, or Linear all work. The pstack playbooks add a table of pull
-  request operations to that file; this repo's copy maps them to `gh`.
-- Sub-agents run on whatever subagent model your harness configures; swap in
-  your own tiers — nothing here references a vendor model.
-- Never commit provider keys or tokens anywhere in this kit.
+Configure models and MCP servers in your harness. Never commit provider keys,
+tokens, or private configuration.
 
-## Credits
+## Checks
 
-README presentation, the setup-skill pattern, and the installer UX are
-inspired by [Matt Pocock's skills repo](https://github.com/mattpocock/skills).
-The pstack skills, playbooks, principles, agents, and guide are
-[Lauren Tan's pstack](https://github.com/cursor/plugins/tree/main/pstack),
-MIT-licensed; the notice is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-This repo follows the [.agents Protocol](https://dotagentsprotocol.com),
-tracking the current draft. Kit content is my own, MIT-licensed — borrow
-freely.
+```sh
+./scripts/validate.sh
+python3 -m unittest discover -s tests
+node --test tests/*.test.mjs
+```
+
+CI also checks spelling, Markdown, links, secrets, duplicated code, shell
+scripts, and workflow configuration.

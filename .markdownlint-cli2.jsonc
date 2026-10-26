@@ -16,5 +16,7 @@
     // shell blocks are the script's own style, not doc sloppiness
     "MD010": { "code_blocks": false }
   },
-  "globs": ["**/*.md"]
+  "globs": ["**/*.md"],
+  // Home and upstream copies retain their source bytes, including formatting.
+  "ignores": ["agents.kit.md", "rules/new-repo-setup.md", "skills/writing-skills/**", "skills-disabled/**"]
 }

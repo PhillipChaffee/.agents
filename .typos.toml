@@ -1,3 +1,7 @@
+# Public upstream copies retain their original spelling and examples.
+[files]
+extend-exclude = ["skills/writing-skills", "skills-disabled"]
+
 # Spell-check configuration. Default dictionary on; every non-default entry
 # carries its reason. The root file is the union this repo needs (it scans
 # all four languages); the python/ and typescript/ folder canonicals carry

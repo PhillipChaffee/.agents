@@ -13,7 +13,7 @@ pstack skills are written in a neutral vocabulary. This file maps each neutral t
 | A `poteto-agent` or `comment-sicko` subagent | `subagent_type: "<id>"` when the kit's agents are registered; otherwise a general-purpose subagent with `<kit>/agents/<id>/agent.md` inlined in the brief | Same rule. Registered kit agents may carry a prefix in the type name. | Same rule |
 | A read-only subagent | `readonly: true` | `subagent_type: "Explore"`. It keeps `Bash`, so the brief also says "do not edit files", and you check `git status` afterward. | The read-only agent type when there is one; otherwise the default agent with edits forbidden in the brief |
 | A read-write subagent | `readonly: false` (agent mode). Read-only mode strips MCP access. | `general-purpose`. It keeps the session's MCP servers. | The default agent |
-| An isolated-worktree subagent | `environment: "cloud"`, or a worktree you create per the kit's `git-worktrees` rule | `isolation: "worktree"`. Name the branch or commit the worker checks out. | Create the worktree per the kit's `git-worktrees` rule and point the subagent at it |
+| An isolated-worktree subagent | `environment: "cloud"`, or a separate worktree on a new branch from the requested commit | `isolation: "worktree"`. Name the branch or commit the worker checks out. | Create a separate worktree on a new branch from the requested commit and point the subagent at it; do not reuse another worker's tree |
 | A subagent on this machine | `environment: "local"` | Omit `isolation` | The default |
 | "Tell the worker to check out `<b>` first" | `cloud_base_branch: <b>` | Say it in the brief | Say it in the brief |
 | In the background | `run_in_background: true` | Omit. Subagents run in the background and notify you when they finish. | Per the harness |
@@ -48,7 +48,7 @@ Read only the active workspace's transcripts. Never glob across other workspaces
 | The user's skills directory | `~/.cursor/skills/` | `~/.claude/skills/` | `~/.agents/skills/` |
 | An always-applied rule | `.cursor/rules/<name>.mdc` with `alwaysApply: true`, or `~/.cursor/rules/` | `CLAUDE.md`, or a file in `~/.claude/rules/` | `agents.md`, or a file in `~/.agents/rules/` |
 | The `pstack-models` role file | `~/.cursor/rules/pstack-models.mdc` | `~/.claude/rules/pstack-models.md` | `~/.agents/rules/pstack-models.md` |
-| A harness-managed worktree directory | `.cursor/worktrees/<repo>/<name>` | The directory `isolation: "worktree"` creates | `~/worktrees/<repo>/<branch>` per the kit's `git-worktrees` rule |
+| A harness-managed worktree directory | `.cursor/worktrees/<repo>/<name>` | The directory `isolation: "worktree"` creates | The project's configured worktree directory, such as `~/worktrees/<clone>/<branch>` |
 | The agent store (a durable scratch directory the system prompt names) | The agent store path in the system prompt | The scratchpad directory in the system prompt | A directory you create outside the repo and name in your reply |
 
 ## Project features

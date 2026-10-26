@@ -9,8 +9,8 @@ Ported pstack 0.15.32 into the kit as harness-, model-, and forge-neutral skills
   its 23 playbooks, 24 `principle-*` skills, and the situational skills
   (`how`, `why`, `architect`, `arena`, `swarm`, `interrogate`, `reflect`,
   `correct`, `statechart`, the verification-skill generators, and the rest);
-  skills 2 → 57
-- Two new sub-agents, `poteto-agent` and `comment-sicko`; sub-agents 16 → 18
+  active skills 1 → 56
+- Two new sub-agents, `poteto-agent` and `comment-sicko`; sub-agents 5 → 7
 - The pstack guide under `docs/pstack-guide/`
 - Three references under `poteto-mode` carry the neutral vocabulary: model
   roles resolving to the installer's fast/main/deep tiers plus an optional
@@ -30,6 +30,21 @@ Ported pstack 0.15.32 into the kit as harness-, model-, and forge-neutral skills
 - Review aid: the first port commit is a verbatim import, so
   `git diff <that commit> -- <file>` shows every wording change against
   upstream and `git checkout` of it restores upstream's text per file
+- Safety fixes hold worktrees with untracked or ignored data, stop cleanup on
+  inspection failure, and confine model-generated filenames to their run's
+  temporary directory. Offline CLI regression tests reproduce both defects.
+
+Synced the approved home setup, including deletions.
+
+- Removed eleven review agents, six rules, and the `code-review` and `research`
+  skills absent from the home tree; retained five research agents.
+- Imported `writing-skills`, four current rules, the home instruction file,
+  public provenance lockfiles, and the 37-skill disabled archive.
+- Excluded home scripts and the generated installation stamp from publication.
+- Retained repository support and added upstream license notices. Byte-preserved
+  upstream copies are excluded from cosmetic lint, not secret scanning.
+- Installations include all skill assets and legal notices; pruning removes
+  retired managed paths without removing unmanaged files.
 
 Stripped the owner's work stack from the review Agents (#22).
 

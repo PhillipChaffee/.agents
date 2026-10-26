@@ -1,64 +1,20 @@
-# Agent Guidelines
+# Repository guidance
 
-This file is this repo's own instruction layer: the distilled conventions
-below govern sessions working on this repo, and the Agent skills section
-configures this repo's own tooling. The kit ships the consumer copy — the
-same distillation without the repo sections — from `agents.kit.md`, installed
-as `~/.agents/agents.md` (the protocol home). Full rule texts live in
-`rules/`.
+This repository publishes the approved contents of the owner's `~/.agents`.
+`agents.kit.md` is the home instruction file, installed as `~/.agents/agents.md`;
+this file contains repository-only guidance.
 
-## Always-applied conventions
+## Sync boundaries
 
-### code-organization
+- Carry additions, edits, and deletions into `agents/`, `rules/`, and `skills/`.
+- Keep `skills-disabled/` as an archive; do not install or activate it.
+- Do not import home `scripts/`, credentials, or the generated `.kit-stamp`.
+- Preserve upstream skill bytes and their notices. Check secrets in upstream
+  copies even when their formatting and example links are excluded from lint.
+- Retain repository documentation, installation, validation, and CI support.
 
-Every new symbol goes where a reader would look for it: entry points stay thin (wiring only), data shapes go in the package's models/types module, generic helpers in the existing utils/helpers module — always search for an existing implementation first. When moving a symbol, move its tests, update imports and test patch/mock targets in the same change; renames and pure moves are their own commits. Grab-bag files must not accumulate unrelated functions; tests mirror source layout.
+## Repository tooling
 
-Full text: [rules/code-organization.md](rules/code-organization.md)
-
-### comment-style
-
-Comments add context the code cannot convey — why, not what; delete comments that restate the code. Present state only (no "moved", "was", "previously"; no roadmap language like "for now" or "until X lands"). Shared or leaf code never references "the caller". Never create a lone `Args:`/`Returns:` section for one new parameter; match the host docstring's density.
-
-Full text: [rules/comment-style.md](rules/comment-style.md)
-
-### git-worktrees
-
-Every session that mutates a repo — code, docs, skills, config — works in a Git worktree at `~/worktrees/<clone-dir-basename>/<branch>`; the main checkout is never edited, and read-only sessions need none. Starting in the main checkout, announce the path, create the worktree on a new branch (`<issue#>-<slug>` with an issue, bare slug otherwise), and continue there; resume existing work in its existing worktree. After merge or abandonment, remove the worktree and delete its branch — ask first when uncommitted changes exist.
-
-Full text: [rules/git-worktrees.md](rules/git-worktrees.md)
-
-### look-it-up
-
-Do not answer from memory when the answer can be looked up (APIs, tools, flags, config, error messages, version-specific behavior). Source order: official docs, then primary sources (code, changelogs, maintainer issues), then proven writeups only when official docs are missing. Cite the source; prefer official docs on conflict and say so; state explicitly when no reliable source exists.
-
-Full text: [rules/look-it-up.md](rules/look-it-up.md)
-
-### minimal-changes
-
-Limit edits to only the files and lines necessary — no tangential refactors or "while I'm here" improvements unless requested. Search for existing functions before writing new logic; extract a shared utility when the same pattern appears twice. Deleting code is preferred over working around it.
-
-Full text: [rules/minimal-changes.md](rules/minimal-changes.md)
-
-### subagents
-
-Work inline only for user-specified reads, quick lookups, known facts, or narrow checks mid-edit; delegate unfamiliar code, multi-file tracing, debugging, reviews, tradeoff analysis, and research — independent threads in parallel. The kit pins no models (ADR-0001): subagents run on the harness's configured subagent model, and a configured deep-thinking tier is reserved for rare, bounded, thinking-only work on a complete evidence packet with tools forbidden in the prompt. Dispatch prompts are self-contained; curate raw subagent output before presenting it; never paste it. `readonly: true` is wrong for researchers needing web/MCP access — forbid edits in the prompt instead.
-
-Full text: [rules/subagents.md](rules/subagents.md)
-
-## Optional rules
-
-- [writing-voice](rules/writing-voice.md) — fill-in template for your own writing voice; replace placeholders and enable `alwaysApply` before use.
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in GitHub Issues on this repo, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage roles use their default label strings. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context layout: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+- Issues: GitHub Issues through `gh`; see [issue tracker](docs/agents/issue-tracker.md).
+- Triage: see [triage labels](docs/agents/triage-labels.md).
+- Domain docs: `CONTEXT.md` and `docs/adr/`; see [domain](docs/agents/domain.md).

@@ -86,6 +86,8 @@ build_mapping() {
 	for skill_dir in skills/*/; do
 		id=$(basename "$skill_dir")
 		printf 'skills/%s/SKILL.md\tskills/%s/skill.md\n' "$id" "$id"
+		# Upstream tools also open SKILL.md on case-sensitive filesystems.
+		printf 'skills/%s/SKILL.md\tskills/%s/SKILL.md\n' "$id" "$id"
 		while IFS= read -r f; do
 			rel=${f#./}
 			case "$rel" in
@@ -106,6 +108,9 @@ build_mapping() {
 	# collision with a pre-existing unstamped ~/.agents/agents.md (SKIP
 	# unless byte-identical or --force).
 	printf 'agents.kit.md\tagents.md\n'
+	for f in LICENSE THIRD-PARTY-NOTICES.md; do
+		[ ! -f "$f" ] || printf '%s\t%s\n' "$f" "$f"
+	done
 }
 
 MAPPING=$(build_mapping)
@@ -227,7 +232,7 @@ EOF
 		if grep -Fxq -- "$p" "$MANIFEST_TMP"; then
 			continue
 		fi
-		if [ -f "$STAMP_DIR/$p" ]; then
+		if [ "$PRUNE" -eq 0 ] && [ -f "$STAMP_DIR/$p" ]; then
 			printf '%s\n' "$p" >>"$MANIFEST_TMP"
 		fi
 	done <<EOF
@@ -258,7 +263,7 @@ MCP setup (configure in your harness's own config; the kit never writes MCP file
   GitHub   https://github.com/github/github-mcp-server
   GitLab   https://docs.gitlab.com/ee/user/gitlab_duo/mcp/
   Linear   https://mcp.linear.app/sse
-Models: the kit pins none; configure your harness's subagent model (see rules/subagents.md).
+Models: configure model choices in your harness; the kit does not select them.
 done: target=agents version=$KIT_VERSION wrote/updated=$wrote skipped=$skipped
 GUIDE
 }

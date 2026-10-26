@@ -10,6 +10,7 @@ import argparse
 import configparser
 import importlib
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -142,6 +143,81 @@ class TestVocabularies(unittest.TestCase):
         for pin in ("manim==0.22.0", "soundfile==0.14.0", "elevenlabs==2.74.1", "num2words==0.5.14", "Pillow==13.0.0"):
             self.assertIn(pin, text)
         self.assertEqual((SCRIPTS_DIR / "requirements-kokoro.txt").read_text().strip(), "kokoro==0.9.4")
+
+
+class TestErrorTable(unittest.TestCase):
+    def test_error_table_rows(self):
+        self.assertEqual(len(common.ERROR_TABLE), 24)
+        for row in common.ERROR_TABLE:
+            self.assertIsInstance(row.pattern, re.Pattern)
+            self.assertNotIn("\\|", row.pattern.pattern)
+            for field in (row.gl_idiom, row.ce_replacement, row.fix_text):
+                self.assertTrue(field.strip())
+        self.assertTrue(common.ERROR_TABLE[6].pattern.search("TypeError: cannot be converted to an animation"))
+        self.assertTrue(common.ERROR_TABLE[12].pattern.search("You need dvisvgm at least version 2.4"))
+        self.assertIn("preflight.py", common.ERROR_TABLE[23].fix_text)
+
+    def test_match_error_first_row(self):
+        log = "Traceback\nTypeError: Passing Mobject methods to Scene.play is no longer supported. Use Mobject.animate instead.\n"
+        self.assertEqual(common.match_error(log).ce_replacement, "self.play(mob.animate.shift(UP))")
+        self.assertIsNone(common.match_error("File ready at out.mp4"))
+        self.assertEqual(common.match_error("ValueError: latex error converting to dvi. See log output above").gl_idiom,
+                         common.ERROR_TABLE[11].gl_idiom)
+
+    def test_each_row_matches_its_own_message(self):
+        # The text each failure writes to render.log: CE 0.22.0's message at the row's cited
+        # line, render.py's line for row 16, pip's for row 24, the symptom wording for row 15.
+        # A mistyped pattern, or an earlier row that shadows a later one, fails here.
+        samples = (
+            (1, "TypeError: Passing Mobject methods to Scene.play is no longer supported."
+                " Use Mobject.animate instead."),
+            (2, "ValueError: Called Scene.play with no animations"),
+            (3, "ValueError: Scene.play() has a run_time of 0 <= 0 seconds which Manim cannot render."),
+            (4, "Exception: Trying to restore without having saved"),
+            (5, "ValueError: MoveToTarget called on mobjectwithout attribute 'target'"),
+            (6, "TypeError: Only values of type VMobject can be added as submobjects of VGroup, but the value"
+                " Group (at index 0 of parameter 0) is of type Group."
+                " You can try adding this value into a Group instead."),
+            (7, "TypeError: Animation only works on Mobjects"),
+            (7, "TypeError: Object [FadeIn(Square)] cannot be converted to an animation"),
+            (8, "ValueError: Animation arguments must be passed before accessing methods"
+                " and can only be passed once"),
+            (9, "NotImplementedError: Method chaining is currently not supported for overridden animations"),
+            (10, "AttributeError: 'Camera' object has no attribute 'frame'"),
+            (11, "AttributeError: Square object has no attribute 'replicate'"),
+            (12, "ValueError: latex error converting to dvi. See log output above or the log file: media/Tex/a.log"),
+            (13, "ValueError: Your installation does not support converting .dvi files to SVG."
+                 " Consider updating dvisvgm to at least version 2.4."),
+            (14, "WARNING  Font Comic Sans not in ['DejaVu Sans', 'Noto Sans']."),
+            (15, "the updaters did nothing"),
+            (16, "mtv: beat s01-b02 missing from the section index"),
+            (17, "ValueError: --output_file can only be used when rendering exactly one scene."
+                 " Remove --write_all or select a single scene."),
+            (18, "ValueError: MP4 output does not support an alpha channel. Use --format=mov or --format=webm for"
+                 " transparent video."),
+            (19, "   There are no scenes inside that module"),
+            (19, "   NeuronScene is not in the script"),
+            (20, "ValueError: Too few rows and columns to fit all"),  # CE's last word is misspelled
+            (21, "ValueError: Alpha 1.5 not between 0 and 1."),
+            (22, "ValueError: A static Wait animation cannot have a stop condition."),
+            (23, "TypeError: Expected all inputs for parameter mobjects to be a Mobjects"),
+            (24, "ERROR: Ignored the following versions that require a different python version:"
+                 " 0.22.0 Requires-Python >=3.11"),
+        )
+        self.assertEqual({row for row, _ in samples}, set(range(1, 25)))
+        for row, message in samples:
+            with self.subTest(row=row, message=message):
+                self.assertIs(common.match_error(message), common.ERROR_TABLE[row - 1])
+
+    def test_error_table_matches_manimce_reference(self):
+        ref = SKILL_DIR / "references" / "manimce.md"
+        if not ref.exists():
+            print("SKIP error table: references/manimce.md not present (M2 writes it)")
+            raise unittest.SkipTest("references absent")
+        text = ref.read_text()
+        for row in common.ERROR_TABLE:
+            self.assertIn(row.gl_idiom, text)
+            self.assertIn(row.ce_replacement, text)
 
 
 def main() -> int:

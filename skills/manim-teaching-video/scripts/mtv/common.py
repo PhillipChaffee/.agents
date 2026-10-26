@@ -11,7 +11,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 try:
     from num2words import num2words as _num2words
@@ -278,3 +278,217 @@ def load_valid_lesson(path: Path) -> tuple[dict, list[str]]:
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         return {}, [f"cannot read {path}: {exc}"]
     return lesson, lesson_module.validate(lesson)
+
+
+class ErrorRow(NamedTuple):
+    """A known render failure: the text that identifies it in ``render.log``, its cause
+    (usually a ManimGL habit), the ManimCE fix, and the one sentence a retry carries."""
+
+    pattern: re.Pattern
+    gl_idiom: str
+    ce_replacement: str
+    fix_text: str
+
+
+# Each pattern is the message text ManimCE 0.22.0 writes at the cited line, so a CE upgrade
+# that rewords a message needs that row checked. Order matters only where one log could
+# match two rows: match_error returns the first.
+ERROR_TABLE: tuple[ErrorRow, ...] = (
+    # manim/scene/scene.py:1020-1031
+    ErrorRow(
+        re.compile(r"Passing Mobject methods to Scene\.play"),
+        "self.play(mob.shift, UP)",
+        "self.play(mob.animate.shift(UP))",
+        "Animate the method through .animate, as in self.play(mob.animate.shift(UP)), instead of passing the"
+        " bound method and its arguments to play.",
+    ),
+    # manim/scene/scene.py:1338
+    ErrorRow(
+        re.compile(r"Called Scene\.play with no animations"),
+        "self.play(*[])",
+        "guard empty lists before play",
+        "Guard empty lists before play, so a call whose unpacked animation list comes out empty is skipped.",
+    ),
+    # manim/scene/scene.py:1141-1168
+    ErrorRow(
+        re.compile(r"has a run_time of .* <= 0 seconds"),
+        "a run_time computed from audio came out non-positive",
+        "b.until(mark) and b.remaining(), which clamp to one frame",
+        "Pass run_time=b.until(mark) or run_time=b.remaining(), which clamp to one frame, instead of a run_time"
+        " computed from the audio.",
+    ),
+    # manim/mobject/mobject.py:2290-2293
+    ErrorRow(
+        re.compile(r"Trying to restore without having saved"),
+        "Restore(m) without m.save_state()",
+        "save_and_restore_layout(scene, group)",
+        "Make the change inside save_and_restore_layout(scene, group), the context manager that saves the group's"
+        " state before it restores it, instead of a bare Restore(m).",
+    ),
+    # manim/animation/transform.py:432-440
+    ErrorRow(
+        re.compile(r"MoveToTarget called on mobject.*'target'"),
+        "MoveToTarget(m) without generate_target()",
+        "call m.generate_target(), mutate m.target, then MoveToTarget(m)",
+        "Call m.generate_target(), mutate m.target, then play MoveToTarget(m).",
+    ),
+    # manim/mobject/types/vectorized_mobject.py:2352-2362
+    ErrorRow(
+        re.compile(r"You can try adding this value into a Group instead"),
+        "a non-VMobject inside VGroup",
+        "Group(...)",
+        "Collect the members in Group(...), since a VGroup accepts only VMobject members.",
+    ),
+    # manim/animation/animation.py:187,581
+    ErrorRow(
+        re.compile(r"Animation only works on Mobjects|cannot be converted to an animation"),
+        "a list of animations passed unexpanded",
+        "unpack with *",
+        "Unpack the list of animations with *, as in self.play(*anims), so play receives animations, not a list.",
+    ),
+    # manim/mobject/mobject.py:3573-3582
+    ErrorRow(
+        re.compile(r"Animation arguments must be passed before accessing methods"),
+        "mob.animate.shift(UP)(run_time=2)",
+        "mob.animate(run_time=2).shift(UP)",
+        "Pass animation arguments to animate before the method, as in mob.animate(run_time=2).shift(UP).",
+    ),
+    # manim/mobject/mobject.py:3588-3590
+    ErrorRow(
+        re.compile(r"Method chaining is currently not supported for overridden animations"),
+        "chaining after an overridden animate method",
+        "separate play calls",
+        "Split the chain into separate play calls, one for each overridden animate method.",
+    ),
+    # Python's own AttributeError: only MovingCameraScene gives the camera a frame
+    # (manim/scene/moving_camera_scene.py:104-121).
+    ErrorRow(
+        re.compile(r"object has no attribute 'frame'"),
+        "self.camera.frame in a plain Scene",
+        "NarratedCameraScene and zoom_to",
+        "Subclass NarratedCameraScene and move the camera with zoom_to, because a plain scene's camera has no frame.",
+    ),
+    # manim/mobject/mobject.py:904 names the missing method only for replicate, fix_in_frame and
+    # reorient: the property shim above it (mobject.py:867-901) turns a get_ or set_ name into a
+    # getter or setter that raises a TypeError on GL arguments or silently succeeds, so
+    # check_scenes.py's static ban of every name here is what catches those.
+    ErrorRow(
+        re.compile(
+            r"has no attribute '(set_backstroke|get_grid|replicate|fix_in_frame"
+            r"|set_max_width|reorient|set_height|set_width)'"
+        ),
+        "a GL-only method",
+        "the translation rows: set_stroke(BLACK, w, background=True), arrange_in_grid, VGroup(*(m.copy() ...)),"
+        " add_fixed_in_frame_mobjects, scale_to_fit_width, set_camera_orientation, mob.height = h, mob.width = w",
+        "Replace the GL-only method by its translation row: set_stroke(BLACK, w, background=True) for set_backstroke,"
+        " arrange_in_grid for get_grid, VGroup(*(m.copy() ...)) for replicate, add_fixed_in_frame_mobjects for"
+        " fix_in_frame, scale_to_fit_width for set_max_width, set_camera_orientation for reorient, and"
+        " mob.height = h or mob.width = w for set_height or set_width.",
+    ),
+    # manim/utils/tex_file_writing.py:215-224
+    ErrorRow(
+        re.compile(r"latex error converting to"),
+        "LaTeX absent, a missing package or a bad formula",
+        "fix the formula; a missing package is added only in look.py",
+        "Fix the formula, and when the log names a missing LaTeX package, add it only in look.py, never in a scene.",
+    ),
+    # manim/utils/tex_file_writing.py:246-260
+    ErrorRow(
+        re.compile(r"dvisvgm.*(not found|at least version 2\.4)"),
+        "dvisvgm missing or older than 2.4",
+        "install dvisvgm (the D13 package)",
+        "Install the dvisvgm system package, version 2.4 or newer, then rerun preflight.py before rendering again.",
+    ),
+    # manim/mobject/text/text_mobject.py:490
+    ErrorRow(
+        re.compile(r"Font .* not in \["),
+        "a font Pango does not have",
+        "look.pick_font() chooses from FONT_CANDIDATES",
+        "Take the font from look.pick_font(), which chooses an installed one from FONT_CANDIDATES, instead of"
+        " naming a font.",
+    ),
+    # CE writes nothing for this symptom, since it updates only the scene's mobjects
+    # (manim/scene/scene.py:409-419); the row exists for the manimce.md table and for the
+    # text a retry prompt reports.
+    ErrorRow(
+        re.compile(r"updaters? (do|did) nothing|updater (never|not) (ran|called)"),
+        "a mobject or tracker never added to the scene",
+        "self.add(tracker, mob); live_decimal",
+        "Add the tracker and the mobject with self.add(tracker, mob) before animating the tracker, or show a"
+        " tracked value with live_decimal.",
+    ),
+    # Written into render.log by render.py when a beat has no section (CE drops an empty
+    # section, manim/scene/scene_file_writer.py:321-324).
+    ErrorRow(
+        re.compile(r"beat .* missing from the section index"),
+        "a section with no play or wait",
+        "b.remaining() inside the beat; the mixin's exit pad",
+        "Give the beat a play or a self.wait(b.remaining()) inside its with block, so its section holds frames,"
+        " and let the mixin's exit pad finish it.",
+    ),
+    # manim/cli/render/commands.py:64
+    ErrorRow(
+        re.compile(r"--output_file can only be used when rendering exactly one scene"),
+        "-o with several scenes",
+        "rely on default names",
+        "Drop -o and rely on default names, since each scene renders in its own process.",
+    ),
+    # manim/_config/output.py:63-66
+    ErrorRow(
+        re.compile(r"--format=webm for transparent video"),
+        "-t with MP4",
+        "never -t; MP4 only",
+        "Never pass -t, since renders are MP4 only and MP4 has no alpha channel.",
+    ),
+    # manim/constants.py:82-84,89-91; CE logs the second message for a class name the file
+    # does not define (manim/utils/module_ops.py:103).
+    ErrorRow(
+        re.compile(r"There are no scenes inside that module|is not in the script"),
+        "the class is missing or construct is misspelled",
+        "define scene_class exactly as lesson.json names it",
+        "Define scene_class exactly as lesson.json names it, with its method spelled construct.",
+    ),
+    # manim/mobject/mobject.py:2901
+    ErrorRow(
+        re.compile(r"Too few rows and columns to fit all"),
+        "arrange_in_grid(rows, cols) too small",
+        "fix the counts",
+        "Fix the counts so that rows times cols in arrange_in_grid covers every submobject.",
+    ),
+    # manim/mobject/types/vectorized_mobject.py:1660
+    ErrorRow(
+        re.compile(r"Alpha .* not between 0 and 1"),
+        "point_from_proportion out of range",
+        "clamp alpha",
+        "Clamp alpha to the range 0 to 1 before passing it to point_from_proportion.",
+    ),
+    # manim/animation/animation.py:616
+    ErrorRow(
+        re.compile(r"A static Wait animation cannot have a stop condition"),
+        "wait(stop_condition=..., frozen_frame=True)",
+        "drop one of them",
+        "Drop one of them, since a wait takes stop_condition or frozen_frame=True but not both.",
+    ),
+    # manim/mobject/geometry/shape_matchers.py:62
+    ErrorRow(
+        re.compile(r"Expected all inputs for parameter mobjects to be a Mobjects"),
+        "SurroundingRectangle(point)",
+        "pass mobjects",
+        "Pass mobjects to SurroundingRectangle, wrapping a bare point in a Dot first.",
+    ),
+    # CE's pyproject.toml:23; pip's install message, which never reaches render.log.
+    ErrorRow(
+        re.compile(r"requires-python|Requires-Python|python_requires"),
+        "an interpreter outside 3.11 or 3.12",
+        "uv venv --python 3.12",
+        "Recreate the venv with uv venv --python 3.12; preflight.py is the detector for an interpreter outside"
+        " 3.11 or 3.12, so rerun it before rendering.",
+    ),
+)
+
+
+def match_error(log_text: str) -> ErrorRow | None:
+    for row in ERROR_TABLE:
+        if row.pattern.search(log_text):
+            return row
+    return None

@@ -3066,6 +3066,22 @@ class TestPatterns(unittest.TestCase):
         # Roles the lesson omits keep the default palette.
         self.assertEqual(look.role_color("emphasis").to_hex(), manim.PURE_YELLOW.to_hex())
 
+    def test_load_lesson_binds_the_lesson_palette(self):
+        # Through the real binding: load_lesson hands the lesson's colors to look.apply.
+        look = importlib.import_module("mtv.look")
+        manim = importlib.import_module("manim")
+        narrated_mod = importlib.import_module("mtv.narrated")
+        self.addCleanup(look.use_palette, None)
+        lesson_path = example_run_dir(Path(self.enterContext(Scratch()))) / "lesson.json"
+        lesson = mtv_lesson.load(lesson_path)
+        lesson["colors"]["weight_pos"] = "GREEN"
+        mtv_lesson.save(lesson, lesson_path)
+        narrated_mod.NarratedScene().load_lesson("s01", lesson_path)
+        net = self.patterns.LayeredNetwork([2, 3], seed=1)
+        positive = [e for e in net.edges if e.get_stroke_color().to_hex() != manim.RED.to_hex()]
+        self.assertTrue(positive)
+        self.assertTrue(all(e.get_stroke_color().to_hex() == manim.GREEN.to_hex() for e in positive))
+
     def test_focus_keeps_draw_order_and_never_brightens(self):
         manim = importlib.import_module("manim")
         net = self.patterns.LayeredNetwork([2, 3], seed=1)

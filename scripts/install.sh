@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Sync kit content from this repo (canonical) into ~/.agents (the .agents
 # protocol layout). Non-destructive by default; manages only paths listed in
-# its own stamp manifest. Skill assets retain their source bytes and modes.
+# its own stamp manifest. A skill ships every file under its directory
+# (playbooks, references, and the scripts some skills run), not only markdown.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -188,6 +189,8 @@ copy_one() {
 	else
 		mkdir -p "$(dirname "$dest_abs")"
 		cp "$src_abs" "$dest_abs"
+		# cp keeps a pre-existing destination's mode, so a skill script that
+		# gained its executable bit after first install still runs.
 		if [ -x "$src_abs" ]; then
 			chmod +x "$dest_abs"
 		fi

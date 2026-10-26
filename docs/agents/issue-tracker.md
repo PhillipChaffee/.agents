@@ -43,3 +43,28 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
 - **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+
+## Pull request operations
+
+The pstack playbooks name forge operations (defined in `skills/poteto-mode/references/forge-operations.md`) and leave the command to this file. On this repo they resolve to `gh`:
+
+| Operation | Command |
+| --- | --- |
+| open PR | `gh pr create --base <branch> --title "..." --body-file <file>` (never `--draft`) |
+| view PR | `gh pr view <n> --json state,baseRefName,headRefOid,mergeable,mergeStateStatus,isDraft,url` |
+| PR for branch | `gh pr list --head <branch> --state open --json number,state,baseRefName` |
+| list PRs | `gh pr list --author @me --state all --limit 1000 --json number,state,headRefName,baseRefName` |
+| list checks | `gh pr checks <n> --json name,state,conclusion,link` |
+| watch checks | `gh pr checks <n> --watch` |
+| job log | `gh run view <run-id> --log-failed` |
+| rerun checks | `gh run rerun <run-id>` (a whole run, never `--failed`) |
+| list review threads | `gh api graphql` over `pullRequest.reviewThreads` with `isResolved`, `comments.author.login`, `path`, `line`, `body` |
+| reply to thread | `gh api --method POST repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies --input <payload.json>` |
+| resolve thread | `gh api graphql` mutation `resolveReviewThread` |
+| edit PR | `gh pr edit <n> --base <branch>` / `--title` / `--body-file <file>` |
+| mark ready | `gh pr ready <n>` |
+| merge PR | `gh pr merge <n> --squash`, then read back with view PR |
+| arm auto-merge | `gh pr merge <n> --squash --auto` |
+| PR history | `gh pr view <n> --json title,body,author,createdAt,mergedAt,labels,closingIssuesReferences,comments,reviews` |
+
+`worktree-audit.sh` takes the list PRs command through `WORKTREE_AUDIT_PR_CMD`, for example `gh pr list --author @me --state all --limit 1000 --json number,state,headRefName | jq '[.[] | {number, state, head: .headRefName}]'`.

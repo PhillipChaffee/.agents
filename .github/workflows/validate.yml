@@ -16,6 +16,8 @@ jobs:
       - run: ./scripts/validate.sh
       - name: Installation regression tests (sandboxed)
         run: python3 -m unittest discover -s tests
+      - name: Data-safety CLI regression tests (offline)
+        run: node --test tests/*.test.mjs
       - name: Install smoke test (sandboxed)
         run: |
           SBX=$(mktemp -d)
@@ -27,6 +29,13 @@ jobs:
           test -f "$SBX/.agents/THIRD-PARTY-NOTICES.md"
           test -f "$SBX/.agents/rules/look-it-up.md"
           test -f "$SBX/.agents/agents.md"
+          test -f "$SBX/.agents/skills/poteto-mode/skill.md"
+          test -f "$SBX/.agents/skills/poteto-mode/playbooks/feature.md"
+          test -f "$SBX/.agents/skills/poteto-mode/references/model-roles.md"
+          test -x "$SBX/.agents/skills/show-me-your-work/scripts/log.sh"
+          test -f "$SBX/.agents/skills/statechart/scripts/statechart.mjs"
+          test -f "$SBX/.agents/skills/principle-prove-it-works/skill.md"
+          test -f "$SBX/.agents/agents/poteto-agent/agent.md"
           rm -rf "$SBX"
 
   # Hygiene job copied verbatim from PhillipChaffee/full-lint

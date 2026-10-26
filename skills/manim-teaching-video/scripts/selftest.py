@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import concurrent.futures
 import configparser
 import importlib
 import json
@@ -1689,6 +1690,180 @@ class TestFixtures(unittest.TestCase):
         self.assertEqual(check_scenes.lint_source(source, lesson), [])
 
 
+# Section 5.7's note, five physical lines byte for byte: the kit's patterns.py and references
+# carry it, and the corpus repository's check compares the same five lines.
+ATTRIBUTION_NOTE = (
+    "Attribution: the principles, patterns and rubric in this file are derived from a study\n"
+    "of 3Blue1Brown's videos and the public source in the 3b1b/videos repository\n"
+    "(CC BY-NC-SA 4.0). The analysis records live in the manim-3b1b-corpus repository. No\n"
+    "frames, transcript text or source code from those videos appear here; every example is\n"
+    "an original ManimCE rendering."
+)
+
+PATTERN_EXAMPLES_HEADER = """from manim import *
+from mtv.narrated import Narrated3DScene, NarratedCameraScene, NarratedScene
+from mtv.patterns import *
+
+SEED = 20261025
+"""
+
+
+def pattern_example(helper: str, body: str, base: str = "NarratedScene") -> str:
+    """Scene class ``Ex<Helper>`` whose one beat of the one-beat lesson runs ``body`` (four-space lines)."""
+    name = "Ex" + "".join(part[:1].upper() + part[1:] for part in helper.split("_"))
+    lines = "".join(f"            {line}\n" for line in body.strip("\n").split("\n"))
+    return (f"class {name}({base}):\n    def construct(self):\n        self.load_lesson(\"s01\")\n"
+            f"        with self.beat(\"s01-b01\") as b:\n{lines}")
+
+
+# One scene per helper, each playing its helper once inside the one-beat lesson's beat.
+PATTERN_EXAMPLES: dict[str, str] = {
+    "LayeredNetwork": pattern_example("LayeredNetwork", """
+net = LayeredNetwork([4, 20, 3], seed=SEED).scale(0.35)
+self.play(FadeIn(net), run_time=b.until("reveal"))
+self.play(net.node(1, 3).animate.scale(1.5))"""),
+    "NumericColumn": pattern_example("NumericColumn", """
+column = NumericColumn([0.5, -1.25, 2.0])
+self.play(FadeIn(column))
+self.play(column.at(1).animate.scale(1.4))"""),
+    "WeightGrid": pattern_example("WeightGrid", """
+grid = WeightGrid([0.9, -0.4, 0.1, -1.0, 0.6, 0.3], (2, 3))
+self.play(FadeIn(grid))"""),
+    "provenance": pattern_example("provenance", """
+src, dst = Square().shift(2 * LEFT), Circle().shift(2 * RIGHT)
+self.add(src)
+self.play(provenance(src, dst))"""),
+    "numbers_to_symbol": pattern_example("numbers_to_symbol", """
+column = NumericColumn([0.5, -1.25]).shift(2 * LEFT)
+self.add(column)
+self.play(numbers_to_symbol(column, MathTex("w").shift(2 * RIGHT)))"""),
+    "save_and_restore_layout": pattern_example("save_and_restore_layout", """
+group = VGroup(Square(), Circle()).arrange(RIGHT)
+self.add(group)
+with save_and_restore_layout(self, group):
+    self.play(group.animate.shift(UP).scale(0.5))"""),
+    "flash_along": pattern_example("flash_along", """
+line = Line(3 * LEFT, 3 * RIGHT)
+self.add(line)
+self.play(flash_along(line))"""),
+    "focus_and_dim": pattern_example("focus_and_dim", """
+group = VGroup(*(Square(side_length=0.8) for _ in range(4))).arrange(RIGHT)
+self.add(group)
+self.play(focus_and_dim(group, [group[0]]))"""),
+    "nudge_and_return": pattern_example("nudge_and_return", """
+square = Square()
+self.add(square)
+self.play(nudge_and_return(square))"""),
+}
+
+
+def render_example(manim: str, examples: Path, helper: str, media: Path, env: dict[str, str]) -> tuple[bool, str]:
+    """Render ``Ex<Helper>`` at -ql; whether it succeeded, and the last line of its output.
+
+    Each render gets its own ``media`` directory, as render.py gives each scene one: CE writes
+    a formula's TeX files under the media directory by content hash, and two processes compiling
+    the same formula there at once break each other's LaTeX run.
+    """
+    name = PATTERN_EXAMPLES[helper].split("(", 1)[0].removeprefix("class ")
+    # stdin closed: with several classes in the file, CE prompts for a class it cannot find.
+    cp = subprocess.run(
+        [manim, "render", "-ql", "--disable_caching", "--media_dir", str(media), str(examples), name],
+        capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, check=False,
+    )
+    tail = (cp.stdout + cp.stderr).strip().splitlines()
+    return cp.returncode == 0, tail[-1] if tail else ""
+
+
+def run_patterns() -> int:
+    """Render one example per helper; 1 when any render fails or a helper has no example."""
+    manim = common.which("manim")
+    if manim is None:
+        return common.usage_error("--patterns needs ManimCE: manim is not on PATH")
+    with Scratch() as scratch:
+        scratch_dir = Path(scratch)
+        try:
+            lesson_path = make_one_beat_lesson(scratch_dir / "one-beat")
+        except RuntimeError as exc:
+            return common.usage_error(str(exc))
+        examples = scratch_dir / "examples.py"
+        examples.write_text(
+            PATTERN_EXAMPLES_HEADER + "".join(f"\n\n{source}" for source in PATTERN_EXAMPLES.values()),
+            encoding="utf-8",
+        )
+        env = {**os.environ, "MTV_LESSON": str(lesson_path), "PYTHONPATH": str(SCRIPTS_DIR),
+               "PYTHONDONTWRITEBYTECODE": "1"}
+        rendered = [helper for helper in common.PATTERN_TAGS if helper in PATTERN_EXAMPLES]
+        with concurrent.futures.ThreadPoolExecutor(max(1, (os.cpu_count() or 2) - 1)) as pool:
+            results = dict(zip(rendered, pool.map(
+                lambda helper: render_example(manim, examples, helper, scratch_dir / "media" / helper, env), rendered)))
+    failed = 0
+    for helper in common.PATTERN_TAGS:
+        if helper not in results:
+            print(f"missing {helper}")
+            failed += 1
+        elif results[helper][0]:
+            print(f"ok {helper}")
+        else:
+            print(f"FAIL {helper}: {results[helper][1]}")
+            failed += 1
+    return 1 if failed else 0
+
+
+class TestPatterns(unittest.TestCase):
+    """The helpers' own logic, built without rendering; --patterns renders them."""
+
+    def setUp(self):
+        require("manim", "patterns")
+        self.patterns = importlib.import_module("mtv.patterns")
+
+    def test_layered_network_shape_and_seed(self):
+        net = self.patterns.LayeredNetwork([3, 20, 2], seed=7)
+        # A layer of 20 shows 16 dots and an ellipsis; edges join only the shown dots.
+        self.assertEqual([len(layer) for layer in net.layers], [3, 17, 2])
+        self.assertEqual(len(net.edges), 3 * 16 + 16 * 2)
+        self.assertIs(net.node(1, 15), net.layers[1][16])
+        twin = self.patterns.LayeredNetwork([3, 20, 2], seed=7)
+        style = [(e.get_stroke_color().to_hex(), round(e.get_stroke_opacity(), 6)) for e in net.edges]
+        self.assertEqual(style, [(e.get_stroke_color().to_hex(), round(e.get_stroke_opacity(), 6)) for e in twin.edges])
+
+    def test_weight_grid_and_focus_reject_bad_input(self):
+        with self.assertRaises(ValueError):
+            self.patterns.WeightGrid([0.1, 0.2, 0.3], (2, 2))
+        manim = importlib.import_module("manim")
+        group = manim.VGroup(manim.Square(), manim.Circle())
+        with self.assertRaises(ValueError):
+            self.patterns.focus_and_dim(group, list(group))
+        self.assertEqual(len(self.patterns.focus_and_dim(group, [group[0]]).animations), 1)
+
+    def test_focus_keeps_nested_members_and_nudge_has_run_time(self):
+        net = self.patterns.LayeredNetwork([2, 3], seed=1)
+        kept = net.node(1, 1)
+        dimmed = [anim.mobject for anim in self.patterns.focus_and_dim(net, [kept]).animations]
+        self.assertFalse(any(kept is m or kept in m.get_family() for m in dimmed))
+        self.assertIn(net.edges, dimmed)
+        self.assertIn(net.layers[0], dimmed)
+        self.assertEqual(self.patterns.nudge_and_return(net.node(0, 0)).run_time, 1.0)
+
+
+class TestAttribution(unittest.TestCase):
+    def test_patterns_attribution(self):
+        text = (SCRIPTS_DIR / "mtv" / "patterns.py").read_text(encoding="utf-8")
+        first_line, _, rest = text.partition("\n")
+        self.assertTrue(first_line.startswith('"""'))
+        # The note is the docstring's second paragraph: after the title line and one blank line.
+        self.assertTrue(rest.startswith("\n" + ATTRIBUTION_NOTE + "\n"), "patterns.py must open with the note")
+
+    def test_references_attribution(self):
+        references = SKILL_DIR / "references"
+        if not references.is_dir():
+            print("SKIP attribution: references not present (M2 writes them)")
+            raise unittest.SkipTest("references not present")
+        for path in sorted(references.glob("*.md")):
+            paragraphs = path.read_text(encoding="utf-8").split("\n\n")
+            self.assertTrue(paragraphs[0].startswith("# "), path.name)
+            self.assertEqual(paragraphs[1].strip("\n"), ATTRIBUTION_NOTE, path.name)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run the self-test; arguments not listed here (for example -k NAME) go to unittest.",
@@ -1701,10 +1876,9 @@ def main() -> int:
     if args.fixtures is not None:
         write_fixtures(args.fixtures.resolve())
         return 0
-    for flag, given in (
-        ("--patterns", args.patterns),
-        ("--one-beat", args.one_beat),
-    ):
+    if args.patterns:
+        return run_patterns()
+    for flag, given in (("--one-beat", args.one_beat),):
         if given:
             return common.usage_error(f"{flag} not implemented yet")
     program = unittest.main(argv=[sys.argv[0], *unittest_args], exit=False)

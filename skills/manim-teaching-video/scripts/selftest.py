@@ -26,7 +26,6 @@ import sys
 import tempfile
 import time
 import unittest
-import unittest.mock
 import wave
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -254,7 +253,7 @@ def make_pack(pack_dir: Path, broken: bool) -> None:
                          t_start=0.0, t_end=10.0)
         (pack_dir / tag).mkdir(parents=True, exist_ok=True)
         (pack_dir / entry["sheet"]).write_bytes(base64.b64decode(TINY_JPEG_B64))
-        (pack_dir / entry["excerpt"]).write_text(f"# {exemplar_id}\nfixture excerpt\n", encoding="utf-8")
+        (pack_dir / entry["excerpt"]).write_text(f"# {exemplar_id}\n\nfixture excerpt\n", encoding="utf-8")
         tags.setdefault(tag, []).append(entry)
     if broken:
         (pack_dir / tags["numbers-before-symbols"][1]["sheet"]).unlink()
@@ -981,7 +980,7 @@ class TestElevenLabs(unittest.TestCase):
 
     def test_missing_key_is_not_retryable(self):
         env = {k: v for k, v in os.environ.items() if k != "ELEVENLABS_API_KEY"}
-        with unittest.mock.patch.dict(os.environ, env, clear=True):
+        with mock.patch.dict(os.environ, env, clear=True):
             with self.assertRaises(RuntimeError):
                 tts.get_provider("elevenlabs", voice="v").synthesize("hi", Path(self.scratch.path) / "k.wav")
 
@@ -1753,6 +1752,10 @@ class TestExemplars(ExampleLessonCase):
         make_pack(self.pack, broken=False)
         self.assertEqual(exemplars.check(self.pack), [])
         self.assertEqual(run_script("exemplars", "check", str(self.pack), cwd=self.run_dir).returncode, 0)
+        # --fixtures writes this pack under mtv-runs/, where the kit's markdown gate reads it:
+        # a heading takes a blank line after it (MD022).
+        for excerpt in self.pack.rglob("*.md"):
+            self.assertEqual(excerpt.read_text().split("\n")[1], "", excerpt.name)
 
     def test_check_missing_dir_exit_1(self):
         cp = run_script("exemplars", "check", str(self.pack / "nope"), cwd=self.run_dir)
@@ -2288,8 +2291,8 @@ S01_REST = """        with self.beat("s01-b02") as b:
 """
 
 
-def _scene_class(name: str, scene_id: str, body: str) -> str:
-    return (f"\n\nclass {name}(NarratedScene):\n    def construct(self):\n"
+def _scene_class(name: str, scene_id: str, body: str, base: str = "NarratedScene") -> str:
+    return (f"\n\nclass {name}({base}):\n    def construct(self):\n"
             f"        self.load_lesson(\"{scene_id}\")\n{body}")
 
 
@@ -2366,7 +2369,8 @@ def write_fixtures(fixtures_dir: Path) -> None:
     make_pack(fixtures_dir / "pack", broken=False)
 
 
-# Three times the --one-beat wall clock M1 Task 22 measured (10.6 s on 4 CPUs), rounded up to 30 s.
+# The --one-beat bound: three times the 10.6 s M1 Task 22 measured on 4 CPUs, rounded up to the
+# nearest 30 s, which is 60 s.
 ONE_BEAT_BOUND_S: float | None = 60.0
 
 
@@ -2449,8 +2453,7 @@ def pattern_example(helper: str, body: str, base: str = "NarratedScene") -> str:
     """Scene class ``Ex<Helper>`` whose one beat of the one-beat lesson runs ``body`` (four-space lines)."""
     name = "Ex" + "".join(part[:1].upper() + part[1:] for part in helper.split("_"))
     lines = "".join(f"            {line}\n" for line in body.strip("\n").split("\n"))
-    return (f"class {name}({base}):\n    def construct(self):\n        self.load_lesson(\"s01\")\n"
-            f"        with self.beat(\"s01-b01\") as b:\n{lines}")
+    return _scene_class(name, "s01", f"        with self.beat(\"s01-b01\") as b:\n{lines}", base).lstrip("\n")
 
 
 # One scene per helper, each playing its helper once inside the one-beat lesson's beat.

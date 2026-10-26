@@ -161,24 +161,6 @@ def continuity(lesson: dict, run_dir: Path, tier: str) -> dict:
     }
 
 
-def _unrendered(lesson: dict, run_dir: Path, tier: str) -> list[str]:
-    """Each scene without beats and each beat without a video of this tier on disk."""
-    scenes = lesson.get("scenes") or []
-    problems = [] if scenes else ["no scenes"]
-    problems += [f"{scene['id']}: no beats" for scene in scenes if not scene.get("beats")]
-    for _, beat in mtv_lesson.beats(lesson):
-        render = beat.get("render") or {}
-        video = render.get("video")
-        if not (
-            isinstance(video, str)
-            and Path(video).parts[:2] == ("render", tier)
-            and (run_dir / video).is_file()
-            and isinstance(render.get("duration_s"), (int, float))
-        ):
-            problems.append(f"{beat['id']}: no {tier} render.video")
-    return problems
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = common.lesson_parser("Write every beat's review frames and sheet, and measure the scene boundaries.")
     parser.add_argument("--tier", choices=tuple(common.TIERS), required=True, help="the render tier to review")
@@ -189,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     if common.which("ffmpeg") is None:
         return common.usage_error("ffmpeg is not on PATH")
     run_dir = args.lesson.parent
-    problems = _unrendered(lesson, run_dir, args.tier)
+    problems = mtv_lesson.unrendered(lesson, run_dir, args.tier)
     if problems:
         return common.usage_error(f"run render.py --tier {args.tier} first: " + "; ".join(problems))
     fps = common.TIERS[args.tier][2]

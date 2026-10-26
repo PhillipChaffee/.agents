@@ -105,12 +105,16 @@ class KokoroProvider:
         return self._pipeline
 
     def synthesize(self, text: str, out_wav: Path) -> list[Word]:
-        import numpy
-        import soundfile
+        pipeline = self._get_pipeline()
+        try:
+            import numpy
+            import soundfile
+        except ImportError as exc:
+            raise ProviderError(f"kokoro needs {exc.name}; install requirements.txt") from exc
 
         chunks, words, offset_s = [], [], 0.0
         # The pipeline splits long text into chunks, each timed from its own start.
-        for result in self._get_pipeline()(text, voice=self.voice, speed=self.speed):
+        for result in pipeline(text, voice=self.voice, speed=self.speed):
             if result.audio is None:
                 continue
             audio = result.audio.numpy()

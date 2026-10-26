@@ -285,8 +285,9 @@ def load_valid_lesson(path: Path) -> tuple[dict, list[str]]:
 
     try:
         lesson = lesson_module.load(path)
+    # load also reads the lesson.py beside the lesson, which the error names when it is the one.
     except OSError as exc:
-        return {}, [f"cannot read {path}: {exc.strerror or exc}"]
+        return {}, [f"cannot read {exc.filename or path}: {exc.strerror or exc}"]
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         return {}, [f"cannot read {path}: {exc}"]
     return lesson, lesson_module.validate(lesson)

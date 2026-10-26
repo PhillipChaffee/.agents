@@ -115,11 +115,16 @@ def beat_index(lesson: dict) -> dict[str, tuple[dict, dict]]:
     return {beat["id"]: (scene, beat) for scene, beat in beats(lesson)}
 
 
-def unrendered(lesson: dict, run_dir: Path, tier: str) -> list[str]:
-    """Each scene without beats and each beat without a video of this tier on disk."""
+def beatless(lesson: dict) -> list[str]:
+    """Each scene without beats, or "no scenes" for a lesson without any."""
     scenes = lesson.get("scenes") or []
     problems = [] if scenes else ["no scenes"]
-    problems += [f"{scene['id']}: no beats" for scene in scenes if not scene.get("beats")]
+    return problems + [f"{scene['id']}: no beats" for scene in scenes if not scene.get("beats")]
+
+
+def unrendered(lesson: dict, run_dir: Path, tier: str) -> list[str]:
+    """Each scene without beats and each beat without a video of this tier on disk."""
+    problems = beatless(lesson)
     for _, beat in beats(lesson):
         render = beat.get("render") or {}
         video = render.get("video")

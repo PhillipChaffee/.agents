@@ -227,9 +227,13 @@ def render_scene(lesson: dict, lesson_path: Path, scene: dict, tier: str, hang_t
     # LookupError and TypeError cover an index entry of an unexpected shape: one scene's bad
     # output must not reach pool.map, where it would cost the other scenes' blocks.
     except (OSError, subprocess.SubprocessError, LookupError, TypeError, ValueError) as exc:
+        reason = f"mtv: {exc}"
+        # render.log is where a failed render's cause is read, and manim may have exited 0.
+        with contextlib.suppress(OSError):
+            _append(render_log, [reason])
         with contextlib.suppress(OSError):
             _clear_outputs(out_dir, scene["scene_class"])
-        return {"ok": False, "error": None, "tail": [f"mtv: {exc}"]}
+        return {"ok": False, "error": None, "tail": [reason]}
     for beat in beats:
         beat.setdefault("render", {}).update(renders[beat["id"]])
     return {"ok": True, "wall_s": wall_s}
@@ -292,6 +296,11 @@ def main(argv: list[str] | None = None) -> int:
     lesson, errors = common.load_valid_lesson(args.lesson)
     if errors:
         return common.usage_error("lesson invalid: " + "; ".join(errors))
+    # validate accepts a lesson with no scenes or beats yet, over which the stage test below
+    # would pass with nothing rendered.
+    empty = mtv_lesson.beatless(lesson)
+    if empty:
+        return common.usage_error("nothing to render: " + "; ".join(empty))
     if args.jobs < 1:
         return common.usage_error("--jobs must be at least 1")
     if args.scenes is None:

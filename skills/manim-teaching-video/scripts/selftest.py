@@ -110,7 +110,8 @@ def example_run_dir(parent: Path) -> Path:
 # the failing path with a scenes file that is otherwise clean. Its render writes what CE's
 # --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
 # MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
-# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang, or real MP4s;
+# MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang (=1 until the
+# --disable_caching retry, =always on every attempt), or real MP4s;
 # MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit.
 FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
 import ast
@@ -140,7 +141,8 @@ if scene_class not in {node.name for node in ast.parse(lesson_py.read_text()).bo
     sys.exit("There are no scenes inside that module")
 if os.environ.get("MTV_FAKE_FAIL") == "1":
     sys.exit("TypeError: Passing Mobject methods to Scene.play is no longer supported. Use Mobject.animate instead.")
-if os.environ.get("MTV_FAKE_HANG") == "1" and "--disable_caching" not in argv:
+hang = os.environ.get("MTV_FAKE_HANG")
+if hang == "always" or (hang == "1" and "--disable_caching" not in argv):
     time.sleep(30)
 lesson = json.loads(Path(os.environ["MTV_LESSON"]).read_text())
 beats = next(scene for scene in lesson["scenes"] if scene["scene_class"] == scene_class)["beats"]
@@ -825,6 +827,16 @@ class TestLessonSchema(unittest.TestCase):
             "s01-b01: mark name '\u00e9' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'",
             "s01-b01: lands mark 'reveal' not in marks",
         ])
+
+    def test_unreadable_scenes_file_is_the_file_named(self):
+        # load hashes the generated lesson.py beside lesson.json, so a failure to read it must
+        # name that file, not the lesson.
+        lesson_path = example_run_dir(self.scratch.path) / "lesson.json"
+        scenes_py = mtv_lesson.scenes_file(lesson_path)
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE)
+        denied = PermissionError(13, "Permission denied", str(scenes_py))
+        with mock.patch.object(common, "sha256_file", side_effect=denied):
+            self.assertEqual(common.load_valid_lesson(lesson_path), ({}, [f"cannot read {scenes_py}: Permission denied"]))
 
 
 class TestLessonStages(unittest.TestCase):
@@ -1677,7 +1689,72 @@ class TestRender(ExampleLessonCase):
                 self.assertEqual((after["stages"], after["scenes"]), (before["stages"], before["scenes"]))
                 left = sorted(path.name for path in s01.iterdir() if path.is_file())
                 self.assertEqual(left, ["render.log", "run.log"])
+                self.assertIn(reason, (s01 / "render.log").read_text())
                 self.assertFalse(render._rendered(after["scenes"][0], "draft", self.run_dir))
+
+    def test_twice_hung_scene_fails_naming_the_hang(self):
+        env = {**self.env, "MTV_FAKE_HANG": "always"}
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", "--hang-timeout-s", "1",
+                        cwd=self.run_dir, env=env)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        self.assertIn("mtv: no new output in render.log or run.log for 1 s; killed", cp.stdout.strip().splitlines()[-1])
+        calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
+        self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False, True])
+        lesson = mtv_lesson.load(self.lesson_path)
+        self.assertEqual(lesson["attempts"]["render_retries"], {"s01": 1})
+        self.assertNotIn("render.draft", lesson["stages"])
+
+    def test_failed_scene_keeps_the_others_blocks_and_leaves_the_stage(self):
+        # Spec 6.6 step 8 re-renders only the failed scenes, so the scenes that rendered in a failing
+        # run keep their blocks (F16); the stage waits until every scene has this tier's render (F17).
+        scenes_py = self.run_dir / "lesson.py"
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE.split("\n\nclass S02OneNeuron")[0] + "\n")
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        self.assertIn("s02: render failed", cp.stdout)
+        lesson = mtv_lesson.load(self.lesson_path)
+        for scene, beat in mtv_lesson.beats(lesson):
+            video = beat["render"]["video"]
+            self.assertEqual(video is not None and (self.run_dir / video).exists(), scene["id"] == "s01")
+        self.assertEqual(lesson["env"]["manim"], "Manim Community v0.22.0")
+        self.assertNotIn("render.draft", lesson["stages"])
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertNotIn("render.draft", mtv_lesson.load(self.lesson_path)["stages"])
+        scenes_py.write_text(CLEAN_TWO_CLASS_SOURCE)
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s02", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("render.draft", mtv_lesson.load(self.lesson_path)["stages"])
+
+    def test_usage_errors_exit_2_before_any_render(self):
+        no_manim = {**os.environ, "PATH": str(self.scratch.path)}
+        cases = (
+            ("--jobs", ["--jobs", "0"], lambda l: None, self.env, "--jobs must be at least 1"),
+            ("--scenes", ["--scenes", "s09"], lambda l: None, self.env, "no scene with id 's09'"),
+            ("scene_class", [], lambda l: l["scenes"][0].pop("scene_class"), self.env,
+             "s01: missing field 'scene_class'"),
+            ("manim", [], lambda l: None, no_manim, "manim is not on PATH"),
+            ("no scenes", [], lambda l: l.update(scenes=[]), self.env, "nothing to render: no scenes"),
+            ("beatless scene", [], lambda l: l["scenes"][1].update(beats=[]), self.env,
+             "nothing to render: s02: no beats"),
+        )
+        original = self.lesson_path.read_text()
+        for label, args, edit, env, error in cases:
+            with self.subTest(label):
+                lesson = json.loads(original)
+                edit(lesson)
+                self.lesson_path.write_text(json.dumps(lesson))
+                before = self.lesson_path.read_text()
+                cp = run_script("render", "lesson.json", "--tier", "draft", *args, cwd=self.run_dir, env=env)
+                self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+                self.assertIn(error, cp.stderr)
+                self.assertEqual(self.lesson_path.read_text(), before)
+        self.lesson_path.write_text(original)
+        (self.run_dir / "lesson.py").unlink()
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("scenes file missing", cp.stderr)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
 
     def test_record_env_font_probe(self):
         # mtv.look arrives with Task 17 and imports manim, so a stub package stands in for it on

@@ -1223,6 +1223,17 @@ class TestNarratedMixin(ExampleLessonCase):
             scene.wait(b.duration + 0.4 + 0.5)
         with scene.beat("s01-b02") as b2:
             pass
+        # An overrun past the tail leaves the next beat at least its own narration (spec 12.5
+        # amendment 3), which assemble.py would otherwise trim.
+        self.assertGreaterEqual(scene.time - b2.enter_s, b2.duration)
+        # An overrun well within the tail (beyond the one-frame pad an overrun beat still gets) is
+        # made up by the next beat, so quantization does not accumulate.
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            scene.wait(b.duration + 0.4 + 0.2)
+        with scene.beat("s01-b02") as b2:
+            pass
         self.assertAlmostEqual(scene.time, b.duration + 0.4 + b2.duration + 0.4, places=6)
 
     def test_overrun_logged_and_line_shape(self):
@@ -1261,6 +1272,17 @@ class TestNarratedMixin(ExampleLessonCase):
             self.assertNotIn("wait", [call[0] for call in scene.calls])
             lines = Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()
             self.assertEqual(json.loads(lines[-1])["overrun_s"], 0.0)
+
+    def test_camera_scene_logs_its_frame(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        frame = mock.Mock(width=4.0, height=2.25, get_center=lambda: (1.0, -0.5, 0.0))
+        scene.camera = mock.Mock(frame=frame)
+        with scene.beat("s01-b01"):
+            pass
+        line = json.loads(Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()[-1])
+        self.assertEqual(line["frame"], {"cx": 1.0, "cy": -0.5, "w": 4.0, "h": 2.25})
+        self.assertEqual(list(line)[-2:], ["frame", "boxes"])
 
     def test_boxes_cover_top_level_mobjects_with_points(self):
         scene = StubScene()

@@ -97,16 +97,21 @@ class NarratedMixin:
         self.next_section(beat_id)
         self.add_subcaption(entry["narration"], duration=entry["duration_s"])
         # enter_s and exit_s read CE's clock, which play keeps on the frames the section index counts.
+        enter_s = self.time  # CE manim/scene/scene.py:286-288
         timing = Beat(
             beat_id=beat_id,
             narration=entry["narration"],
             duration=entry["duration_s"],
             tail_s=entry["tail_s"],
             marks_s=entry["marks_s"],
-            enter_s=self.time,  # CE manim/scene/scene.py:286-288
+            enter_s=enter_s,
             # Cumulative from the scene start, so a pad rounded to whole frames in one beat is
-            # made up in the next instead of adding up over the scene.
-            target_end=self._mtv_cursor + entry["duration_s"] + entry["tail_s"],
+            # made up in the next instead of adding up over the scene; but never before the beat's
+            # own narration has played from where it entered, so an earlier beat's overrun cannot
+            # cut this one's speech, which assemble.py would trim (spec 12.5 amendment 3).
+            target_end=max(
+                self._mtv_cursor + entry["duration_s"] + entry["tail_s"], enter_s + entry["duration_s"] + 1 / fps
+            ),
             fps=fps,
             clock=lambda: self.time,
         )
@@ -190,15 +195,22 @@ class NarratedMixin:
 
     def _log_line(self, beat: Beat, exit_s: float, overrun_s: float) -> dict:
         # Spec 6.10's key order, which json.dumps keeps in the run.log line; readers look keys up by name.
-        return {
+        line = {
             "beat": beat.beat_id,
             "enter_s": beat.enter_s,
             "exit_s": exit_s,
             "audio_s": beat.duration,
             "tail_s": beat.tail_s,
             "overrun_s": overrun_s,
-            "boxes": self._boxes(),
         }
+        frame = getattr(getattr(self, "camera", None), "frame", None)
+        if frame is not None:
+            # A moving camera (zoom_to) shrinks and pans the view, so the boxes are judged against
+            # the frame it shows at exit, not the fixed 14.22 by 8 one (spec 12.5 amendment 3).
+            cx, cy = (float(v) for v in frame.get_center()[:2])
+            line["frame"] = {"cx": cx, "cy": cy, "w": float(frame.width), "h": float(frame.height)}
+        line["boxes"] = self._boxes()
+        return line
 
 
 if MANIM_AVAILABLE:

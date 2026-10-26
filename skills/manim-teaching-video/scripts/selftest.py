@@ -168,7 +168,8 @@ class TestErrorTable(unittest.TestCase):
         # The text each failure writes to render.log: CE 0.22.0's message at the row's cited
         # line, render.py's line for row 16, pip's for row 24, the symptom wording for row 15.
         # A mistyped pattern, or an earlier row that shadows a later one, fails here. Row 14's
-        # text is a CE warning, which match_error skips because no warning fails a render.
+        # text is a CE warning, which match_error skips because no warning fails a render. Row 5's
+        # first text is its cited line's, which CE 0.22.0 never reaches; the second is what it writes.
         samples = (
             (1, "TypeError: Passing Mobject methods to Scene.play is no longer supported."
                 " Use Mobject.animate instead."),
@@ -182,6 +183,7 @@ class TestErrorTable(unittest.TestCase):
             (3, "ValueError: The run_time of FadeIn cannot be negative. The given value was -0.2."),
             (4, "Exception: Trying to restore without having saved"),
             (5, "ValueError: MoveToTarget called on mobjectwithout attribute 'target'"),
+            (5, "NotImplementedError: get_point_mobject not implemented for Mobject"),
             (6, "TypeError: Only values of type VMobject can be added as submobjects of VGroup, but the value"
                 " Group (at index 0 of parameter 0) is of type Group."
                 " You can try adding this value into a Group instead."),
@@ -257,6 +259,43 @@ class TestErrorTable(unittest.TestCase):
         # Rich's ASCII borders, drawn when the output encoding is not UTF-8.
         ascii_line = '|   1660             raise ValueError(f"Alpha {alpha} not between 0 and 1.")   |'
         self.assertIsNone(common.match_error(ascii_line))
+
+    def test_match_error_undoes_rich_wrapping(self):
+        # Lines from real CE 0.22.0 render.logs at Rich's 80 columns (stdout is a file and COLUMNS
+        # is unset), with the INFO records before the failure left out. Each pattern straddles a
+        # break: an exception message continues at column 0, a log record on lines indented to
+        # its message column.
+        vgroup = (
+            "TypeError: Only values of type VMobject can be added as submobjects of VGroup, ",
+            "but the value Group (at index 0 of parameter 0) is of type Group. You can try ",
+            "adding this value into a Group instead.",
+        )
+        missing_class = (
+            "                    ERROR                                      module_ops.py:103",
+            "                                NeuronLayerScene is not in the                  ",
+            "                             script                                             ",
+            "                                                                                ",
+            "1: N01EmptyPoints",
+        )
+        no_scenes = (
+            "                    ERROR                                       module_ops.py:90",
+            "                                There are no scenes inside that                 ",
+            "                             module                                             ",
+        )
+        for row, lines in ((6, vgroup), (19, missing_class), (19, no_scenes)):
+            with self.subTest(row=row, first=lines[0]):
+                self.assertIs(common.match_error("\n".join(lines)), common.ERROR_TABLE[row - 1])
+        # A record joined whole still cannot name the failure when it is below ERROR: this INFO
+        # record (tex_file_writing.py:110, its formula and path edited) would complete row 13's pattern.
+        tex_record = (
+            "                    INFO     Writing                     tex_file_writing.py:110",
+            "                             \\special{dvisvgm:raw <g                            ",
+            "                             id='unique000'>}\\text{not                          ",
+            "                             found}\\special{dvisvgm:raw </g>} to                ",
+            "                             media/Tex/bdbd54e1f23b9d16.tex                     ",
+            "ValueError: Alpha 1.5 not between 0 and 1.",
+        )
+        self.assertIs(common.match_error("\n".join(tex_record)), common.ERROR_TABLE[20])
 
     def test_error_table_matches_manimce_reference(self):
         ref = SKILL_DIR / "references" / "manimce.md"

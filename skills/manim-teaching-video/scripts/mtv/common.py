@@ -327,9 +327,12 @@ ERROR_TABLE: tuple[ErrorRow, ...] = (
         "Make the change inside save_and_restore_layout(scene, group), the context manager that saves the group's"
         " state before it restores it, instead of a bare Restore(m).",
     ),
-    # manim/animation/transform.py:432-440
+    # manim/animation/transform.py:436-440 tests hasattr(mobject, "target"), which always holds
+    # because every Mobject starts with target None (manim/mobject/mobject.py:116-121), so a
+    # missing target becomes Transform's bare Mobject() (transform.py:163-165) and the render
+    # fails at manim/mobject/mobject.py:3171-3172 instead; CE 0.22.0 writes only that message.
     ErrorRow(
-        re.compile(r"MoveToTarget called on mobject.*'target'"),
+        re.compile(r"MoveToTarget called on mobject.*'target'|get_point_mobject not implemented for Mobject\b"),
         "MoveToTarget(m) without generate_target()",
         "call m.generate_target(), mutate m.target, then MoveToTarget(m)",
         "Call m.generate_target(), mutate m.target, then play MoveToTarget(m).",
@@ -495,16 +498,42 @@ ERROR_TABLE: tuple[ErrorRow, ...] = (
 # every frame, and that source holds some rows' texts beside frames that raise something else:
 # row 2's at scene.py:1338 beside the compile_animations call at 1340, row 21's at
 # vectorized_mobject.py:1660 beside the empty-points check at 1662. Rich falls back to ASCII
-# borders when the output encoding is not UTF-8. A logger WARNING record never fails a render,
-# yet an early one (row 14's font warning) would shadow every later row.
+# borders when the output encoding is not UTF-8. A log record below ERROR never fails a render,
+# yet an early one would shadow every later row: row 14's font warning, or the INFO record that
+# quotes a formula's TeX source (tex_file_writing.py:110).
 _RICH_PANEL_LINE = re.compile(r"[│╭╰|+]")
-_WARNING_RECORD = re.compile(r"(\[[^\]]*\])?\s*WARNING\s")
+_BELOW_ERROR_RECORD = re.compile(r"(\[[^\]]*\])? *(DEBUG|INFO|WARNING) ")
+# A RichHandler record's first line: the time column (blank when the time repeats), the level,
+# the message, and the right-aligned path:line column, which continuation lines leave out.
+_LOG_RECORD = re.compile(r"(\[[^\]]*\])? *(DEBUG|INFO|WARNING|ERROR|CRITICAL) ")
+_PATH_COLUMN = re.compile(r" +\S+:\d+ *$")
+
+
+def _logical_lines(log_text: str) -> list[str]:
+    """Undo Rich's wrapping, so a message is one line whatever the console width.
+
+    render.log is not a terminal, so Rich wraps at COLUMNS, else 80 columns: an exception
+    message continues at column 0, a log record continues on lines indented to its message
+    column, and a pattern can straddle either break. A blank or panel line ends both.
+    """
+    lines: list[str] = []
+    follow: bool | None = None  # whether indented (True) or column-0 (False) lines continue lines[-1]
+    for line in log_text.splitlines():
+        if not line.strip() or _RICH_PANEL_LINE.match(line):
+            follow = None
+        elif _LOG_RECORD.match(line):
+            lines.append(_PATH_COLUMN.sub("", line))
+            follow = True
+        elif follow is not None and follow == line[0].isspace():
+            lines[-1] = f"{lines[-1].rstrip()} {line.strip()}"
+        else:
+            lines.append(line)
+            follow = None if line[0].isspace() else False
+    return lines
 
 
 def match_error(log_text: str) -> ErrorRow | None:
-    failure_text = "\n".join(
-        line for line in log_text.splitlines() if not (_RICH_PANEL_LINE.match(line) or _WARNING_RECORD.match(line))
-    )
+    failure_text = "\n".join(line for line in _logical_lines(log_text) if not _BELOW_ERROR_RECORD.match(line))
     for row in ERROR_TABLE:
         if row.pattern.search(failure_text):
             return row

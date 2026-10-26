@@ -7,6 +7,8 @@ even spread of the script's words over the audio stands in when no match exists.
 
 from __future__ import annotations
 
+import importlib
+import os
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,11 +53,80 @@ class NullProvider:
         return [Word(word, i * word_s, (i + 1) * word_s) for i, word in enumerate(words)]
 
 
+def _transport_errors() -> tuple[type[Exception], ...]:
+    """The transport error of each HTTP client huggingface_hub may use (it moved from httpx to httpx2)."""
+    found = []
+    for module in ("httpx2", "httpx"):
+        try:
+            found.append(importlib.import_module(module).TransportError)
+        except ImportError:
+            pass
+    return tuple(found)
+
+
+class KokoroProvider:
+    """Kokoro-82M, offline once its weights are cached, with per-token times from its duration predictor."""
+
+    name = "kokoro"
+
+    def __init__(self, voice: str = "af_heart", speed: float = 1.0, lang_code: str = "a") -> None:
+        self.voice, self.speed, self.lang_code = voice, speed, lang_code
+        self._pipeline = None
+
+    def _get_pipeline(self):
+        # Built on first use, so a provider that only stands by as the fallback costs nothing.
+        if self._pipeline is None:
+            # Through hf-xet's Rust client the weight download bypasses Python logging, so
+            # the hosts it reaches could not be told apart from the ones M0 recorded.
+            os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+            import kokoro
+            from huggingface_hub import errors as hub_errors
+
+            # The model and voice weights download on first use. huggingface_hub's own HTTP
+            # errors are OSErrors, but a refused connection surfaces as its HTTP client's
+            # TransportError, which is not; either becomes the ConnectionError the scripts
+            # treat as a network failure. Anything else (a corrupt cache, a G2P bug) and a
+            # name the hub does not have (a misspelled voice) keep their own type.
+            try:
+                pipeline = kokoro.KPipeline(lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M")
+                pipeline.load_voice(self.voice)
+            except hub_errors.EntryNotFoundError as exc:
+                if not isinstance(exc, hub_errors.LocalEntryNotFoundError):
+                    raise
+                raise ConnectionError(f"kokoro could not load its weights: {exc}") from exc
+            except (OSError, *_transport_errors()) as exc:
+                raise ConnectionError(f"kokoro could not load its weights: {exc}") from exc
+            self._pipeline = pipeline
+        return self._pipeline
+
+    def synthesize(self, text: str, out_wav: Path) -> list[Word]:
+        import numpy
+        import soundfile
+
+        chunks, words, offset_s = [], [], 0.0
+        # The pipeline splits long text into chunks, each timed from its own start.
+        for result in self._get_pipeline()(text, voice=self.voice, speed=self.speed):
+            if result.audio is None:
+                continue
+            audio = result.audio.numpy()
+            words += [
+                Word(token.text, offset_s + token.start_ts, offset_s + token.end_ts)
+                for token in result.tokens or []
+                if token.start_ts is not None and token.end_ts is not None
+            ]
+            chunks.append(audio)
+            offset_s += len(audio) / _SAMPLE_RATE_HZ
+        soundfile.write(str(out_wav), numpy.concatenate(chunks) if chunks else numpy.zeros(0), _SAMPLE_RATE_HZ)
+        return words
+
+
 def get_provider(name: str, voice: str = "af_heart", speed: float = 1.0) -> Provider:
     """The provider ``name``; ``voice`` and ``speed`` configure a speaking one, and the null one has neither."""
     if name == "null":
         return NullProvider()
-    if name in ("kokoro", "elevenlabs"):
+    if name == "kokoro":
+        return KokoroProvider(voice, speed)
+    if name == "elevenlabs":
         raise ValueError(f"provider '{name}' not implemented yet")
     raise ValueError(f"unknown provider '{name}'")
 

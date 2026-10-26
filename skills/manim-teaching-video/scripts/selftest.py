@@ -549,6 +549,58 @@ class TestTts(unittest.TestCase):
             tts.get_provider("piper")
 
 
+class TestKokoro(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        require("kokoro", "kokoro")
+        require("soundfile", "kokoro")
+
+    def test_kokoro_chunks_join_with_offsets(self):
+        # The pipeline's own chunking, stood in for so the case needs no weights: each
+        # chunk's token times start at zero, and an untimed token (punctuation) is dropped.
+        numpy = require("numpy", "kokoro")
+
+        class Audio:
+            def __init__(self, seconds):
+                self.samples = numpy.zeros(round(seconds * 24000), dtype=numpy.float32)
+
+            def numpy(self):
+                return self.samples
+
+        def token(text, start, end):
+            return type("Token", (), {"text": text, "start_ts": start, "end_ts": end})
+
+        def result(seconds, tokens):
+            return type("Result", (), {"audio": Audio(seconds), "tokens": tokens})
+
+        provider = tts.KokoroProvider()
+        provider._pipeline = lambda text, voice, speed: iter([
+            result(1.5, [token("one", 0.1, 0.6), token(".", None, None)]),
+            result(1.0, [token("two", 0.2, 0.7)]),
+        ])
+        out = Path(self.scratch.path) / "chunks.wav"
+        self.assertEqual(provider.synthesize("One. Two.", out),
+                         [tts.Word("one", 0.1, 0.6), tts.Word("two", 1.7, 2.2)])
+        self.assertAlmostEqual(tts.wav_duration(out), 2.5)
+
+    def test_kokoro_tokens_and_784(self):
+        out = Path(self.scratch.path) / "k.wav"
+        try:
+            tokens = tts.get_provider("kokoro").synthesize("There are 784 pixels.", out)
+        except ConnectionError as exc:
+            # The weights are a dependency like any module: unreachable, the case skips by name.
+            _skip("kokoro", f"weights ({exc})")
+        self.assertGreater(len(tokens), 0)
+        self.assertTrue(all(t.start_s <= t.end_s for t in tokens))
+        with wave.open(str(out)) as w:
+            self.assertEqual(w.getframerate(), 24000)
+        print("KOKORO 784 tokens:", [t.text for t in tokens])
+
+
 class TestNarrate(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

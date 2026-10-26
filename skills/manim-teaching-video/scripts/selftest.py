@@ -21,6 +21,7 @@ import wave
 from pathlib import Path
 from types import ModuleType
 from typing import NoReturn
+from unittest import mock
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPTS_DIR.parent
@@ -34,6 +35,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import check_scenes  # noqa: E402
 import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
+import mtv.narrated as narrated  # noqa: E402
 import mtv.tts as tts  # noqa: E402
 import narrate  # noqa: E402
 import storyboard_check  # noqa: E402
@@ -614,6 +616,128 @@ class TestNarrate(unittest.TestCase):
         cp = run_script("narrate", "--warmup", "--provider", "null", cwd=self.scratch.path)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertRegex(cp.stdout.strip().splitlines()[-1], r"^PASS warmup null rtf=\d+\.\d{3}$")
+
+
+class StubScene(narrated.NarratedMixin):
+    """Stands in for a ManimCE scene: records the calls the mixin makes, and its wait and play
+    advance a clock instead of rendering frames."""
+
+    frame_rate = 15.0
+
+    def __init__(self) -> None:
+        self.time = 0.0
+        self.mobjects: list = []
+        self.calls: list = []
+
+    def next_section(self, name: str) -> None:
+        self.calls.append(("next_section", name))
+
+    def add_subcaption(self, text: str, duration: float) -> None:
+        self.calls.append(("add_subcaption", text, duration))
+
+    def wait(self, seconds: float) -> None:
+        self.calls.append(("wait", seconds))
+        self.time += seconds
+
+    def play(self, seconds: float) -> None:
+        self.time += seconds
+
+
+class StubMobject:
+    """Has CE's corner rule over its own points (CE manim/mobject/mobject.py:2395-2420) and no family."""
+
+    def __init__(self, *points: tuple[float, float, float]) -> None:
+        self.points = list(points)
+
+    def get_all_points(self) -> list:
+        return self.points
+
+    def get_corner(self, direction) -> list[float]:
+        return [(min if direction[d] < 0 else max)(p[d] for p in self.points) for d in range(3)]
+
+
+class TestNarratedMixin(ExampleLessonCase):
+    def setUp(self):
+        super().setUp()
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        run_log = str(self.run_dir / "run.log")
+        # StubScene stands in for a scene, so the no-manim path is taken even where ManimCE is
+        # installed: there config.frame_rate comes from whatever manim.cfg is in the working
+        # directory, and look.apply would change the global config.
+        for patcher in (mock.patch.dict(os.environ, {"MTV_LESSON": str(self.lesson_path), "MTV_RUN_LOG": run_log}),
+                        mock.patch.object(narrated, "MANIM_AVAILABLE", False)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_until_and_remaining_clamp(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            reveal = b.marks_s["reveal"]
+            self.assertAlmostEqual(b.until("reveal"), reveal - 0.2)
+            self.assertAlmostEqual(b.until("reveal", lead=0.0), reveal)
+            scene.wait(b.duration + 1.0)
+            self.assertAlmostEqual(b.until("reveal"), 1 / 15)
+            self.assertAlmostEqual(b.remaining(), 1 / 15)
+        self.assertEqual(scene.calls[0], ("next_section", "s01-b01"))
+        self.assertEqual(scene.calls[1][:2], ("add_subcaption", "Here is a network that already reads handwritten digits."))
+
+    def test_exit_pads_to_target_end_and_cursor_accumulates(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            scene.wait(1.0)
+        self.assertAlmostEqual(scene.time, b.duration + 0.4, places=6)
+        with scene.beat("s01-b02") as b2:
+            pass
+        self.assertAlmostEqual(scene.time, b.duration + 0.4 + b2.duration + 0.4, places=6)
+
+    def test_next_beat_takes_up_an_overrun(self):
+        # Beat ends count from the scene start, so one beat's overrun does not push back the rest.
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            scene.wait(b.duration + 0.4 + 0.5)
+        with scene.beat("s01-b02") as b2:
+            pass
+        self.assertAlmostEqual(scene.time, b.duration + 0.4 + b2.duration + 0.4, places=6)
+
+    def test_overrun_logged_and_line_shape(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with scene.beat("s01-b01") as b:
+            scene.wait(b.duration + 0.4 + 1.39)
+        line = json.loads(Path(os.environ["MTV_RUN_LOG"]).read_text().splitlines()[-1])
+        self.assertEqual(list(line), ["beat", "enter_s", "exit_s", "audio_s", "tail_s", "overrun_s", "boxes"])
+        self.assertAlmostEqual(line["overrun_s"], 1.39, places=3)
+        self.assertEqual(line["beat"], "s01-b01")
+        self.assertAlmostEqual(line["audio_s"], b.duration)
+
+    def test_load_lesson_requires_path_or_env(self):
+        os.environ.pop("MTV_LESSON", None)
+        with self.assertRaises(ValueError):
+            StubScene().load_lesson("s01")
+
+    def test_exception_inside_beat_is_neither_padded_nor_logged(self):
+        # Spec 7.1: render.py surfaces the traceback of a beat missing from its logs.
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        with self.assertRaises(ZeroDivisionError), scene.beat("s01-b01"):
+            1 / 0
+        self.assertEqual([call[0] for call in scene.calls], ["next_section", "add_subcaption"])
+        self.assertFalse(Path(os.environ["MTV_RUN_LOG"]).exists())
+
+    def test_boxes_cover_top_level_mobjects_with_points(self):
+        scene = StubScene()
+        scene.load_lesson("s01", self.lesson_path)
+        LayeredNetwork = type("LayeredNetwork", (StubMobject,), {})
+        scene.mobjects = [LayeredNetwork((-5.1, 0.4, 0.0), (5.1, -3.2, 0.0)), StubMobject()]
+        # DL and UR exist only where ManimCE imports; these are their values (CE manim/constants.py:151,154).
+        with mock.patch.multiple(narrated, DL=(-1, -1, 0), UR=(1, 1, 0), create=True), scene.beat("s01-b01"):
+            pass
+        line = json.loads(Path(os.environ["MTV_RUN_LOG"]).read_text())
+        self.assertEqual(line["boxes"], [{"name": "LayeredNetwork", "x0": -5.1, "y0": -3.2, "x1": 5.1, "y1": 0.4}])
 
 
 class TestStoryboardCheck(ExampleLessonCase):

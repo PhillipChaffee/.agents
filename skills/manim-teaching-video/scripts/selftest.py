@@ -32,6 +32,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import check_scenes  # noqa: E402
+import frames  # noqa: E402
 import mtv.common as common  # noqa: E402
 import mtv.lesson as mtv_lesson  # noqa: E402
 import mtv.tts as tts  # noqa: E402
@@ -141,6 +142,76 @@ def env_with_fake_manim(bin_dir: Path) -> dict[str, str]:
     """This process's environment with ``bin_dir`` first on PATH; the fake manim there
     records every call's argv as one JSON line in ``bin_dir/calls.jsonl``."""
     return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+def make_clip(path: Path, color: str, duration_s: float, fps: int = 15, size: str = "854x480") -> None:
+    common.run_cmd([
+        "ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c={color}:s={size}:r={fps}:d={duration_s}",
+        "-pix_fmt", "yuv420p", str(path),
+    ]).check_returncode()
+
+
+def make_tone(path: Path, duration_s: float, rate: int = 24000) -> None:
+    common.run_cmd([
+        "ffmpeg", "-y", "-f", "lavfi", "-i", f"sine=frequency=440:duration={duration_s}",
+        "-ar", str(rate), "-ac", "1", str(path),
+    ]).check_returncode()
+
+
+def make_rendered_lesson(run_dir: Path, colors: list[str], tone_s: float = 1.5) -> Path:
+    """Write ``run_dir/lesson.json`` as render.py would leave it, with one two-beat scene per color.
+
+    The example lesson's header and its env, attempts, checks and stages blocks are kept,
+    so the result validates and later stages name their outputs after its slug and title.
+    Every beat renders as a 2 s clip of its scene's color over a ``tone_s`` narration tone.
+    """
+    lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
+    lesson.update(tier="draft", provider="null", scenes=[])
+    (run_dir / "audio").mkdir(parents=True, exist_ok=True)
+    marks = {"scene": 5}
+    for n, color in enumerate(colors, 1):
+        scene_id, scene_class = f"s{n:02d}", f"S{n:02d}Fixture"
+        out_dir = run_dir / "render" / "draft" / scene_id
+        out_dir.mkdir(parents=True)
+        (out_dir / "render.log").write_text("")
+        scene = {
+            "id": scene_id, "title": f"Fixture scene {n}", "scene_class": scene_class, "scene_kind": "flat",
+            "opening_state": "black" if n == 1 else "continue", "closing_state": "held", "beats": [],
+        }
+        sections = []
+        for index, ordinal in enumerate(("one", "two")):
+            beat_id = f"{scene_id}-b{index + 1:02d}"
+            video = f"{scene_class}_{index:04d}_{beat_id}.mp4"
+            make_clip(out_dir / video, color, 2.0)
+            make_tone(run_dir / "audio" / f"{beat_id}.wav", tone_s)
+            sections.append({
+                "name": beat_id, "type": "default.normal", "video": video, "width": 854, "height": 480,
+                "nb_frames": "30", "duration": "2.000000", "avg_frame_rate": "15/1", "codec_name": "h264",
+                "pix_fmt": "yuv420p",
+            })
+            scene["beats"].append({
+                "id": beat_id, "narration": f"This is beat {ordinal} of scene {scene_id}.", "marks": marks,
+                "visual": f"a full-frame {color} field", "patterns": [],
+                "moves": ["hook"] if n == 1 and index == 0 else ["concrete"],
+                "introduces": [], "shows_value_of": [], "symbol_introduced": [], "lands": [], "tail_s": 0.5,
+                "audio": f"audio/{beat_id}.wav", "duration_s": tone_s, "words": None,
+                "marks_s": tts.interpolate(tone_s, 7, marks), "interpolated": False,
+                "render": {
+                    "index": index, "video": f"render/draft/{scene_id}/{video}", "duration_s": 2.0, "frames": [],
+                    "log": {"enter_s": 2.0 * index, "exit_s": 2.0 * (index + 1), "audio_s": tone_s, "tail_s": 0.5,
+                            "overrun_s": 0.0, "boxes": []},
+                },
+            })
+        common.dump_json(sections, out_dir / "sections.json")
+        lesson["scenes"].append(scene)
+    classes = "".join(
+        f"\n\nclass {scene['scene_class']}(NarratedScene):\n    def construct(self):\n        pass\n"
+        for scene in lesson["scenes"]
+    )
+    (run_dir / "lesson.py").write_text("from manim import *\nfrom mtv.narrated import NarratedScene\n" + classes)
+    lesson_path = run_dir / "lesson.json"
+    mtv_lesson.save(lesson, lesson_path)
+    return lesson_path
 
 
 class ExampleLessonCase(unittest.TestCase):
@@ -756,6 +827,64 @@ class TestCheckScenes(ExampleLessonCase):
         missing = check_scenes.lint_source(CLEAN_TWO_CLASS_SOURCE.replace("S02OneNeuron", "S02Other"),
                                            mtv_lesson.load(self.lesson_path))
         self.assertEqual([(f["name"], f["fix"]) for f in missing], [("S02OneNeuron", "define class S02OneNeuron")])
+
+
+class TestFrames(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.run_dir = Path(tempfile.mkdtemp(dir=self.scratch.path))
+
+    def test_continuity_jump_fails_at_threshold(self):
+        require_tool("ffmpeg", "frames continuity")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue", "blue", "red"])
+        cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        cont = common.load_json(self.run_dir / "frames" / "continuity.json")
+        self.assertEqual(cont["threshold"], common.CONTINUITY_THRESHOLD)
+        self.assertEqual([b["pass"] for b in cont["boundaries"]], [True, False])
+        self.assertLess(cont["boundaries"][0]["mad"], common.CONTINUITY_THRESHOLD)
+        # blue to red measures 0.184 here; the fixture holds up to a threshold of 0.18
+        self.assertGreater(cont["boundaries"][1]["mad"], common.CONTINUITY_THRESHOLD)
+        lesson = mtv_lesson.load(lesson_path)
+        self.assertIn("frames/s01/s01-b02-last.png", lesson["scenes"][0]["beats"][1]["render"]["frames"])
+        self.assertIn("frames/s02/s02-b01-first.png", lesson["scenes"][1]["beats"][0]["render"]["frames"])
+
+    def test_mark_past_end_is_clamped(self):
+        require_tool("ffmpeg", "frames clamp")
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue"])
+        lesson = mtv_lesson.load(lesson_path)
+        lesson["scenes"][0]["beats"][0]["marks_s"] = {"late": 2.4}
+        mtv_lesson.save(lesson, lesson_path)
+        cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertTrue((self.run_dir / "frames" / "s01" / "s01-b01-late.png").exists())
+        self.assertAlmostEqual(frames.clamp_time(2.4, 2.0, 15), 2.0 - 1 / 15)
+
+    def test_unrendered_beat_exits_2_without_writing(self):
+        require_tool("ffmpeg", "frames unrendered")
+        lesson_path = self.run_dir / "lesson.json"
+        shutil.copyfile(ASSETS_DIR / "lesson.example.json", lesson_path)
+        before = lesson_path.read_text()
+        cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("s01-b01: no draft render.video", cp.stderr)
+        self.assertEqual(lesson_path.read_text(), before)
+        self.assertFalse((self.run_dir / "frames").exists())
+
+    def test_sheet_requires_pil(self):
+        require_tool("ffmpeg", "frames sheet")
+        require("PIL", "frames sheet")
+        clip = Path(self.scratch.path) / "c.mp4"
+        make_clip(clip, "blue", 2.0)
+        out = Path(self.scratch.path) / "sheet.jpg"
+        self.assertTrue(frames.sheet(clip, 2.0, 0.0, out))
+        from PIL import Image
+        with Image.open(out) as image:
+            self.assertEqual(image.size, (1278, 480))
 
 
 def main() -> int:

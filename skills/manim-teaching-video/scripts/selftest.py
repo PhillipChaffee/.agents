@@ -22,6 +22,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import unittest.mock
 import wave
@@ -1949,18 +1950,105 @@ class TestPreflight(unittest.TestCase):
         self.assertEqual(report["ok"], all(c["ok"] for c in report["checks"]))
 
 
-# The one-beat lesson's scenes file: one flat class whose beat lands its visual at the mark.
-ONE_BEAT_LESSON_PY = """from manim import *
+# The hand-written scenes file for lesson.example.json, built from pieces so that the
+# one-beat lesson's OneBeat is S01WorkingThing's first beat, word for word.
+SCENES_HEADER = """import random
+
+from manim import *
 from mtv.narrated import NarratedScene
+from mtv.patterns import *
+
+SEED = 20261025
 
 
-class OneBeat(NarratedScene):
-    def construct(self):
-        self.load_lesson("s01")
-        with self.beat("s01-b01") as b:
-            self.play(FadeIn(Square()), run_time=b.until("reveal"))
+def s01_picture():
+    \"\"\"The network at the bottom and the seeded pixel grid upper left, as s01 builds them.\"\"\"
+    net = LayeredNetwork([784, 16, 16, 10], seed=SEED).scale(0.42).to_edge(DOWN, buff=0.3)
+    pixels = random.Random(SEED)
+    grid = WeightGrid([pixels.random() for _ in range(144)], (12, 12)).scale(0.7).to_corner(UL)
+    return net, grid
+
+
+def s01_focus(net):
+    \"\"\"The connection s01 zooms in to: its edge, its two nodes, and the route a flash takes.\"\"\"
+    a, b = net.node(1, 5), net.node(2, 8)
+    # Edges run layer pair by layer pair, left node by right node: 16 x 16 before layer 1's.
+    edge = net.edges[16 * 16 + 5 * 16 + 8]
+    return edge, a, b
+"""
+
+S01_B01 = """        with self.beat("s01-b01") as b:
+            net, grid = s01_picture()
+            self.play(staggered([net.edges, *net.layers], run_time=1.5))
+            self.play(FadeIn(grid), run_time=b.until("reveal"))
             self.wait(b.remaining())
 """
+
+S01_REST = """        with self.beat("s01-b02") as b:
+            output = net.node(3, 4)
+            path = VMobject().set_points_as_corners([
+                grid.get_right(), net.node(0, 3).get_center(), net.node(1, 5).get_center(),
+                net.node(2, 8).get_center(), output.get_center(),
+            ])
+            # A passing flash leaves nothing behind, so what lands at the mark is its result.
+            self.play(flash_along(path), run_time=1.5)
+            self.play(output.animate.scale(1.6).set_color(PURE_YELLOW), run_time=b.until("lights"))
+            self.wait(b.remaining())
+        with self.beat("s01-b03") as b:
+            edge, a, c = s01_focus(net)
+            self.play(focus_and_dim(VGroup(net, grid), [edge, a, c]), edge.animate.set_stroke(width=4, opacity=1.0),
+                      run_time=b.until("zoom"))
+            self.play(FadeIn(question_caption(edge, "what does one connection do?")))
+            self.wait(b.remaining())
+"""
+
+
+def _scene_class(name: str, scene_id: str, body: str) -> str:
+    return (f"\n\nclass {name}(NarratedScene):\n    def construct(self):\n"
+            f"        self.load_lesson(\"{scene_id}\")\n{body}")
+
+
+S02_BODY = """        # Rebuilt with add, as s01 closed, so the boundary is continuous and the first beat
+        # starts at the scene start.
+        net, grid = s01_picture()
+        edge, a, c = s01_focus(net)
+        net.node(3, 4).scale(1.6).set_color(PURE_YELLOW)
+        edge.set_stroke(width=4, opacity=1.0)
+        dim = focus_and_dim(VGroup(net, grid), [edge, a, c])
+        dim.begin()
+        dim.finish()
+        caption = question_caption(edge, "what does one connection do?")
+        self.add(net, grid, caption)
+        with self.beat("s02-b01") as b:
+            column = NumericColumn([0.62, -0.35, 0.18]).to_edge(LEFT, buff=1.0).shift(0.4 * UP)
+            self.play(FadeOut(caption), flash_along(edge))
+            self.play(FadeIn(column), run_time=b.until("value"))
+            self.play(column.at(0).animate.set_color(PURE_YELLOW))
+            self.wait(b.remaining())
+        with self.beat("s02-b02") as b:
+            symbol = MathTex("w", font_size=72).next_to(column, RIGHT, buff=0.8)
+            self.play(numbers_to_symbol(VGroup(column.at(0)), symbol), run_time=b.until("symbol"))
+            self.wait(b.remaining())
+        with self.beat("s02-b03") as b:
+            tracker = ValueTracker(0.71)
+            output = live_decimal(tracker).scale(1.2).to_edge(RIGHT, buff=1.0).shift(0.4 * UP)
+            # The nudge is the beat's first word, too early for anything to land ahead of it, so
+            # the output is shown at once and the tremor plays across the mark.
+            self.add(output)
+            self.play(nudge_and_return(column.at(0)), tracker.animate(rate_func=there_and_back).set_value(0.79))
+            self.play(nudge_and_return(column.at(0), amount=-0.1),
+                      tracker.animate(rate_func=there_and_back).set_value(0.63), run_time=b.until("back"))
+            aside = VGroup(column, symbol, output)
+            with save_and_restore_layout(self, aside):
+                self.play(aside.animate.scale(0.8).shift(0.6 * DOWN))
+                # Restore takes 1 s, so it lands at the picture mark.
+                self.wait(max(b.until("picture") - 1.0, 1 / 15))
+            self.wait(b.remaining())
+"""
+
+ONE_BEAT_LESSON_PY = SCENES_HEADER + _scene_class("OneBeat", "s01", S01_B01)
+TWO_SCENE_LESSON_PY = (SCENES_HEADER + _scene_class("S01WorkingThing", "s01", S01_B01 + S01_REST)
+                       + _scene_class("S02OneNeuron", "s02", S02_BODY))
 
 
 def make_one_beat_lesson(run_dir: Path) -> Path:
@@ -1981,10 +2069,53 @@ def make_one_beat_lesson(run_dir: Path) -> Path:
 
 
 def write_fixtures(fixtures_dir: Path) -> None:
-    """Write the fixture lessons, each with its scenes file, under ``fixtures_dir``."""
+    """Write under ``fixtures_dir``: one-beat/ and two-scene/, each a lesson.json with its
+    lesson.py, and pack/, the clean synthetic exemplar pack."""
     one_beat = fixtures_dir / "one-beat"
     make_one_beat_lesson(one_beat)
     (one_beat / "lesson.py").write_text(ONE_BEAT_LESSON_PY, encoding="utf-8")
+    two_scene = fixtures_dir / "two-scene"
+    two_scene.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ASSETS_DIR / "lesson.example.json", two_scene / "lesson.json")
+    (two_scene / "lesson.py").write_text(TWO_SCENE_LESSON_PY, encoding="utf-8")
+    make_pack(fixtures_dir / "pack", broken=False)
+
+
+# Three times the --one-beat wall clock M1 Task 22 measured (10.6 s on 4 CPUs), rounded up to 30 s.
+ONE_BEAT_BOUND_S: float | None = 60.0
+
+
+def run_one_beat() -> int:
+    """Narrate, render, review, assemble and verify the one-beat lesson at the draft tier; 1 on any failure."""
+    if common.which("manim") is None:
+        return common.usage_error("--one-beat needs ManimCE: manim is not on PATH")
+    start = time.perf_counter()
+    with Scratch() as scratch:
+        run_dir = Path(scratch) / "one-beat"
+        try:
+            make_one_beat_lesson(run_dir)
+        except RuntimeError as exc:
+            return common.usage_error(str(exc))
+        (run_dir / "lesson.py").write_text(ONE_BEAT_LESSON_PY, encoding="utf-8")
+        for name, *args in (
+            ("narrate", "--provider", "null"),
+            ("render", "--tier", "draft", "--jobs", "1"),
+            ("frames", "--tier", "draft"),
+            ("assemble", "--tier", "draft"),
+            ("verify", "--tier", "draft"),
+        ):
+            cp = run_script(name, "lesson.json", *args, cwd=run_dir)
+            lines = (cp.stdout.strip() or cp.stderr.strip()).splitlines()
+            print(lines[-1] if lines else f"{name}.py printed nothing")
+            if cp.returncode != 0:
+                print(cp.stdout + cp.stderr, file=sys.stderr)
+                return 1
+    wall_s = time.perf_counter() - start
+    print(f"one-beat wall clock {wall_s:.1f} s")
+    if ONE_BEAT_BOUND_S is not None and wall_s > ONE_BEAT_BOUND_S:
+        print(f"FAIL one-beat: {wall_s:.1f} s is past the {ONE_BEAT_BOUND_S:g} s bound")
+        return 1
+    return 0
 
 
 class TestFixtures(unittest.TestCase):
@@ -2004,6 +2135,11 @@ class TestFixtures(unittest.TestCase):
         self.assertIn("reveal", beats[0]["marks_s"])
         source = (run_dir / "lesson.py").read_text()
         self.assertEqual(check_scenes.lint_source(source, lesson), [])
+        two_scene = self.scratch.path / "two-scene"
+        lesson, errors = common.load_valid_lesson(two_scene / "lesson.json")
+        self.assertEqual(errors, [])
+        self.assertEqual(check_scenes.lint_source((two_scene / "lesson.py").read_text(), lesson), [])
+        self.assertTrue((self.scratch.path / "pack" / "index.json").exists())
 
 
 # Section 5.7's note, five physical lines byte for byte: the kit's patterns.py and references
@@ -2238,9 +2374,8 @@ def main() -> int:
         return 0
     if args.patterns:
         return run_patterns()
-    for flag, given in (("--one-beat", args.one_beat),):
-        if given:
-            return common.usage_error(f"{flag} not implemented yet")
+    if args.one_beat:
+        return run_one_beat()
     program = unittest.main(argv=[sys.argv[0], *unittest_args], exit=False)
     return 0 if program.result.wasSuccessful() else 1
 

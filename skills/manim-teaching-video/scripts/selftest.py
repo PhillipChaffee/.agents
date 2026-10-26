@@ -7,6 +7,7 @@ machine without them still runs every other case and exits 0.
 from __future__ import annotations
 
 import argparse
+import ast
 import base64
 import concurrent.futures
 import configparser
@@ -421,6 +422,32 @@ class TestVocabularies(unittest.TestCase):
         for pin in ("manim==0.22.0", "soundfile==0.14.0", "elevenlabs==2.74.1", "num2words==0.5.14", "Pillow==13.0.0"):
             self.assertIn(pin, text)
         self.assertEqual((SCRIPTS_DIR / "requirements-kokoro.txt").read_text().strip(), "kokoro==0.9.4")
+
+    def test_every_helper_has_pattern_tags_and_index_entry(self):
+        tree = ast.parse((SCRIPTS_DIR / "mtv" / "patterns.py").read_text(encoding="utf-8"))
+        helpers = {node.name for node in tree.body
+                   if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and not node.name.startswith("_")}
+        self.assertEqual(helpers, set(common.PATTERN_TAGS))
+        index = SKILL_DIR / "references" / "patterns.md"
+        if not index.exists():
+            print("SKIP patterns index: references/patterns.md not present (M2 writes it)")
+            return
+        text = index.read_text(encoding="utf-8")
+        self.assertEqual([name for name in sorted(helpers) if name not in text], [])
+
+    def test_framework_tags_in_technique_tags(self):
+        framework = SKILL_DIR / "references" / "framework.md"
+        if not framework.exists():
+            print("SKIP framework tags: references/framework.md not present (M2 writes it)")
+            raise unittest.SkipTest("references/framework.md not present")
+        tags = []
+        for line in framework.read_text(encoding="utf-8").splitlines():
+            if "Exemplars:" in line:
+                for value in line.split("Exemplars:", 1)[1].split(","):
+                    value = value.strip().removesuffix(".")
+                    if value and value != "none":
+                        tags.append(value)
+        self.assertEqual([tag for tag in tags if tag not in common.TECHNIQUE_TAGS], [])
 
 
 class TestErrorTable(unittest.TestCase):
@@ -1754,6 +1781,31 @@ self.play(focus_and_dim(group, [group[0]]))"""),
 square = Square()
 self.add(square)
 self.play(nudge_and_return(square))"""),
+    "count_parameters": pattern_example("count_parameters", """
+net = LayeredNetwork([3, 4, 2], seed=SEED).scale(0.6).shift(DOWN)
+counter, counting = count_parameters(net)
+self.add(net, counter.to_edge(UP))
+self.play(counting)"""),
+    "live_decimal": pattern_example("live_decimal", """
+tracker = ValueTracker(0.5)
+self.add(live_decimal(tracker))
+self.play(tracker.animate.set_value(1.5))"""),
+    "zoom_to": pattern_example("zoom_to", """
+grid = WeightGrid([0.9, -0.4, 0.1, -1.0, 0.6, 0.3], (2, 3))
+self.add(grid)
+self.play(zoom_to(self, grid[0]))""", base="NarratedCameraScene"),
+    "orbit_with_hud": pattern_example("orbit_with_hud", """
+self.set_camera_orientation(phi=60 * DEGREES, theta=-45 * DEGREES)
+self.add(ThreeDAxes())
+orbit_with_hud(self, VGroup(Text("weights").to_corner(UL)), degrees=30, run_time=2.0)""", base="Narrated3DScene"),
+    "staggered": pattern_example("staggered", """
+self.play(staggered(VGroup(*(Dot() for _ in range(5))).arrange(RIGHT)))"""),
+    "delayed": pattern_example("delayed", """
+self.play(delayed(FadeIn(Square(), run_time=1.0), 0.5, 2.0))"""),
+    "question_caption": pattern_example("question_caption", """
+square = Square().shift(UP)
+self.add(square)
+self.play(FadeIn(question_caption(square, "why this one?")))"""),
 }
 
 
@@ -1843,6 +1895,25 @@ class TestPatterns(unittest.TestCase):
         self.assertIn(net.edges, dimmed)
         self.assertIn(net.layers[0], dimmed)
         self.assertEqual(self.patterns.nudge_and_return(net.node(0, 0)).run_time, 1.0)
+
+    def test_count_keeps_pace_and_delayed_tolerates_float_error(self):
+        net = self.patterns.LayeredNetwork([4, 20, 3], seed=1)
+        _, counting = self.patterns.count_parameters(net)
+        tracker_anim, lighting = counting.animations
+        # Stretched together, the count runs exactly as long as the lighting.
+        self.assertEqual(tracker_anim.run_time, lighting.run_time)
+        self.assertIs(counting.group, net)
+        manim = importlib.import_module("manim")
+        exact = self.patterns.delayed(manim.FadeIn(manim.Dot(), run_time=0.2), 0.1, 0.3)
+        self.assertEqual(len(exact.animations), 2)
+        with self.assertRaises(ValueError):
+            self.patterns.delayed(manim.FadeIn(manim.Dot(), run_time=0.3), 0.1, 0.3)
+
+    def test_question_caption_stays_in_frame(self):
+        manim = importlib.import_module("manim")
+        for y in (2.0, -3.0):
+            caption, arrow = self.patterns.question_caption(manim.Square(side_length=1).shift(y * manim.UP), "why?")
+            self.assertGreaterEqual(caption.get_bottom()[1], -common.FRAME_HEIGHT / 2)
 
 
 class TestAttribution(unittest.TestCase):

@@ -19,12 +19,15 @@ from typing import Any
 from . import common, lesson
 
 try:
-    from manim import DL, UR, MovingCameraScene, Scene, ThreeDScene, config
+    from manim import DL, UR, MovingCameraScene, Scene, ThreeDScene, ValueTracker, config
 
     MANIM_AVAILABLE = True
+    # Mobjects CE keeps in the scene that never draw: the 3D camera's angle trackers.
+    _UNDRAWN_TYPES: tuple[type, ...] = (ValueTracker,)
 except ImportError:
     # The self-test drives the mixin through a stand-in scene where ManimCE is absent.
     MANIM_AVAILABLE = False
+    _UNDRAWN_TYPES = ()
 
 
 @dataclass
@@ -149,10 +152,16 @@ class NarratedMixin:
 
         The points test covers the whole family because a group holds no points of its own
         (CE manim/mobject/mobject.py:2360-2366); a mobject with none anywhere is skipped, since
-        CE puts its corners at the origin (2410-2413), where nothing is drawn.
+        CE puts its corners at the origin (2410-2413), where nothing is drawn. Camera bookkeeping
+        is skipped too: CE adds the moving camera's frame to the scene when it animates and the
+        3D camera's angle trackers when they rotate, and a tracker's one point sits at its value,
+        so a long orbit would read as a mobject clipped off the frame.
         """
         boxes = []
+        frame = getattr(getattr(self, "camera", None), "frame", None)
         for mobject in self.mobjects:
+            if mobject is frame or isinstance(mobject, _UNDRAWN_TYPES):
+                continue
             if len(mobject.get_all_points()) == 0:
                 continue
             x0, y0 = mobject.get_corner(DL)[:2]  # CE manim/mobject/mobject.py:2428

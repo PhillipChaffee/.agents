@@ -14,19 +14,24 @@ color comes from the lesson's role palette, so check_scenes.py's color contract 
 from __future__ import annotations
 
 import contextlib
+import math
 import random
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 
 import manim
 from manim import (
     DOWN,
+    ITALIC,
     PURE_YELLOW,
     RIGHT,
     UP,
     Animation,
     AnimationGroup,
+    Arrow,
     DecimalNumber,
     Dot,
+    FadeIn,
+    LaggedStart,
     Line,
     MathTex,
     Mobject,
@@ -34,17 +39,29 @@ from manim import (
     Restore,
     ShowPassingFlash,
     Square,
+    Succession,
+    Text,
+    ValueTracker,
     VGroup,
     VMobject,
+    Wait,
+    linear,
     there_and_back,
 )
 
+from .common import FRAME_HEIGHT, FRAME_WIDTH
 from .look import ROLE_COLORS
+from .narrated import Narrated3DScene, NarratedCameraScene
 
 __all__ = [
     "LayeredNetwork", "NumericColumn", "WeightGrid", "provenance", "numbers_to_symbol",
     "save_and_restore_layout", "flash_along", "focus_and_dim", "nudge_and_return",
+    "count_parameters", "live_decimal", "zoom_to", "orbit_with_hud", "staggered", "delayed",
+    "question_caption",
 ]
+
+# Seconds below which a computed duration is float error, not time.
+_TIME_EPSILON_S = 1e-9
 
 # A layer taller than this shows its first and last halves with a vertical ellipsis between.
 _MAX_SHOWN_NODES = 16
@@ -186,3 +203,96 @@ def nudge_and_return(mob: Mobject, amount: float = 0.1) -> Animation:
     # CE manim/mobject/mobject.py:313, manim/utils/rate_functions.py:216; built, so it is an
     # Animation with a run_time that delayed and AnimationGroup can read.
     return mob.animate(rate_func=there_and_back, run_time=1.0).shift(amount * UP).build()
+
+
+def count_parameters(network: LayeredNetwork) -> tuple[DecimalNumber, Animation]:
+    """A counter that increments as edges light up.
+
+    Returns the counter, to be placed and added by the scene, and the 3 s animation that
+    counts to the number of edges while each edge brightens to full opacity in turn.
+    """
+    tracker = ValueTracker(0)  # CE manim/mobject/value_tracker.py:21,83-97
+    counter = DecimalNumber(0, num_decimal_places=0)
+    counter.add_updater(lambda d: d.set_value(tracker.get_value()))
+    # CE manim/animation/composition.py:297-349
+    lighting = LaggedStart(*(edge.animate.set_stroke(opacity=1.0) for edge in network.edges), lag_ratio=0.1)
+    # The group stretches its parts in proportion to fit 3 s, so the count gets the lighting's
+    # own length and pace: unstretched it would be done before the first few edges lit.
+    counting = tracker.animate(run_time=lighting.run_time, rate_func=linear).set_value(len(network.edges))
+    # group=network: played, the group puts the network itself in the scene, not a new Group
+    # holding the edges and the tracker, which would draw the edges over the nodes and give
+    # the run log a box stretching to the tracker's value.
+    return counter, AnimationGroup(counting, lighting, group=network, run_time=3.0)
+
+
+def live_decimal(tracker: ValueTracker, decimals: int = 2) -> DecimalNumber:
+    """An always-redrawn decimal bound to a tracker."""
+    number = DecimalNumber(tracker.get_value(), num_decimal_places=decimals)
+    number.add_updater(lambda d: d.set_value(tracker.get_value()))
+    return number
+
+
+def zoom_to(scene: NarratedCameraScene, mob: Mobject, margin: float = 0.5, run_time: float = 2.0) -> Animation:
+    """Frame animates to fit ``mob``; requires ``NarratedCameraScene``.
+
+    The frame keeps its aspect ratio and fits ``mob`` plus ``margin`` on every side.
+    """
+    if not isinstance(scene, NarratedCameraScene):
+        raise TypeError("zoom_to needs a NarratedCameraScene")
+    width = max(mob.width + 2 * margin, (mob.height + 2 * margin) * FRAME_WIDTH / FRAME_HEIGHT)
+    # CE manim/scene/moving_camera_scene.py:17-47
+    return scene.camera.frame.animate(run_time=run_time).set(width=width).move_to(mob)
+
+
+def orbit_with_hud(scene: Narrated3DScene, hud: VGroup, degrees: float = 60.0, run_time: float = 10.0) -> None:
+    """Ambient camera rotation while ``hud`` stays fixed in frame; requires ``Narrated3DScene``.
+
+    It plays: the camera turns ``degrees`` over ``run_time`` seconds, so call it inside a beat
+    with a ``run_time`` the beat has room for.
+    """
+    if not isinstance(scene, Narrated3DScene):
+        raise TypeError("orbit_with_hud needs a Narrated3DScene")
+    scene.add_fixed_in_frame_mobjects(*hud)  # CE manim/scene/three_d_scene.py:357
+    scene.begin_ambient_camera_rotation(rate=math.radians(degrees) / run_time)  # :102
+    scene.wait(run_time)
+    scene.stop_ambient_camera_rotation()  # :140
+
+
+def staggered(mobs: Iterable[Mobject], anim=FadeIn, lag_ratio: float = 0.5, run_time: float = 2.0) -> Animation:
+    """``LaggedStart`` over the mobjects."""
+    return LaggedStart(*(anim(m) for m in mobs), lag_ratio=lag_ratio, run_time=run_time)
+
+
+def delayed(anim: Animation, start_s: float, total_s: float) -> Animation:
+    """Wraps ``anim`` so it runs inside ``[start_s, total_s]`` of one ``play``.
+
+    The result lasts ``total_s``: a wait, then ``anim``, then a wait; a wait with no length
+    is left out, since CE rejects a non-positive run time. ValueError when ``anim`` cannot
+    finish by ``total_s``.
+    """
+    start_s = max(start_s, 0.0)
+    rest = total_s - start_s - anim.run_time
+    # A tolerance, so an exact fit computed in floats (0.1 + 0.2 against 0.3) is not refused
+    # and does not leave a wait of 1e-16 s.
+    if rest < -_TIME_EPSILON_S:
+        raise ValueError(f"delayed: {anim.run_time} s from {start_s} s ends past total_s {total_s} s")
+    # CE manim/animation/composition.py:198-240, manim/animation/animation.py:584-620
+    parts = (([Wait(start_s)] if start_s > _TIME_EPSILON_S else []) + [anim]
+             + ([Wait(rest)] if rest > _TIME_EPSILON_S else []))
+    return Succession(*parts)
+
+
+def question_caption(target: Mobject, text: str) -> VGroup:
+    """A caption in the learner's words with an arrow to ``target``, held until the narration answers.
+
+    The caption sits below ``target``, or above it when below would leave the frame; the
+    group holds the caption first, then the arrow.
+    """
+    caption = Text(text, font_size=28, slant=ITALIC).next_to(target, DOWN, buff=0.6)
+    if caption.get_bottom()[1] < -FRAME_HEIGHT / 2:
+        caption.next_to(target, UP, buff=0.6)
+        # CE manim/mobject/geometry/line.py:503
+        arrow = Arrow(caption.get_bottom(), target.get_top(), buff=0.1, stroke_width=3)
+    else:
+        arrow = Arrow(caption.get_top(), target.get_bottom(), buff=0.1, stroke_width=3)
+    return VGroup(caption, arrow)

@@ -86,7 +86,7 @@ def _tool_check(tool: str, install: str) -> Check:
 
 def _provider_check(name: str) -> Check:
     try:
-        provider = narrate.build_provider(name, narrate.DEFAULT_VOICE)
+        provider = narrate.build_provider(name, narrate.voice_for(name, None))
         with tempfile.TemporaryDirectory(prefix="mtv-preflight-") as tmp:
             out_wav = Path(tmp) / "provider.wav"
             start = time.perf_counter()

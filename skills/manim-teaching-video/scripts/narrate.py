@@ -19,7 +19,6 @@ from mtv import lesson as mtv_lesson
 
 # Kokoro with voice af_heart is the default narration and the fallback of every other provider.
 DEFAULT_PROVIDER = "kokoro"
-DEFAULT_VOICE = "af_heart"
 SPEED = 1.0
 RETRY_SLEEPS_S = (2.0, 4.0, 8.0)
 WARMUP_TEXT = "The quick brown fox jumps over the lazy dog."
@@ -27,6 +26,13 @@ WARMUP_TEXT = "The quick brown fox jumps over the lazy dog."
 
 def cache_key(provider: str, voice: str, speed: float, text: str) -> str:
     return common.sha256_text("|".join([provider, voice, f"{speed:g}", " ".join(common.normalize_words(text))]))
+
+
+def voice_for(provider: str, lesson_voice: str | None) -> str:
+    """The lesson's voice when it suits ``provider``, else the provider's default ("" for the null one)."""
+    if lesson_voice and common.voice_suits(provider, lesson_voice):
+        return lesson_voice
+    return common.DEFAULT_VOICES.get(provider, "")
 
 
 def build_provider(name: str, voice: str) -> tts.Provider:
@@ -43,7 +49,7 @@ def build_fallback(provider_name: str) -> tts.Provider | None:
     if provider_name in (DEFAULT_PROVIDER, "null"):
         return None
     # Kokoro loads its pipeline on first use, so building it costs nothing until a beat falls back.
-    return tts.get_provider(DEFAULT_PROVIDER)
+    return tts.get_provider(DEFAULT_PROVIDER, common.DEFAULT_VOICES[DEFAULT_PROVIDER])
 
 
 def synthesize_with_retry(
@@ -137,7 +143,7 @@ def _cached_tokens(sidecar: Path, key: str, wav: Path) -> list[tts.Word] | None:
 def warmup(name: str) -> int:
     """Synthesize one sentence, which makes Kokoro fetch its weights, and print the real-time factor."""
     try:
-        provider = build_provider(name, DEFAULT_VOICE)
+        provider = build_provider(name, voice_for(name, None))
     except ValueError as exc:
         return common.usage_error(str(exc))
     with tempfile.TemporaryDirectory(prefix="mtv-warmup-") as tmp:
@@ -145,7 +151,7 @@ def warmup(name: str) -> int:
         start = time.perf_counter()
         try:
             provider.synthesize(WARMUP_TEXT, out_wav)
-        except OSError as exc:
+        except (OSError, tts.ProviderError) as exc:
             return common.usage_error(f"provider '{name}' failed: {exc}")
         rtf = (time.perf_counter() - start) / tts.wav_duration(out_wav)
     return common.verdict(True, f"warmup {name} rtf={rtf:.3f}")
@@ -167,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     if errors:
         return common.usage_error("lesson invalid: " + "; ".join(errors))
     name = args.provider or lesson.get("provider") or DEFAULT_PROVIDER
-    voice = lesson.get("voice") or DEFAULT_VOICE
+    voice = voice_for(name, lesson.get("voice"))
     try:
         provider = build_provider(name, voice)
         fallback = build_fallback(name)
@@ -180,14 +186,20 @@ def main(argv: list[str] | None = None) -> int:
         context = neighbor_context(beats, index) if provider.name == "elevenlabs" else None
         try:
             retries += narrate_beat(beat, run_dir, provider, fallback, voice, SPEED, context)
+        except tts.ProviderError as exc:
+            return common.usage_error(f"provider '{name}' failed: {exc}")
         except OSError as exc:
             return common.usage_error(f"provider '{name}' failed after {len(RETRY_SLEEPS_S)} retries: {exc}")
     for _ in range(retries):
         mtv_lesson.bump(lesson, "provider_retries")
-    tools = {"provider": provider.name}
+    tools = {"provider": provider.name, "voice": voice}
     if any(common.load_json(run_dir / beat["words"])["provider"] != provider.name for beat in beats):
         tools["fallback"] = fallback.name
     mtv_lesson.mark_done(lesson, "narrate", tools)
+    # The stage is done for the provider and voice that spoke, which --provider may have changed
+    # from the lesson's: hashed with those, a resume under the lesson's own re-narrates.
+    used = {**lesson, "provider": provider.name, "voice": voice}
+    lesson["stages"]["narrate"]["inputs_sha256"] = mtv_lesson.stage_inputs(used, "narrate")
     mtv_lesson.save(lesson, args.lesson)
     interpolated = sum(beat["interpolated"] for beat in beats)
     return common.verdict(True, f"narrated {len(beats)} beats, {interpolated} interpolated")

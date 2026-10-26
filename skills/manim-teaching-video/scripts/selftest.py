@@ -11,7 +11,9 @@ import ast
 import base64
 import concurrent.futures
 import configparser
+import contextlib
 import importlib
+import io
 import json
 import math
 import os
@@ -999,6 +1001,88 @@ class TestElevenLabs(unittest.TestCase):
                                                    tts.get_provider("null"), sleep_fn=lambda s: None,
                                                    context={"previous_text": "one"})
         self.assertEqual((used, seen), ("null", [{"previous_text": "one"}] * 4))
+
+
+class TestProviderErrors(unittest.TestCase):
+    """Failures a retry cannot fix end the run with exit 2 and a reason, never a traceback."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def setUp(self):
+        self.run_dir = example_run_dir(self.scratch.path)
+
+    def test_elevenlabs_refusal_exits_2_with_its_status(self):
+        require("elevenlabs", "provider errors")
+        from elevenlabs.core.api_error import ApiError
+
+        class Refusing:
+            def convert_with_timestamps(self, **kwargs):
+                raise ApiError(status_code=404, body={"detail": "voice_not_found"})
+        client = type("Client", (), {"text_to_speech": Refusing()})
+        stderr = io.StringIO()
+        with (mock.patch.dict(os.environ, {"ELEVENLABS_API_KEY": "test-key"}),
+              mock.patch.object(tts.ElevenLabsProvider, "_client", lambda self: client),
+              contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO())):
+            code = narrate.main([str(self.run_dir / "lesson.json"), "--provider", "elevenlabs"])
+        self.assertEqual(code, 2)
+        self.assertIn("elevenlabs answered 404", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
+
+    def test_unknown_kokoro_voice_is_tried_once(self):
+        hub_errors = require("huggingface_hub.errors", "provider errors")
+        built = []
+
+        class Pipeline:
+            def __init__(self, **kwargs):
+                built.append(kwargs)
+
+            def load_voice(self, voice):
+                raise hub_errors.EntryNotFoundError(f"voices/{voice}.pt not found")
+        sleeps = []
+        with mock.patch.dict(sys.modules, {"kokoro": type(sys)("kokoro")}):
+            sys.modules["kokoro"].KPipeline = Pipeline
+            provider = tts.get_provider("kokoro", voice="zz_nope")
+            with self.assertRaises(tts.ProviderError):
+                narrate.synthesize_with_retry(provider, "hello", Path(self.scratch.path) / "v.wav", None,
+                                              sleep_fn=sleeps.append)
+        self.assertEqual((len(built), sleeps), (1, []))
+
+    def test_missing_kokoro_is_a_provider_error(self):
+        with mock.patch.dict(sys.modules, {"kokoro": None}):
+            with self.assertRaises(tts.ProviderError):
+                tts.get_provider("kokoro").synthesize("hello", Path(self.scratch.path) / "m.wav")
+
+    def test_each_provider_gets_its_own_voice(self):
+        self.assertEqual(narrate.voice_for("elevenlabs", "af_heart"), common.DEFAULT_VOICES["elevenlabs"])
+        self.assertEqual(narrate.voice_for("kokoro", "21m00Tcm4TlvDq8ikWAM"), "af_heart")
+        self.assertEqual(narrate.voice_for("kokoro", "am_adam"), "am_adam")
+        preflight = importlib.import_module("preflight")
+        voices = []
+
+        def build(name, voice):
+            voices.append(voice)
+            raise ValueError("stop here")
+        with mock.patch.object(narrate, "build_provider", build):
+            self.assertFalse(preflight._provider_check("elevenlabs").ok)
+        self.assertEqual(voices, [common.DEFAULT_VOICES["elevenlabs"]])
+        lesson = mtv_lesson.load(self.run_dir / "lesson.json")
+        lesson["provider"] = "elevenlabs"
+        self.assertIn("voice 'af_heart' is not a elevenlabs voice", mtv_lesson.validate(lesson))
+        lesson.update(provider="kokoro", voice="21m00Tcm4TlvDq8ikWAM")
+        self.assertIn("voice '21m00Tcm4TlvDq8ikWAM' is not a kokoro voice", mtv_lesson.validate(lesson))
+
+    def test_narration_by_another_provider_leaves_the_stage_stale(self):
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        lesson = mtv_lesson.load(self.run_dir / "lesson.json")
+        # The lesson names kokoro, so its narrate stage is not done yet.
+        self.assertTrue(mtv_lesson.needs_rerun(lesson, "narrate"))
+        self.assertEqual(lesson["stages"]["narrate"]["tools"]["provider"], "null")
+        lesson["provider"] = "null"
+        self.assertFalse(mtv_lesson.needs_rerun(lesson, "narrate"))
 
 
 class TestNarrate(unittest.TestCase):

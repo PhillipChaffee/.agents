@@ -141,6 +141,9 @@ def validate(lesson: dict) -> list[str]:
         errors.append(f"schema is '{lesson['schema']}', expected '{common.LESSON_SCHEMA}'")
     if _has(errors, "", lesson, "seed") and not _is_int(lesson["seed"]):
         errors.append("seed must be an integer")
+    provider, voice = lesson.get("provider"), lesson.get("voice")
+    if isinstance(provider, str) and isinstance(voice, str) and not common.voice_suits(provider, voice):
+        errors.append(f"voice '{voice}' is not a {provider} voice")
     for role, value in (_typed(errors, "", lesson, "colors", dict) or {}).items():
         if not (isinstance(value, str) and value in common.COLOR_NAMES):
             errors.append(f"colors['{role}'] = '{value}' is not a ManimCE color name")

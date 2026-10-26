@@ -181,6 +181,21 @@ FRAME_HEIGHT = 8.0
 TIERS = {"draft": (854, 480, 15), "standard": (1920, 1080, 30)}
 
 LESSON_SCHEMA = "mtv-lesson/1"
+
+# Each speaking provider's voice when the lesson names none that suits it: Kokoro's af_heart
+# (spec 6.9) and an ElevenLabs premade voice id. The null provider speaks no voice.
+DEFAULT_VOICES = {"kokoro": "af_heart", "elevenlabs": "21m00Tcm4TlvDq8ikWAM"}
+# Kokoro names its voices by language and gender, then a name (af_heart); ElevenLabs uses ids.
+KOKORO_VOICE = re.compile(r"^[a-z]{2}_")
+
+
+def voice_suits(provider: str, voice: str) -> bool:
+    """Whether ``voice`` is the kind of voice ``provider`` takes; any voice suits the null provider."""
+    if provider == "kokoro":
+        return bool(KOKORO_VOICE.match(voice))
+    if provider == "elevenlabs":
+        return not KOKORO_VOICE.match(voice)
+    return True
 EXEMPLARS_SCHEMA = "mtv-exemplars/1"
 CONTINUITY_SCHEMA = "mtv-continuity/1"
 

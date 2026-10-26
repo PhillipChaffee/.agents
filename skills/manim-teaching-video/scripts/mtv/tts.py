@@ -29,6 +29,11 @@ class Word:
     end_s: float
 
 
+class ProviderError(RuntimeError):
+    """A provider failure that retrying cannot fix: a missing key or package, a refused request,
+    a voice the provider does not have. Not an OSError, so narrate.py neither retries nor falls back."""
+
+
 class Provider(Protocol):
     name: str
 
@@ -75,8 +80,11 @@ class KokoroProvider:
             # Through hf-xet's Rust client the weight download bypasses Python logging, so
             # the hosts it reaches could not be told apart from the ones M0 recorded.
             os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
-            import kokoro
-            from huggingface_hub import errors as hub_errors
+            try:
+                import kokoro
+                from huggingface_hub import errors as hub_errors
+            except ImportError as exc:
+                raise ProviderError(f"kokoro is not installed ({exc}); install requirements-kokoro.txt") from exc
 
             # The model and voice weights download on first use. huggingface_hub's own HTTP
             # errors are OSErrors, but a refused connection surfaces as its HTTP client's
@@ -88,7 +96,8 @@ class KokoroProvider:
                 pipeline.load_voice(self.voice)
             except hub_errors.EntryNotFoundError as exc:
                 if not isinstance(exc, hub_errors.LocalEntryNotFoundError):
-                    raise
+                    # The hub answered and has no such file: a retry gets the same answer.
+                    raise ProviderError(f"kokoro has no voice '{self.voice}' on the hub: {exc}") from exc
                 raise ConnectionError(f"kokoro could not load its weights: {exc}") from exc
             except (OSError, *_transport_errors()) as exc:
                 raise ConnectionError(f"kokoro could not load its weights: {exc}") from exc
@@ -127,8 +136,7 @@ class ElevenLabsProvider:
     def _client(self):
         key = os.environ.get("ELEVENLABS_API_KEY")
         if not key:
-            # Not an OSError, so a missing key is never retried or answered with the fallback.
-            raise RuntimeError("ELEVENLABS_API_KEY is not set")
+            raise ProviderError("ELEVENLABS_API_KEY is not set")
         from elevenlabs.client import ElevenLabs
 
         return ElevenLabs(api_key=key)
@@ -158,7 +166,7 @@ class ElevenLabsProvider:
             # Rate limits and server errors pass; any other status is the request's fault.
             if exc.status_code == 429 or (exc.status_code or 0) >= 500:
                 raise ConnectionError(f"elevenlabs answered {exc.status_code}") from exc
-            raise
+            raise ProviderError(f"elevenlabs answered {exc.status_code}: {exc.body}") from exc
         _write_wav(out_wav, base64.b64decode(response.audio_base_64))
         alignment = response.normalized_alignment
         if alignment is None:
@@ -177,14 +185,15 @@ def _write_wav(path: Path, frames: bytes) -> None:
         wav.writeframes(frames)
 
 
-def get_provider(name: str, voice: str = "af_heart", speed: float = 1.0) -> Provider:
-    """The provider ``name``; ``voice`` and ``speed`` configure a speaking one, and the null one has neither."""
+def get_provider(name: str, voice: str | None = None, speed: float = 1.0) -> Provider:
+    """The provider ``name``; ``voice`` (default: the provider's own, common.DEFAULT_VOICES) and
+    ``speed`` configure a speaking one, and the null one has neither."""
     if name == "null":
         return NullProvider()
     if name == "kokoro":
-        return KokoroProvider(voice, speed)
+        return KokoroProvider(voice or common.DEFAULT_VOICES[name], speed)
     if name == "elevenlabs":
-        return ElevenLabsProvider(voice, speed)
+        return ElevenLabsProvider(voice or common.DEFAULT_VOICES[name], speed)
     raise ValueError(f"unknown provider '{name}'")
 
 

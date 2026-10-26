@@ -840,14 +840,15 @@ class TestFrames(unittest.TestCase):
 
     def test_continuity_jump_fails_at_threshold(self):
         require_tool("ffmpeg", "frames continuity")
-        lesson_path = make_rendered_lesson(self.run_dir, ["blue", "blue", "red"])
+        lesson_path = make_rendered_lesson(self.run_dir, ["blue", "blue", "white"])
         cp = run_script("frames", "lesson.json", "--tier", "draft", cwd=self.run_dir)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         cont = common.load_json(self.run_dir / "frames" / "continuity.json")
         self.assertEqual(cont["threshold"], common.CONTINUITY_THRESHOLD)
         self.assertEqual([b["pass"] for b in cont["boundaries"]], [True, False])
         self.assertLess(cont["boundaries"][0]["mad"], common.CONTINUITY_THRESHOLD)
-        # blue to red measures 0.184 here; the fixture holds up to a threshold of 0.18
+        # blue to white measures 0.886 here, so the jump still fails after the M1 calibration
+        # raises the threshold to at most 0.30; blue to red (0.184) would not
         self.assertGreater(cont["boundaries"][1]["mad"], common.CONTINUITY_THRESHOLD)
         lesson = mtv_lesson.load(lesson_path)
         self.assertIn("frames/s01/s01-b02-last.png", lesson["scenes"][0]["beats"][1]["render"]["frames"])

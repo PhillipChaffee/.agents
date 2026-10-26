@@ -2347,6 +2347,27 @@ class TestVerify(ExampleLessonCase):
         self.assertTrue(resume.startswith("Resume:"), resume)
         self.assertNotIn("verify", resume)
 
+    def test_allowed_overrun_in_an_inner_beat_keeps_the_container_gate(self):
+        # s01-b01 overruns by the 1.0 s the overrun gate allows, so s01-b02 keeps its own narration
+        # (spec 12.5 amendment 3) and s01 runs 0.6 s past its narration and tails, as the mixin
+        # left it on CE's clock: 45 frames, the exit pad's one, then 23 frames of static pad.
+        lesson = mtv_lesson.load(self.lesson_path)
+        out_dir = self.run_dir / "render" / "draft" / "s01"
+        sections = common.load_json(out_dir / "sections.json")
+        spans = ((0, 46, 1.0), (46, 69, 0.0))  # first frame, end frame, overrun_s
+        for beat, section, (first, end, overrun_s) in zip(lesson["scenes"][0]["beats"], sections, spans):
+            make_clip(out_dir / section["video"], "blue", (end - first) / 15)
+            section.update(nb_frames=str(end - first), duration=f"{(end - first) / 15:.6f}")
+            beat["render"]["duration_s"] = (end - first) / 15
+            beat["render"]["log"].update(enter_s=first / 15, exit_s=end / 15, overrun_s=overrun_s)
+        common.dump_json(sections, out_dir / "sections.json")
+        mtv_lesson.save(lesson, self.lesson_path)
+        for script in ("assemble", "verify"):
+            cp = run_script(script, "lesson.json", "--tier", "draft", cwd=self.run_dir)
+            self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        gates = {g["gate"]: g for g in mtv_lesson.load(self.lesson_path)["checks"]["verify"]["gates"]}
+        self.assertLess(gates["container duration"]["measured"], 0.1)
+
     def test_pass_at_another_tier_leaves_verify_stage_undone(self):
         # The verify stage's hash holds lesson.tier, not --tier, so a draft pass of a lesson
         # delivered at standard must not stand for the standard file's verify.

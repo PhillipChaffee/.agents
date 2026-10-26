@@ -146,11 +146,30 @@ def streams(lesson: dict, run_dir: Path, tier: str) -> list[GateResult]:
     return [_stream_row(_probe(output_path(lesson, run_dir, tier)))]
 
 
+def _narrated_scene_s(scene: dict, fps: float) -> float | None:
+    """How long the mixin's timing lets ``scene`` run: its summed narration and tails, plus what
+    the overruns the overrun gate allows add (spec 12.5 amendment 3); None when a beat has no
+    narrated duration.
+
+    An inner beat's overrun shows as where the next beat entered, so the mixin's beat ends are
+    replayed from the run log's entries; the last beat's overrun runs on past its end. A beat
+    without a run-log line counts as entering on its predecessor's end, as one that kept time does.
+    """
+    end_s, log = 0.0, None
+    for beat in scene.get("beats", []):
+        duration_s = _number(beat.get("duration_s"))
+        if duration_s is None:
+            return None
+        log = _dig(beat, "render", "log")
+        enter_s = _number(_dig(log, "enter_s"))
+        end_s = common.beat_end_s(end_s, end_s if enter_s is None else enter_s, duration_s, beat["tail_s"], fps)
+    return end_s + (_number(_dig(log, "overrun_s")) or 0.0)
+
+
 def container_duration(lesson: dict, run_dir: Path, tier: str) -> list[GateResult]:
     actual_s = _container_s(output_path(lesson, run_dir, tier))
-    beats = [beat for _, beat in mtv_lesson.beats(lesson)]
-    audio = [_number(beat.get("duration_s")) for beat in beats]
-    expected_s = None if None in audio else sum(audio) + sum(beat["tail_s"] for beat in beats)
+    scenes = [_narrated_scene_s(scene, common.TIERS[tier][2]) for scene in lesson.get("scenes", [])]
+    expected_s = None if None in scenes else sum(scenes)
     return [_within("container duration", actual_s, expected_s, common.SYNC_CONTAINER_TOLERANCE_S)]
 
 

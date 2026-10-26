@@ -20,7 +20,7 @@ import tempfile
 import unittest
 import wave
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import NoReturn
 from unittest import mock
 
@@ -657,17 +657,76 @@ class StubMobject:
         return [(min if direction[d] < 0 else max)(p[d] for p in self.points) for d in range(3)]
 
 
-class FrameClockScene(StubScene):
-    """Advances its clock by whole frames as CE does for a segment it renders: a play's frame
-    count rounds up (CE manim/scene/scene.py:1128-1129), a static wait's rounds down
-    (CE manim/renderer/cairo_renderer.py:224)."""
+class CairoClock:
+    """CE's Cairo clock and section index, standing behind the mixin as ManimCE's Scene does.
+
+    A segment rendered afresh writes whole frames: a play's count rounds up and each frame
+    advances the clock (CE manim/scene/scene.py:1128-1129), a static wait's count rounds down
+    and advances it in one step (CE manim/renderer/cairo_renderer.py:210,221-225). A segment
+    found in ``cache`` is reused with the frames it was rendered with, while the clock advances
+    by the exact run time and skip_animations stays set (cairo_renderer.py:104-110). A scene
+    replaying the same calls hashes them the same, so a shared cache makes every play of a
+    second render a hit.
+    """
+
+    frame_rate = 15.0
+
+    def __init__(self, cache: set | None = None) -> None:
+        self.renderer = SimpleNamespace(time=0.0, skip_animations=False)
+        self.mobjects: list = []
+        self.cache = set() if cache is None else cache
+        # CE opens every scene with an autocreated section (scene_file_writer.py:264).
+        self.sections: list[list] = [["autocreated", 0]]
+        self.duration = 0.0
+        self.frozen = False
+        self.plays = self.hits = 0
+
+    @property
+    def time(self) -> float:
+        return self.renderer.time
+
+    def next_section(self, name: str) -> None:
+        self.sections.append([name, 0])
+
+    def add_subcaption(self, text: str, duration: float) -> None:
+        pass
+
+    def is_current_animation_frozen_frame(self) -> bool:
+        return self.frozen
 
     def wait(self, seconds: float) -> None:
-        self.calls.append(("wait", seconds))
-        self.time += int(seconds / (1 / self.frame_rate)) / self.frame_rate
+        self.play(seconds, frozen=True)
 
-    def play(self, seconds: float) -> None:
-        self.time += math.ceil(seconds / (1 / self.frame_rate)) / self.frame_rate
+    def play(self, seconds: float, frozen: bool = False) -> None:
+        dt = 1 / self.frame_rate
+        self.duration, self.frozen = max(seconds, dt), frozen
+        frames = int(self.duration / dt) if frozen else math.ceil(self.duration / dt)
+        self.sections[-1][1] += frames
+        key = (self.plays, self.duration, frozen)
+        self.plays += 1
+        self.renderer.skip_animations = key in self.cache
+        if self.renderer.skip_animations:
+            self.hits += 1
+            self.renderer.time += self.duration
+            return
+        self.cache.add(key)
+        if frozen:
+            self.renderer.time += frames * dt
+        else:
+            for _ in range(frames):
+                self.renderer.time += dt
+
+    def index_spans(self) -> dict[str, tuple[float, float]]:
+        """Each section's start and end as ruling F32 reads the index: a running sum in file order."""
+        spans, start = {}, 0.0
+        for name, frames in self.sections:
+            spans[name] = (start, start + frames / self.frame_rate)
+            start = spans[name][1]
+        return spans
+
+
+class FrameClockScene(narrated.NarratedMixin, CairoClock):
+    """The mixin on CE's clock, as a generated scene subclasses it."""
 
 
 class TestNarratedMixin(ExampleLessonCase):
@@ -774,6 +833,37 @@ class TestNarratedMixin(ExampleLessonCase):
             target_end += line["audio_s"] + line["tail_s"]
             self.assertLess(abs(line["exit_s"] - target_end), 1 / 15 + 1e-9)
         self.assertEqual(lines[-1]["exit_s"], scene.time)
+
+    def test_cached_rerender_keeps_run_log_on_the_section_index(self):
+        # A re-render reuses CE's cached segments, whose clock advances by exact run times while
+        # the reused files hold whole frames; the run log must still match the index the sync gate
+        # reads, and the pads must replay unchanged so every segment stays cached.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["duration_s"] = 3.63  # off the frame grid, as synthesized audio is
+        mtv_lesson.save(lesson, self.lesson_path)
+        run_log = Path(os.environ["MTV_RUN_LOG"])
+        cache: set = set()
+        renders = []
+        for _ in range(2):
+            run_log.unlink(missing_ok=True)
+            scene = FrameClockScene(cache)
+            scene.load_lesson("s01", self.lesson_path)
+            for beat_id, mark in (("s01-b01", "reveal"), ("s01-b02", "lights"), ("s01-b03", "zoom")):
+                with scene.beat(beat_id) as b:
+                    for _ in range(3):
+                        scene.play(0.5)  # 7.5 frames at 15 fps, so 8 frames
+                    scene.wait(0.37)  # 5.55 frames, so 5 frames
+                    scene.play(b.until(mark))
+            lines = [json.loads(text) for text in run_log.read_text().splitlines()]
+            spans = scene.index_spans()
+            for line in lines:
+                self.assertAlmostEqual(line["enter_s"], spans[line["beat"]][0], places=9)
+                self.assertAlmostEqual(line["exit_s"], spans[line["beat"]][1], places=9)
+            renders.append((lines, scene.hits, scene.plays))
+        (first, first_hits, _), (second, second_hits, second_plays) = renders
+        self.assertEqual(first_hits, 0)
+        self.assertEqual(second_hits, second_plays)
+        self.assertEqual(second, first)
 
     def test_no_run_log_without_mtv_run_log(self):
         # check_scenes.py's dry run leaves MTV_RUN_LOG unset: beats are still padded, nothing is written.

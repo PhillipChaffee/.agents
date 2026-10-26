@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 import os
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from . import common, lesson
 
@@ -80,10 +82,7 @@ class NarratedMixin:
         # (CE manim/scene/scene.py:378-388); the subcaption spans the narration (1726-1766).
         self.next_section(beat_id)
         self.add_subcaption(entry["narration"], duration=entry["duration_s"])
-        # enter_s and exit_s read CE's clock, which a rendered segment advances by whole frames
-        # (CE manim/renderer/cairo_renderer.py:210), as the section index counts them; a segment
-        # reused from CE's cache advances it by its exact run time (110), so a cached re-render
-        # drifts from the index by up to one frame per reused animation.
+        # enter_s and exit_s read CE's clock, which play keeps on the frames the section index counts.
         timing = Beat(
             beat_id=beat_id,
             narration=entry["narration"],
@@ -107,6 +106,40 @@ class NarratedMixin:
             with open(self._mtv_run_log, "a", encoding="utf-8") as run_log:
                 run_log.write(json.dumps(self._log_line(timing, self.time, overrun_s)) + "\n")
         self._mtv_cursor = timing.target_end
+
+    def play(self, *args: Any, **kwargs: Any) -> None:
+        """CE's play, with the clock kept on the frames written when CE reuses a cached segment.
+
+        A reused segment holds the whole frames it was first rendered with, but CE advances the
+        clock by the exact run time (CE manim/renderer/cairo_renderer.py:104-110). Left alone,
+        every reused animation would move the run log, the pads and the subcaptions up to a frame
+        off the section index, and the drift would add up over a re-rendered scene. wait comes
+        through here too (CE manim/scene/scene.py:1269-1275).
+        """
+        start_s = self.time
+        super().play(*args, **kwargs)
+        # CE leaves this set only after a segment it did not render (cairo_renderer.py:76-110): a
+        # cache hit, or a skipped section or animation range, which render.py never asks for.
+        if self.renderer.skip_animations:
+            self.renderer.time = self._rendered_clock(start_s)
+
+    def _rendered_clock(self, start_s: float) -> float:
+        """The clock CE leaves after rendering the segment just played, from ``start_s``.
+
+        The frame counts and the per-frame sums are CE's own, so a replayed pad gets the same run
+        time to the last bit, hashes the same, and stays cached.
+        """
+        dt = 1 / self._fps()
+        # self.duration is the play's run time after CE's one-frame floor (CE manim/scene/scene.py:1348).
+        if self.is_current_animation_frozen_frame():
+            # A static wait is one frame repeated (CE manim/renderer/cairo_renderer.py:210,221-225).
+            return start_s + int(self.duration / dt) * dt
+        clock = start_s
+        # One frame per np.arange(0, run_time, dt) step (CE manim/scene/scene.py:1128-1129),
+        # each advancing the clock by dt (CE manim/renderer/cairo_renderer.py:210).
+        for _ in range(math.ceil(self.duration / dt)):
+            clock += dt
+        return clock
 
     def _fps(self) -> float:
         return config.frame_rate if MANIM_AVAILABLE else getattr(self, "frame_rate", 15.0)

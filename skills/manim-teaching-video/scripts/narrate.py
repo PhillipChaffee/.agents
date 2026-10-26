@@ -53,16 +53,18 @@ def synthesize_with_retry(
     fallback: tts.Provider | None,
     sleeps: tuple[float, ...] = RETRY_SLEEPS_S,
     sleep_fn=time.sleep,
+    context: dict[str, str] | None = None,
 ) -> tuple[list[tts.Word], str, int]:
     """The spoken words, the name of the provider that spoke them, and the retries taken.
 
     After the last retry fails, ``fallback`` speaks instead, or the failure is raised when
-    there is none.
+    there is none. ``context`` holds extra keyword arguments for ``provider`` alone (the
+    neighboring narration ElevenLabs takes); the fallback speaks the text without them.
     """
     retries = 0
     while True:
         try:
-            return provider.synthesize(text, out_wav), provider.name, retries
+            return provider.synthesize(text, out_wav, **(context or {})), provider.name, retries
         # ConnectionError and TimeoutError are OSError subclasses, as are socket errors.
         except OSError:
             if retries == len(sleeps):
@@ -73,8 +75,24 @@ def synthesize_with_retry(
             retries += 1
 
 
+def neighbor_context(beats: list[dict], index: int) -> dict[str, str]:
+    """The narration either side of beat ``index`` across the whole lesson, for ElevenLabs' prosody."""
+    context = {}
+    if index > 0:
+        context["previous_text"] = beats[index - 1]["narration"]
+    if index + 1 < len(beats):
+        context["next_text"] = beats[index + 1]["narration"]
+    return context
+
+
 def narrate_beat(
-    beat: dict, run_dir: Path, provider: tts.Provider, fallback: tts.Provider | None, voice: str, speed: float
+    beat: dict,
+    run_dir: Path,
+    provider: tts.Provider,
+    fallback: tts.Provider | None,
+    voice: str,
+    speed: float,
+    context: dict[str, str] | None = None,
 ) -> int:
     """Fill ``beat``'s audio, words, duration_s, marks_s and interpolated; return the retries taken."""
     audio, words = f"audio/{beat['id']}.wav", f"audio/{beat['id']}.words.json"
@@ -85,7 +103,7 @@ def narrate_beat(
         wav.parent.mkdir(exist_ok=True)
         # An interrupted synthesis must not leave a WAV behind a sidecar that still holds its key.
         sidecar.unlink(missing_ok=True)
-        tokens, used, retries = synthesize_with_retry(provider, beat["narration"], wav, fallback)
+        tokens, used, retries = synthesize_with_retry(provider, beat["narration"], wav, fallback, context=context)
         # Keyed on the provider that spoke, so a beat that fell back is spoken again by the
         # requested provider on the next run instead of keeping the fallback's audio.
         record = {
@@ -158,9 +176,10 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = args.lesson.parent
     beats = [beat for _, beat in mtv_lesson.beats(lesson)]
     retries = 0
-    for beat in beats:
+    for index, beat in enumerate(beats):
+        context = neighbor_context(beats, index) if provider.name == "elevenlabs" else None
         try:
-            retries += narrate_beat(beat, run_dir, provider, fallback, voice, SPEED)
+            retries += narrate_beat(beat, run_dir, provider, fallback, voice, SPEED, context)
         except OSError as exc:
             return common.usage_error(f"provider '{name}' failed after {len(RETRY_SLEEPS_S)} retries: {exc}")
     for _ in range(retries):

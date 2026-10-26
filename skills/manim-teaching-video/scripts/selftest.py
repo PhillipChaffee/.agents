@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 import wave
 from pathlib import Path
 from types import ModuleType
@@ -599,6 +600,72 @@ class TestKokoro(unittest.TestCase):
         with wave.open(str(out)) as w:
             self.assertEqual(w.getframerate(), 24000)
         print("KOKORO 784 tokens:", [t.text for t in tokens])
+
+
+class TestElevenLabs(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scratch = Scratch()
+        cls.addClassCleanup(cls.scratch.cleanup)
+
+    def test_elevenlabs_words(self):
+        require("elevenlabs", "elevenlabs")
+        if not os.environ.get("ELEVENLABS_API_KEY"):
+            print("SKIP elevenlabs: ELEVENLABS_API_KEY not available")
+            raise unittest.SkipTest("no key")
+        out = Path(self.scratch.path) / "e.wav"
+        words = tts.get_provider("elevenlabs", voice=os.environ.get("MTV_TEST_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")).synthesize("Here is a network.", out)
+        self.assertEqual(len(words), 4)
+        self.assertAlmostEqual(tts.wav_duration(out), words[-1].end_s, delta=0.5)
+
+    def test_elevenlabs_decodes_pcm_and_alignment(self):
+        # The API's response shape, stood in for so the case needs no key: base64 16-bit
+        # PCM at 24 kHz and the normalized character alignment.
+        import base64
+        require("elevenlabs", "elevenlabs")
+        calls = []
+        alignment = type("Alignment", (), {"characters": list("hi you"),
+                                           "character_start_times_seconds": [0, 0.1, 0.2, 0.3, 0.4, 0.5],
+                                           "character_end_times_seconds": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]})
+        response = type("Response", (), {"audio_base_64": base64.b64encode(bytes(2 * 24000)).decode(),
+                                         "normalized_alignment": alignment})
+
+        class TextToSpeech:
+            def convert_with_timestamps(self, **kwargs):
+                calls.append(kwargs)
+                return response
+
+        provider = tts.ElevenLabsProvider("voice-id")
+        provider._client = lambda: type("Client", (), {"text_to_speech": TextToSpeech()})
+        out = Path(self.scratch.path) / "fake.wav"
+        words = provider.synthesize("hi you", out, previous_text="before")
+        self.assertEqual(words, [tts.Word("hi", 0, 0.2), tts.Word("you", 0.3, 0.6)])
+        self.assertAlmostEqual(tts.wav_duration(out), 1.0)
+        self.assertEqual(calls, [{"voice_id": "voice-id", "text": "hi you", "output_format": "pcm_24000",
+                                  "previous_text": "before"}])
+
+    def test_missing_key_is_not_retryable(self):
+        env = {k: v for k, v in os.environ.items() if k != "ELEVENLABS_API_KEY"}
+        with unittest.mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(RuntimeError):
+                tts.get_provider("elevenlabs", voice="v").synthesize("hi", Path(self.scratch.path) / "k.wav")
+
+    def test_neighbor_context_reaches_the_provider_only(self):
+        beats = [{"narration": "one"}, {"narration": "two"}, {"narration": "three"}]
+        self.assertEqual(narrate.neighbor_context(beats, 0), {"next_text": "two"})
+        self.assertEqual(narrate.neighbor_context(beats, 1), {"previous_text": "one", "next_text": "three"})
+        self.assertEqual(narrate.neighbor_context(beats, 2), {"previous_text": "two"})
+        seen = []
+
+        class Down:
+            name = "down"
+            def synthesize(self, text, out_wav, **context):
+                seen.append(context)
+                raise ConnectionError("down")
+        _, used, _ = narrate.synthesize_with_retry(Down(), "hi there", Path(self.scratch.path) / "c.wav",
+                                                   tts.get_provider("null"), sleep_fn=lambda s: None,
+                                                   context={"previous_text": "one"})
+        self.assertEqual((used, seen), ("null", [{"previous_text": "one"}] * 4))
 
 
 class TestNarrate(unittest.TestCase):

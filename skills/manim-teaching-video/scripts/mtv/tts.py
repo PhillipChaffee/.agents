@@ -45,11 +45,7 @@ class NullProvider:
     def synthesize(self, text: str, out_wav: Path) -> list[Word]:
         words = common.normalize_words(text)
         word_s = 60 / common.WORDS_PER_MINUTE
-        with wave.open(str(out_wav), "wb") as wav:
-            wav.setnchannels(1)
-            wav.setsampwidth(2)
-            wav.setframerate(_SAMPLE_RATE_HZ)
-            wav.writeframes(bytes(2 * round(len(words) * word_s * _SAMPLE_RATE_HZ)))
+        _write_wav(out_wav, bytes(2 * round(len(words) * word_s * _SAMPLE_RATE_HZ)))
         return [Word(word, i * word_s, (i + 1) * word_s) for i, word in enumerate(words)]
 
 
@@ -120,6 +116,67 @@ class KokoroProvider:
         return words
 
 
+class ElevenLabsProvider:
+    """ElevenLabs over its API, timed per character, with the neighboring beats' text passed for prosody."""
+
+    name = "elevenlabs"
+
+    def __init__(self, voice: str, speed: float = 1.0) -> None:
+        self.voice, self.speed = voice, speed
+
+    def _client(self):
+        key = os.environ.get("ELEVENLABS_API_KEY")
+        if not key:
+            # Not an OSError, so a missing key is never retried or answered with the fallback.
+            raise RuntimeError("ELEVENLABS_API_KEY is not set")
+        from elevenlabs.client import ElevenLabs
+
+        return ElevenLabs(api_key=key)
+
+    def synthesize(
+        self, text: str, out_wav: Path, previous_text: str | None = None, next_text: str | None = None
+    ) -> list[Word]:
+        import base64
+
+        # First, so a missing key is reported as such even where the SDK is not installed.
+        client = self._client()
+        from elevenlabs.core.api_error import ApiError
+
+        # Unset neighbors are left out, not sent as null: the SDK omits only its own sentinel.
+        options = {k: v for k, v in (("previous_text", previous_text), ("next_text", next_text)) if v is not None}
+        if self.speed != 1.0:
+            from elevenlabs.types import VoiceSettings
+
+            options["voice_settings"] = VoiceSettings(speed=self.speed)
+        try:
+            response = client.text_to_speech.convert_with_timestamps(
+                voice_id=self.voice, text=text, output_format="pcm_24000", **options
+            )
+        except _transport_errors() as exc:
+            raise ConnectionError(f"elevenlabs unreachable: {exc}") from exc
+        except ApiError as exc:
+            # Rate limits and server errors pass; any other status is the request's fault.
+            if exc.status_code == 429 or (exc.status_code or 0) >= 500:
+                raise ConnectionError(f"elevenlabs answered {exc.status_code}") from exc
+            raise
+        _write_wav(out_wav, base64.b64decode(response.audio_base_64))
+        alignment = response.normalized_alignment
+        if alignment is None:
+            return []
+        return words_from_characters(
+            alignment.characters, alignment.character_start_times_seconds, alignment.character_end_times_seconds
+        )
+
+
+def _write_wav(path: Path, frames: bytes) -> None:
+    """Write 16-bit little-endian mono PCM at the shared rate."""
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(_SAMPLE_RATE_HZ)
+        wav.writeframes(frames)
+
+
 def get_provider(name: str, voice: str = "af_heart", speed: float = 1.0) -> Provider:
     """The provider ``name``; ``voice`` and ``speed`` configure a speaking one, and the null one has neither."""
     if name == "null":
@@ -127,7 +184,7 @@ def get_provider(name: str, voice: str = "af_heart", speed: float = 1.0) -> Prov
     if name == "kokoro":
         return KokoroProvider(voice, speed)
     if name == "elevenlabs":
-        raise ValueError(f"provider '{name}' not implemented yet")
+        return ElevenLabsProvider(voice, speed)
     raise ValueError(f"unknown provider '{name}'")
 
 

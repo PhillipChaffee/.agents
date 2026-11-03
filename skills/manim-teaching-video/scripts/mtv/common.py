@@ -163,6 +163,8 @@ STANDARD_TO_DRAFT_RATIO = 2.00  # measured by M0 Task 9 on 2026-10-26
 CONTINUITY_THRESHOLD = 0.15  # pre-M1 default; recalibrated by Task 22
 
 WORDS_PER_MINUTE = 150
+# Measured by M2 Task 30 from the corpus census, copied from the corpus framework/kit-constants.json
+# (sha256 5bdc1f50dc1b7dea45dad3733d29dbf3947607b99de422e61b41accca337df5d).
 R08_MAX_WORDS = 55
 R09_MINUTES_PER_QUESTION = 5.5
 R11_FIRST_FORMULA_FRACTION = 0.364

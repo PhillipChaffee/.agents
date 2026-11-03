@@ -163,10 +163,10 @@ STANDARD_TO_DRAFT_RATIO = 2.00  # measured by M0 Task 9 on 2026-10-26
 CONTINUITY_THRESHOLD = 0.15  # pre-M1 default; recalibrated by Task 22
 
 WORDS_PER_MINUTE = 150
-R08_MAX_WORDS = 60
-R09_MINUTES_PER_QUESTION = 2
-R11_FIRST_FORMULA_FRACTION = 0.45  # pre-M2 default; replaced from the corpus census by the task the M2 plan names
-ROLE_COLORS = {  # pre-M2 default; replaced from the corpus census by the task the M2 plan names
+R08_MAX_WORDS = 55
+R09_MINUTES_PER_QUESTION = 5.5
+R11_FIRST_FORMULA_FRACTION = 0.364
+ROLE_COLORS = {
     "weight_pos": "BLUE",
     "weight_neg": "RED",
     "bias": "MAROON_B",

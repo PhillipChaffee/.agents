@@ -19,15 +19,16 @@ from typing import Any
 from mtv import common
 from mtv import lesson as mtv_lesson
 
-# In priority order: a smaller --max-images keeps the first tags.
+# In priority order, ranked from the rules the RED baselines failed most often (spec 6.7):
+# a smaller --max-images keeps the first tags.
 STORYBOARDER_TAGS = (
-    "working-thing-first",
+    "one-color-per-role",
     "numbers-before-symbols",
-    "provenance-transform",
-    "viewer-voice",
+    "caption-next-to-referent",
     "carry-picture-forward",
     "dim-not-delete",
-    "staggered-reveal",
+    "provenance-transform",
+    "parameter-count",
     "camera-as-narrator",
 )
 CORPUS_FIELDS = ("video_id", "section_id", "beat_id", "t_start", "t_end")

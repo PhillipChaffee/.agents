@@ -1975,10 +1975,23 @@ class TestExemplars(ExampleLessonCase):
         first = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env).stdout
         second = run_script("exemplars", "pick", "--role", "storyboarder", "lesson.json", cwd=self.run_dir, env=env).stdout
         self.assertEqual(first, second)
-        ids = [p["id"] for p in json.loads(first)]
-        self.assertEqual(ids[1], "aaaaaaaaaaa-s01-b01")  # numbers-before-symbols, confidence 0.9 beats 0.85
+        picks = json.loads(first)
+        ids = [p["id"] for p in picks]
+        by_tag = {p["tag"]: p["id"] for p in picks}
+        self.assertEqual(by_tag["numbers-before-symbols"], "aaaaaaaaaaa-s01-b01")  # confidence 0.9 beats 0.85
+        held = {tag for tag, _, _ in PACK_ENTRIES}
+        self.assertEqual([p["tag"] for p in picks],
+                         [tag for tag in exemplars.STORYBOARDER_TAGS if tag in held and tag != "camera-as-narrator"])
         self.assertEqual(mtv_lesson.load(self.lesson_path)["exemplars"]["used"]["storyboarder"], ids)
         self.assertTrue(len(ids) <= 8)
+
+    def test_storyboarder_tags_match_roles_md(self):
+        roles = SKILL_DIR / "references" / "roles.md"
+        if not roles.exists():
+            print("SKIP storyboarder pick list: references/roles.md not present (M2 writes it)")
+            raise unittest.SkipTest("references absent")
+        line = next(text for text in roles.read_text().splitlines() if text.startswith("Storyboarder pick list:"))
+        self.assertEqual(tuple(re.findall(r"`([a-z-]+)`", line)), exemplars.STORYBOARDER_TAGS)
 
     def test_pick_frame_critic_reachable_tags(self):
         make_pack(self.pack, broken=False)
@@ -2022,16 +2035,16 @@ class TestExemplars(ExampleLessonCase):
 
     def test_pick_budgets_and_camera_tag(self):
         make_pack(self.pack, broken=False)
-        (self.pack / "viewer-voice" / "orig-fixture-lesson-s01-b01.md").write_text("# long\n" + "word " * 40)
+        (self.pack / "provenance-transform" / "ddddddddddd-s01-b01.md").write_text("# long\n" + "word " * 40)
         index = common.load_json(self.pack / "index.json")
         index["tags"]["camera-as-narrator"] = [dict(index["tags"]["working-thing-first"][0], id="ggggggggggg-s01-b01")]
         lesson = mtv_lesson.load(self.lesson_path)
         picks = exemplars.pick_storyboarder(index, lesson, self.pack, max_words=20)
-        # Each fixture excerpt has 4 words and stays whole; the 42-word one gets what is left.
-        self.assertEqual([(p["id"], p["words"]) for p in picks], [
-            ("ccccccccccc-s01-b01", 4), ("aaaaaaaaaaa-s01-b01", 4),
-            ("ddddddddddd-s01-b01", 4), ("orig-fixture-lesson-s01-b01", 8),
-        ])
+        # A fixture excerpt has 4 words and stays whole; the 42-word one gets what is left.
+        self.assertEqual({p["id"]: p["words"] for p in picks},
+                         {"aaaaaaaaaaa-s01-b01": 4, "ddddddddddd-s01-b01": 16})
+        self.assertEqual([p["tag"] for p in picks],
+                         [tag for tag in exemplars.STORYBOARDER_TAGS if tag in index["tags"] and tag != "camera-as-narrator"])
         lesson["scenes"][1]["scene_kind"] = "camera"
         self.assertEqual(exemplars.pick_storyboarder(index, lesson, self.pack)[-1]["id"], "ggggggggggg-s01-b01")
         self.assertEqual(len(exemplars.pick_storyboarder(index, lesson, self.pack, max_images=2)), 2)

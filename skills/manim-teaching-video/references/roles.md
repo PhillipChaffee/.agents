@@ -33,7 +33,7 @@ opens the sheet and reads only the first `words` words of the excerpt. A role sh
 matches their staging and the order of their ideas, never their content or their words, and
 never writes an exemplar id into a field of `lesson.json`.
 
-Storyboarder pick list: `working-thing-first`, `numbers-before-symbols`, `provenance-transform`, `viewer-voice`, `carry-picture-forward`, `dim-not-delete`, `staggered-reveal`, `camera-as-narrator` (the last only when the brief names a camera move or a 3D scene, which `exemplars.py` tests as a scene whose `scene_kind` is camera or 3d, its `_CAMERA_SCENE_KINDS`).
+Storyboarder pick list: `one-color-per-role`, `numbers-before-symbols`, `caption-next-to-referent`, `carry-picture-forward`, `dim-not-delete`, `provenance-transform`, `parameter-count`, `camera-as-narrator` (the last only when the brief names a camera move or a 3D scene, which `exemplars.py` tests as a scene whose `scene_kind` is camera or 3d, its `_CAMERA_SCENE_KINDS`).
 
 - Storyboarder: the most confident exemplar of each listed tag the pack holds, in the list's
   order, ties by id, with `--max-images 8 --max-words 1000`, picked again before each

@@ -224,9 +224,15 @@ python scripts/check_scenes.py <run>/lesson.py <run>/lesson.json
 It lints the file for banned names, `play(mob.method)`, named colors outside `colors`, a base
 class that does not match `scene_kind` (`flat` needs `NarratedScene`, `camera`
 `NarratedCameraScene`, `3d` `Narrated3DScene`) and `zoom_to` together with
-`orbit_with_hud` in one class, and then runs `manim --dry_run` on every class. Gate: exit 0.
-Each finding names a line and its fix from `manimce.md`, and each failed dry run names its
-class; the owning coder gets them in one re-dispatch (`attempts.redispatches`), and a second
+`orbit_with_hud` in one class, and then runs `manim --dry_run` on every class with the draft
+render's `manim.cfg.draft`, killing a class whose output stops growing for ten minutes. Gate:
+exit 0.
+The lint also rejects a `Text`, `MarkupText`, `Paragraph` or `question_caption` string that
+holds a digit, a math sign or a Greek letter, or has a value formatted into it (an f-string
+field, `str()`, `%` or `.format`): numbers, signs and formulas go in `MathTex` (`DecimalNumber`
+or `Integer` when the value changes) beside the words' `Text` in one `VGroup`.
+Each finding names a line and its fix (from `manimce.md`, or the `MathTex` form above), and
+each failed dry run names its class; the owning coder gets them in one re-dispatch (`attempts.redispatches`), and a second
 failure of the same scene is a stop. Then mark `scenes`.
 
 ### 7 Draft render and frame review
@@ -235,6 +241,11 @@ failure of the same scene is a stop. Then mark `scenes`.
 python scripts/render.py <run>/lesson.json --tier draft
 python scripts/frames.py <run>/lesson.json --tier draft
 ```
+
+Before it selects a scene or looks for `manim`, `render.py` checks steps 4 and 5: until
+`storyboard` and `narrate` are marked for the current `lesson.json`, it renders nothing, at any
+tier or with `--scenes`, exits 2 and prints each gate that has not passed with the command that
+clears it.
 
 `render.py` renders one `manim` process per scene, `--jobs N` at once (default the CPU count
 minus one), into `<run>/render/draft/<scene>/`, and fills each beat's `render` block. A
@@ -274,9 +285,12 @@ re-dispatch).
 
 ### 8 Fix loop
 
-The frame-critic helper also computes `checks.frames.final`: the final score of an item is
-its minimum across the scenes, `zeros` lists the items at 0, and `pass` is true when the
-total is at least 25 of 32 and no item is 0. The hard gates are the gates of `verify.py`; at
+The frame-critic helper also computes `checks.frames.final` with `lesson.frames_final`: the
+final score of an item is its minimum across the scenes, except that an item whose 1 anchor
+names a single lapse (the nine of `rubric.md`'s How to score step 2) scores 0 when two or more
+scenes score it 1, since each such 1 is one lapse in the lesson and a second lapse scores 0;
+`zeros` lists the items at 0, and `pass` is true when the total is at least 25 of 32 and no
+item is 0. The hard gates are the gates of `verify.py`; at
 this step the parent runs them on the draft:
 
 ```bash
@@ -433,9 +447,8 @@ for name in sys.argv[2:]:
     review = json.loads(Path(name).read_text())
     frames["scenes"][review["scene"]] = review
 reviews = frames["scenes"].values()
-scores = {item: min(r["scores"][item] for r in reviews) for item in next(iter(reviews))["scores"]}
-zeros = sorted(item for item, score in scores.items() if score == 0)
-frames["final"] = {"scores": scores, "zeros": zeros, "pass": sum(scores.values()) >= 25 and not zeros}
+frames["final"] = lesson.frames_final(reviews)
+scores, zeros = frames["final"]["scores"], frames["final"]["zeros"]
 data["checks"]["frames"] = frames
 lesson.save(data, path)
 print(f"final {sum(scores.values())}/32, zeros {zeros or 'none'}, pass {frames['final']['pass']}")

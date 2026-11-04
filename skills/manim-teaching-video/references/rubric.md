@@ -43,8 +43,9 @@ A lesson passes at 25 of 32 or more with no item at 0. The bar is the same at ev
   image, a photo or a real dataset (R30). It scores sync and motion with a reason 1, so its
   total is at most 30.
 - Each frame critic scores one scene. The final score of an item is its minimum across the
-  scenes, which the parent files as checks.frames.final in lesson.json, and the bar applies to
-  that vector.
+  scenes, except that one of the nine single-lapse items of How to score step 2 at 1 in two or
+  more scenes scores 0, since each 1 is one lapse in the lesson; the parent files that vector
+  as checks.frames.final in lesson.json, and the bar applies to it.
 - The release critic scores the whole video from its frames and lesson.json.
 
 Calibration: paraphrased storyboards of one 2017 and one 2024 section of the corpus must score
@@ -81,8 +82,9 @@ rewrites the rubric item that lost the points, never the corpus.
    previewed says. A symbol the part introduces is judged against the shows_value_of of every
    earlier beat of the lesson, which a frame critic is given, as storyboard_check.py's R07
    reads them, so a value an earlier scene showed counts as shown, as the note on value before
-   symbol says. The final score takes each item's minimum across scenes, so a scene with no
-   place for an item must not lower it. Whether a generated lesson as a whole has a hook, a
+   symbol says. The final score takes each item's minimum across scenes, and counts a
+   single-lapse item's 1s across them (step 2), so a scene with no place for an item must not
+   lower it. Whether a generated lesson as a whole has a hook, a
    preview, a question, an admission and a recap is scored by the critics that see all of it,
    the storyboard critic and the release critic, and storyboard_check.py fails a storyboard
    without a hook, a question, an admission or a recap before anything renders (R01, R06, R09,

@@ -150,11 +150,15 @@ Fields of each beat:
 
 - `marks`: names to word indices, such as `{"reveal": 8, "answer": 23}`. A name uses letters,
   digits, `.`, `_` and `-`, and is never `first` or `last`.
+  Each mark where a transform that carries meaning or a reveal of several parts lands sits after the beat's nearest earlier mark, or after word 0, by 2.5 words for every second those plays run (R24): 5 words per transform and 8 per reveal, added up for plays that land there one after another. When the word that names the result comes sooner, mark the first word that far along instead.
+  A stagger of items named in turn is a reveal: 8 words.
+  Before returning, subtract the earlier mark's index from each such mark's and move any mark that falls short.
  When the narration says a number that an earlier beat put on screen, mark that word, and at that mark the `visual` includes the clause `a copy of <that number> scaled 1.5 times beside it` (R15).
 - `visual`: what the frame shows and how it changes. Name every object; where each caption
   sits, and each heading or title: written after the drawn object it labels, as its text, its side (above, below, left or right) and that object, such as `3 right of the output node`, `forward pass above the lit path` or `title above the network`, and kept on that side wherever the object moves (R13); what is dimmed instead of removed (R12); what transforms
-  into what (R17); the kind of each play, a confirmation, a transform that carries meaning,
-  a reveal of several parts or an orbit (R24); how many items a stagger holds and whether
+  into what (R17); the kind of each play, a confirmation (a pulse, box or highlight that changes nothing shown),
+  a transform that carries meaning (any play that changes what a shown value, label or object
+  says or is), a reveal of several parts or an orbit (R24); how many items a stagger holds and whether
   they are a crowd or a reveal (R27); REQUIRED for a picture the narration calls simplified or made up: the on-screen label shown with it from its first frame, a heading, a struck-through claim, an approximately-equal sign or a toy named as a toy (R29).
   Never an image, a photo, a dataset file or a download (R30).
  Write each colored object as the object, then its key in `colors`, then that key's color, such as `bias label (bias, MAROON_B)`; an object with no key in `colors` is WHITE or a grey (R18, R19).

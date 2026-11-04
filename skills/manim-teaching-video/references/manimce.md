@@ -273,7 +273,8 @@ both `zoom_to` and `orbit_with_hud` (fix: one camera idiom per scene).
 ## TeX
 
 - `look.apply`, which `load_lesson` runs in every scene, sets `config.tex_template` to
-  `TexTemplateLibrary.threeb1b` plus one macro, `\minus`, a typographic minus; both
+  `TexTemplateLibrary.threeb1b` plus one macro, `\minus`, a typographic minus, and the
+  restored `\div` below; both
   `manim.cfg` files leave `tex_template` empty on purpose. Write formulas for that template
   and no other: no `tex_template=` argument and no preamble in a scene, and a package a
   formula needs is added in `look.py` only (error-table row 12).

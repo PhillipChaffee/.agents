@@ -3,7 +3,8 @@ compatibility: Requires Python 3.11 or 3.12, ManimCE 0.22, a LaTeX distribution 
 description: >-
   Use when the user asks for a narrated teaching or explainer video with
   animated visuals, mentions Manim, ManimCE or 3Blue1Brown-style animation,
-  or wants a topic, lesson or script turned into a finished video file.
+  or wants a topic, lesson or script turned into a finished video file,
+  including when LaTeX or dvisvgm is missing.
 enabled: true
 id: manim-teaching-video
 name: manim-teaching-video
@@ -33,7 +34,10 @@ otherwise it is none.
 1. Preflight: `python scripts/preflight.py --json`, with `--provider elevenlabs` when the
    triage chose it. Gate: exit 0; a failure stops with the install lines it prints. Missing
    `latex` or `dvisvgm` is a stop: math is never set in `Text`, disclosed or not, whoever
-   asks or approves, and no `Text` fallback is planned.
+   asks or approves, and no `Text` fallback is planned. `Text` can't lay out fractions, subscripts,
+   exponents or alignment, so `\log_2 n` comes out as the wrong content, not a different font.
+   Anything shown as a formula, inequality, complexity bound (`O(log n)`) or numeric value goes
+   through `MathTex`/`DecimalNumber`. Code shown as code goes through `Code`.
 2. Brief: at most three questions (audience, length, and ElevenLabs only when
    `ELEVENLABS_API_KEY` is present); write the `lesson.json` header with `colors`:
    `emphasis` `PURE_YELLOW`; `weight_pos` `BLUE`, `weight_neg` `RED`, `bias` `MAROON_B` and
@@ -50,12 +54,16 @@ otherwise it is none.
    dispatch the storyboard critic, always, and file its scores with the storyboard-critic
    helper. Gate: exit 0 and verdict `pass`. Bound: 2 rounds (`attempts.storyboard_rounds`),
    then ask; mark `storyboard`. Nothing renders, at any tier, before this gate passes; a
-   critic run beside a render is not this gate.
+   critic run beside a render is not this gate. No deadline, cost, label, authority or parallel
+   process changes the order of the gates. Work done out of order gets thrown away, not reused.
+   `render.py` enforces this gate; if it refuses, run the command it prints.
 5. Narrate: `python scripts/narrate.py <run>/lesson.json`. Gate: every beat has
    `duration_s` and `marks_s`. Bound: `narrate.py` retries the provider 3 times itself
    (`attempts.provider_retries`), then falls back to Kokoro, named in the report; exit 2 is
    a stop. A job that times out is a failed step: rerun it.
-6. Scenes: one scene coder per scene, four at a time; `python scripts/check_scenes.py <run>/lesson.py <run>/lesson.json`.
+6. Scenes: one scene coder per scene, four at a time; a `continue` scene's coder starts once
+   the previous scene's class has returned and gets that class's source;
+   `python scripts/check_scenes.py <run>/lesson.py <run>/lesson.json`.
    Gate: exit 0, dry run included. Bound: 1 re-dispatch per malformed return
    (`attempts.redispatches`), then stop; mark `scenes`.
 7. Draft render and frame review: `python scripts/render.py <run>/lesson.json --tier draft`;
@@ -70,7 +78,8 @@ otherwise it is none.
 8. Fix loop: failed beats return to their coders; re-render and re-review only those
    scenes; assemble and verify the draft. Gate: `checks.frames.final.pass` and `verify.py`
    exit 0. Bound: 2 passes (`attempts.fix_passes`), then deliver with the failing rubric
-   items listed, or stop if a hard gate (any `verify.py` gate) fails.
+   items listed, or stop if a hard gate (any `verify.py` gate) fails. Rubric items may ship with
+   the failures disclosed. `verify.py` gates never ship, disclosed or not.
 9. Standard render: skipped at `draft`; print the estimate (step 7's draft wall clock times
    `STANDARD_TO_DRAFT_RATIO`, 2.00) and above 45 minutes ask, offering `draft`;
    `python scripts/render.py <run>/lesson.json --tier standard`. Gate: every scene rendered.
@@ -78,16 +87,20 @@ otherwise it is none.
 10. Assemble: `python scripts/assemble.py <run>/lesson.json --tier <tier>`. Gate: one video
     and one audio stream.
 11. Verify and report: `python scripts/verify.py <run>/lesson.json --tier <tier>`, which
-    writes `report.md`. Gate: exit 0. A file whose `verify.py` exit is not 0 is never
-    delivered, at any tier, whoever asks and however the defect is disclosed: fix and
-    rerun, or say it is not ready. A check is a gate's result, never your own look at
+    writes `report.md`. Gate: exit 0. **Delivery rule.** A file is deliverable only if
+    `verify.py` exited 0 on that exact file. This holds at every tier, under any deadline, and
+    whoever approves. Disclosing a defect does not substitute for passing. No artifact derived
+    from a failing render leaves the run, and fixes happen only in `lesson.py`, followed by a
+    re-render and a fresh `verify.py`. The manager decides what the client hears, when, and any
+    renegotiation. The gate decides whether the file passes. A check is a gate's result, never your own look at
     stills, a level meter or a word-count estimate; your final message names what no gate
     checked, such as narration nobody has heard.
 
 Mark means the mark helper (`lesson.mark_done`): you mark `brief`, `script`, `storyboard`
 and `scenes`; the scripts mark their own stages. Bump `attempts.dispatches` before every
-dispatch; at 48, stop with a resumable `lesson.json`. Stop means: write `report.md` with
-the failing gate, keep every artifact and say how to resume.
+dispatch; at 48, stop with a resumable `lesson.json`. Every dispatch is an Agent call with
+`run_in_background: false`. Stop means: write `report.md` with the failing gate, keep every
+artifact and say how to resume.
 
 ## A valid run
 
@@ -116,6 +129,7 @@ the failing gate, keep every artifact and say how to resume.
 | --- | --- |
 | “The workaround is fine; keeping it quiet is the part I won't do.” “The only cost is how the formulas look, and the client can decide whether that matters.” | Disclosing the swap is still the swap, and no one's approval makes it a choice: the skill has one math engine, and missing LaTeX is a stop. |
 | “Stopping entirely misses a 9:00 deadline when there's a workaround that works.” “If an honest fallback works tonight, stopping leaves the client with nothing at 9:00.” | The deadline does not change the requirement. Stop with preflight's install line in `report.md`. |
+| “**One caveat:** forbidding C even when it's disclosed is a product decision, not an ethical one.” “A client could reasonably accept plain-text formulas if told.” | The product decision is made: the skill has one math engine, LaTeX. No client's acceptance waives it, disclosed or not; missing LaTeX is a stop. |
 | “Manim's `Text` renders with Pango and doesn't need LaTeX.” | That is why it does not typeset math. |
 | “If `Text` turns out not to render the formulas readably, I'll fall back to A.” | Planning to stop later if it looks bad is swapping now. Stop first. |
 
@@ -139,6 +153,8 @@ the failing gate, keep every artifact and say how to resume.
 - Writing a timing fallback, estimated timings or a test render while narration runs.
 - Swapping `MathTex` or `Tex` for `Text`, or planning a `Text` fallback, after preflight
   failed on `latex` or `dvisvgm`.
+- Weighing whether a client would accept plain-text formulas if told, or calling the one
+  math engine a product decision.
 - A job timed out or exited non-zero, and the next sentence explains why it does not
   matter.
 - Calling a file finished, or sending it, while `verify.py` has not exited 0 or a probe

@@ -19,6 +19,7 @@ import math
 import os
 import platform
 import re
+import shlex
 import shutil
 import struct
 import subprocess
@@ -1988,9 +1989,62 @@ class TestRender(ExampleLessonCase):
                 self.assertEqual(self.lesson_path.read_text(), before)
                 self.assertFalse((self.bin_dir / "calls.jsonl").exists())
 
+    def refused_naming_only_narrate(self) -> str:
+        """Check that render.py refuses the lesson, a narrate stage marked yet stale beside a current
+        storyboard, naming only narrate and touching neither the lesson nor manim; return the
+        command it prints."""
+        self.assertIn("narrate", mtv_lesson.load(self.lesson_path)["stages"])
+        before = self.lesson_path.read_text()
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("narrate: step 5's narration and marks are not current", cp.stderr)
+        self.assertNotIn("storyboard", cp.stderr)
+        self.assertEqual(self.lesson_path.read_text(), before)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+        return re.search(r"run `(python scripts/narrate\.py [^`]*)`", cp.stderr).group(1)
+
+    def assert_renders(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("render.draft", mtv_lesson.load(self.lesson_path)["stages"])
+
+    def test_narrate_gate_refuses_a_mark_moved_after_narrating(self):
+        # narrate.py ran, then a mark moved and the storyboard was marked again: the storyboard is
+        # current and narrate is marked, but marks_s still times the old word. Marking step 4 again
+        # without narrating again is the shortcut the gate exists to catch.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["marks"]["reveal"] = 6
+        mtv_lesson.save(lesson, self.lesson_path)
+        mark_storyboard(self.lesson_path)
+        command = shlex.split(self.refused_naming_only_narrate())
+        # The printed command, run where render.py ran, clears the gate.
+        self.assertEqual(command[:2], ["python", "scripts/narrate.py"])
+        cp = run_script("narrate", *command[2:], cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assert_renders()
+
+    def test_narrate_gate_refuses_a_narration_by_another_provider(self):
+        # narrate.py --provider null on a kokoro lesson marks narrate for the provider that spoke,
+        # so the lesson's own provider has still not narrated it.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["provider"] = "kokoro"
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        # provider is a brief field and so a storyboard field: step 4 passed again for it.
+        mark_storyboard(self.lesson_path)
+        self.refused_naming_only_narrate()
+        # The self-test does not run Kokoro, so narrate is marked as narrate.py marks it once the
+        # lesson's own provider has spoken.
+        lesson = mtv_lesson.load(self.lesson_path)
+        mtv_lesson.mark_done(lesson, "narrate", {"provider": "kokoro", "voice": "af_heart"})
+        mtv_lesson.save(lesson, self.lesson_path)
+        self.assert_renders()
+
     def test_narrate_gate_refuses_naming_only_narrate(self):
-        # Every narrate field is a storyboard field too, so beside a current storyboard the
-        # narration is stale only when narrate.py has not marked its stage.
+        # Here narrate is unmarked. Every narrate field is a storyboard field too, yet a current
+        # storyboard does not make the narration current: narrate's mark keeps the hash narrate.py
+        # saw, so a marked narrate goes stale too, which the two tests above cover.
         lesson = mtv_lesson.load(self.lesson_path)
         del lesson["stages"]["narrate"]
         mtv_lesson.save(lesson, self.lesson_path)
@@ -2014,6 +2068,49 @@ class TestRender(ExampleLessonCase):
         self.assertLess(cp.stderr.index("storyboard: step 4"), cp.stderr.index("; narrate: step 5"))
         self.assertIn(f"run `python scripts/storyboard_check.py {self.lesson_path}`", cp.stderr)
         self.assertIn(f"run `python scripts/narrate.py {self.lesson_path}`", cp.stderr)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+
+    def test_null_stages_refuse_naming_the_gates(self):
+        # validate leaves stages unchecked, so a null stages value or a null stage entry is a stage
+        # not done: bad input, refused with exit 2 like the other preconditions, not a traceback.
+        cases = (
+            ("stages null", lambda l: l.update(stages=None), {"storyboard: step 4", "narrate: step 5"}),
+            ("storyboard entry null", lambda l: l["stages"].update(storyboard=None), {"storyboard: step 4"}),
+            ("narrate entry null", lambda l: l["stages"].update(narrate=None), {"narrate: step 5"}),
+        )
+        original = self.lesson_path.read_text()
+        for label, edit, named in cases:
+            with self.subTest(label):
+                lesson = json.loads(original)
+                edit(lesson)
+                self.lesson_path.write_text(json.dumps(lesson))
+                before = self.lesson_path.read_text()
+                cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+                self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+                self.assertNotIn("Traceback", cp.stderr)
+                self.assertTrue(cp.stderr.startswith("ERROR not ready to render: "), cp.stderr)
+                for gate in ("storyboard: step 4", "narrate: step 5"):
+                    (self.assertIn if gate in named else self.assertNotIn)(gate, cp.stderr)
+                self.assertEqual(self.lesson_path.read_text(), before)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+
+    def test_fix_commands_quote_a_lesson_path_with_a_space(self):
+        # The agent pastes the printed command into a shell, where an unquoted space would split
+        # the lesson path in two.
+        spaced = self.run_dir.parent / "my run"
+        shutil.copytree(self.run_dir, spaced)
+        lesson_path = spaced / "lesson.json"
+        lesson = mtv_lesson.load(lesson_path)
+        lesson["stages"] = {}
+        mtv_lesson.save(lesson, lesson_path)
+        cp = run_script("render", str(lesson_path), "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn(f"run `python scripts/storyboard_check.py '{lesson_path}'`", cp.stderr)
+        self.assertIn(f"run `python scripts/narrate.py '{lesson_path}'`", cp.stderr)
+        commands = re.findall(r"run `(python scripts/[a-z_]+\.py [^`]*)`", cp.stderr)
+        self.assertEqual(len(commands), 2, cp.stderr)
+        for command in commands:
+            self.assertEqual(shlex.split(command)[2:], [str(lesson_path)], command)
         self.assertFalse((self.bin_dir / "calls.jsonl").exists())
 
     def test_usage_errors_exit_2_before_any_render(self):
@@ -2919,7 +3016,9 @@ TWO_SCENE_LESSON_PY = (SCENES_HEADER + _scene_class("S01WorkingThing", "s01", S0
 
 
 def make_one_beat_lesson(run_dir: Path) -> Path:
-    """Write ``run_dir/lesson.json``: the example's first beat alone, as class OneBeat, narrated with the null provider."""
+    """Write ``run_dir/lesson.json``: the example's first beat alone, as class OneBeat, narrated with the
+    null provider and its storyboard marked, so that render.py, which refuses an unmarked storyboard,
+    takes it from --fixtures as from --one-beat."""
     run_dir.mkdir(parents=True, exist_ok=True)
     lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
     scene = lesson["scenes"][0]
@@ -2932,6 +3031,7 @@ def make_one_beat_lesson(run_dir: Path) -> Path:
     cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=run_dir)
     if cp.returncode != 0:
         raise RuntimeError(f"narrate.py failed on the one-beat lesson: {cp.stdout}{cp.stderr}")
+    mark_storyboard(path)
     return path
 
 
@@ -2961,10 +3061,9 @@ def run_one_beat() -> int:
     with Scratch() as scratch:
         run_dir = Path(scratch) / "one-beat"
         try:
-            lesson_path = make_one_beat_lesson(run_dir)
+            make_one_beat_lesson(run_dir)
         except RuntimeError as exc:
             return common.usage_error(str(exc))
-        mark_storyboard(lesson_path)
         (run_dir / "lesson.py").write_text(ONE_BEAT_LESSON_PY, encoding="utf-8")
         for name, *args in (
             ("narrate", "--provider", "null"),
@@ -3009,6 +3108,19 @@ class TestFixtures(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(check_scenes.lint_source((two_scene / "lesson.py").read_text(), lesson), [])
         self.assertTrue((self.scratch.path / "pack" / "index.json").exists())
+
+    def test_one_beat_fixture_passes_the_render_gate(self):
+        # --fixtures hands the one-beat lesson out to be rendered, so steps 4 and 5 must have passed
+        # for it, as they have for --one-beat's: render.py refuses a storyboard that is not marked.
+        fixtures = Path(tempfile.mkdtemp(dir=self.scratch.path))
+        cp = run_script("selftest", "--fixtures", str(fixtures), cwd=fixtures)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        write_fake_manim(fixtures / "bin")
+        run_dir = fixtures / "one-beat"
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--jobs", "1", cwd=run_dir,
+                        env=env_with_fake_manim(fixtures / "bin"))
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("render.draft", mtv_lesson.load(run_dir / "lesson.json")["stages"])
 
 
 # Section 5.7's note, five physical lines byte for byte: the kit's patterns.py and references

@@ -13,6 +13,7 @@ import contextlib
 import json
 import os
 import platform
+import shlex
 import shutil
 import subprocess
 import sys
@@ -281,23 +282,24 @@ def _failure_text(scene_id: str, result: dict) -> str:
 
 def unpassed_gates(lesson: dict, lesson_arg: Path) -> list[str]:
     """Step 4's and step 5's gates that have not passed for ``lesson`` as it stands, each as
-    ``<gate>: <what> | fix: <command>`` with ``lesson_arg``, the path as the user gave it.
+    ``<gate>: <what> | fix: <command>`` with ``lesson_arg``, the path as the user gave it, quoted
+    for the shell the command is pasted into.
 
     Nothing renders, at any tier, before both: a stage is current only while the fields it read
     still hash to what its mark recorded. The fix loop edits only lesson.py, which neither reads.
     """
-    gates = []
+    lesson_word, gates = shlex.quote(str(lesson_arg)), []
     if mtv_lesson.needs_rerun(lesson, "storyboard"):
         gates.append(
             "storyboard: step 4 has not passed for the current storyboard (the stage is unmarked, or the "
             "storyboard, script or brief changed since it was marked) | fix: run "
-            f"`python scripts/storyboard_check.py {lesson_arg}` until it exits 0 and the storyboard critic's "
+            f"`python scripts/storyboard_check.py {lesson_word}` until it exits 0 and the storyboard critic's "
             "verdict is `pass`, then mark `storyboard` with the mark helper"
         )
     if mtv_lesson.needs_rerun(lesson, "narrate"):
         gates.append(
             "narrate: step 5's narration and marks are not current (the stage is unmarked, or the narration, "
-            f"marks, provider or voice changed since it ran) | fix: run `python scripts/narrate.py {lesson_arg}`"
+            f"marks, provider or voice changed since it ran) | fix: run `python scripts/narrate.py {lesson_word}`"
         )
     return gates
 

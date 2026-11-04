@@ -251,7 +251,9 @@ def stage_inputs(lesson: dict, stage: str) -> str:
 def needs_rerun(lesson: dict, stage: str) -> bool:
     # The hash comes first so that a mistyped stage raises instead of reading as never done.
     current = stage_inputs(lesson, stage)
-    return lesson.get("stages", {}).get(stage, {}).get("inputs_sha256") != current
+    # validate leaves stages unchecked, so a stages value or stage entry that is not an object
+    # (null included) reads as a stage never done, as an absent one does, instead of raising.
+    return _read(lesson, ["stages", stage, "inputs_sha256"]) != current
 
 
 def mark_done(lesson: dict, stage: str, tools: dict[str, str]) -> None:

@@ -2173,6 +2173,97 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertEqual(findings, [(1, 'Text("limit 1 of small steps: the ground ...")'),
                                     (2, "Text(f'{n} small steps: the ground curves...')")])
 
+    def test_a_letter_the_file_sets_as_a_math_symbol_marks_a_text_call(self):
+        # GREEN iteration 2: T4's lesson.py:1186 set n in Text, which :916 sets as MathTex("n"), and T3's
+        # :313 set e in Text below its heading e = 2.718 in MathTex. The MathTex may come before or after.
+        self.assertEqual(self.text_findings('x_lbl = VGroup(Text("list size"), MathTex("n"))',
+                                            'head_n = Text("list size n", font_size=26)'),
+                         [(2, 'Text("list size n")')])
+        self.assertEqual(self.text_findings('cap = Text("why e and not two or ten?", font_size=28)',
+                                            'heading = MathTex("e = 2.718")'),
+                         [(1, 'Text("why e and not two or ten?")')])
+
+    def test_letters_standing_alone_in_mathtex_are_its_symbols(self):
+        # MathTex's strings, and SingleStringMathTex's one, are read together; Tex is read only between $ signs,
+        # its math mode.
+        calls = ['Text("size n")', 'Text("weight w")', 'Text("input x")', 'Text("base c")', 'Text("k of them")',
+                 'Text("rate r")']
+        self.assertEqual(self.text_findings(
+            *calls, 'MathTex(r"\\log_2 n")', 'MathTex("w_1 x_1")', 'MathTex("2", "^{2}", "=", "c", "^{1.39}")',
+            'Tex(r"$k$ steps")', 'SingleStringMathTex("r")'), list(enumerate(calls, 1)))
+
+    def test_tex_math_opens_at_one_or_two_dollar_signs_and_never_at_an_escaped_one(self):
+        # $$x$$ is display math, so x is a symbol; \$5 and \$3 are prices, so step k between them is text.
+        calls = ['Text("input x")']
+        self.assertEqual(self.text_findings(
+            *calls, 'Tex(r"$$x$$ grows")', 'Tex(r"\\$5 for step k, \\$3 for two")', 'Text("step k")'),
+            list(enumerate(calls, 1)))
+
+    def test_tex_joins_its_strings_with_nothing_and_mathtex_with_a_space(self):
+        # ManimCE 0.22 sets Tex("$x", "y$") as $xy$, two letters side by side, and MathTex("u", "v") as u v.
+        calls = ['Text("u then v")']
+        self.assertEqual(self.text_findings(
+            *calls, 'Tex("$x", "y$")', 'MathTex("u", "v")', 'Text("input x")', 'Text("output y")'),
+            list(enumerate(calls, 1)))
+
+    def test_adjacent_tex_strings_each_close_their_own_math(self):
+        # ManimCE separates Tex's strings with markers, so Tex("$x$", "$y$ grows at step k") is two
+        # formulas, x and y, then the words grows at step k: y is a symbol and k is not.
+        calls = ['Text("input x")', 'Text("output y")']
+        self.assertEqual(self.text_findings(
+            'Tex("$x$", "$y$ grows at step k")', *calls, 'Text("step k")'),
+            list(enumerate(calls, 2)))
+
+    def test_a_one_letter_command_name_is_not_a_symbol(self):
+        # \P is a command name as \frac is, so in \P(B) only B stands alone: plan B is marked and part P is not.
+        self.assertEqual(self.text_findings('MathTex(r"\\P(B)")', 'Text("plan B")', 'Text("part P")'),
+                         [(2, 'Text("plan B")')])
+
+    def test_letters_in_command_names_text_content_words_and_tex_text_mode_are_not_symbols(self):
+        # \frac gives no f, r or c; \text{x axis}, \textbf{y}, \mbox{plan B}, \operatorname{step\,k} and
+        # \text{w or \emph{z}}, braces inside braces, are words; uv is two letters side by side.
+        self.assertEqual(self.text_findings(
+            'MathTex(r"\\text{x axis}")', 'MathTex(r"\\frac{1}{2}")', 'MathTex(r"\\textbf{y} = \\mathrm{loss}")',
+            'MathTex("uv")', 'Tex("plan B and step k")', 'MathTex(r"\\mbox{plan B}")',
+            'MathTex(r"\\operatorname{step\\,k}")', 'MathTex(r"\\text{w or \\emph{z}}")', 'Text("x axis")',
+            'Text("f r c")', 'Text("y")', 'Text("u then v")', 'Text("plan B")', 'Text("step k")',
+            'Text("w or z")'), [])
+
+    def test_a_and_i_and_letters_inside_words_never_mark_a_text_call(self):
+        # An apostrophe or a dot between letters keeps them one word, as in isn't, model's and e.g.
+        self.assertEqual(self.text_findings(
+            'MathTex("a + A + I + n + t + e + g + s + b + i")', 'Text("pick a card")', 'Text("A to Z")',
+            'Text("I guess")', 'Text("names")', 'Text("isn\'t it")', 'Text("it’s the model’s guess")',
+            'Text("e.g. sorted")', 'MarkupText("<b>sorted</b> <i>list</i>")'), [])
+
+    def test_each_judged_text_string_is_read_for_the_symbol(self):
+        # The text keyword, MarkupText without its tags, each Paragraph line, the caption's question, a quoted letter.
+        calls = ['Text(text="list size n")', 'MarkupText("list size <b>n</b>")', 'Paragraph("first line", "size n")',
+                 'question_caption(box, "why n?")', 'Text("the \'n\' column")']
+        self.assertEqual(self.text_findings('MathTex("n")', *calls), list(enumerate(calls, 2)))
+
+    def test_the_symbol_finding_names_the_letters_the_mathtex_fix_and_the_reword(self):
+        # n is set only in Tex math, so the fix says the file sets it as math, not in MathTex.
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'Tex(r"halve $n$ each step")', 'MathTex("x_1 + y_1")', 'head = Text("list size n")',
+            'axes = Text("x against y")', 'q = question_caption(box, "why n?")')), {})
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings], [
+            (3, 'Text("list size n")', "the letter n is the symbol n set as math elsewhere in the file, "
+             "so set it in MathTex beside the words' Text, in one VGroup(...).arrange(RIGHT, buff=0.15), "
+             "or, when the letter is a word or a label (plan B, part b), reword it"),
+            (4, 'Text("x against y")', "the letters x and y are the symbols x and y set as math elsewhere in "
+             "the file, so set them in MathTex beside the words' Text, in one VGroup(...).arrange(RIGHT, buff=0.15), "
+             "or, when a letter is a word or a label (plan B, part b), reword it"),
+            (5, 'question_caption(box, "why n?")', "the letter n is the symbol n set as math elsewhere in "
+             "the file, and question_caption sets the question in Text, so set it in a MathTex beside the caption, "
+             "in one VGroup(...).arrange(RIGHT, buff=0.15), "
+             "or, when the letter is a word or a label (plan B, part b), reword it")])
+
+    def test_a_text_call_with_a_number_keeps_its_one_number_finding(self):
+        findings = check_scenes.lint_source('MathTex("n")\nlabel = Text("n = 7")\n', {})
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings],
+                         [(2, 'Text("n = 7")', check_scenes.TEXT_FIX)])
+
     def test_cli_number_in_text_fails_the_gate_with_the_mathtex_fix(self):
         (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE + 'count = Text("1,000,000", font_size=40)\n')
         cp = run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=self.env)

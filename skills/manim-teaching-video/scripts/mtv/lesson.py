@@ -10,7 +10,7 @@ import json
 import keyword
 import math
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -240,6 +240,47 @@ def mark_name_error(name: Any) -> str | None:
     if not (isinstance(name, str) and _MARK_NAME.fullmatch(name)):
         return f"mark name '{name}' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'"
     return None
+
+
+def frames_final(reviews: Iterable[dict]) -> dict:
+    """``checks.frames.final`` from the frame critics' scene reviews, each with its ``scores``.
+
+    An item's final score is its minimum across the scenes, except that an item of
+    ``common.SINGLE_LAPSE_ITEMS`` at 1 in two or more scenes scores 0: its 1 anchor counts one
+    lapse in the whole lesson and a second lapse scores 0, as rubric.md's How to score step 2
+    reads it. The items keep the first review's order; ``zeros`` lists those at 0, sorted, and
+    ``pass`` is a total of at least ``common.RUBRIC_PASS_TOTAL`` with no item at 0. A review that
+    is not an object, whose scores do not name exactly the sixteen ``common.RUBRIC_ITEMS`` (one
+    missing, extra or misspelled), or that scores an item other than 0, 1 or 2 raises ValueError
+    naming its scene, or its position when it names none.
+    """
+    reviews = list(reviews)
+    if not reviews:
+        raise ValueError("no scene reviews to score")
+    for i, review in enumerate(reviews):
+        if not isinstance(review, dict):
+            raise ValueError(f"review {i + 1}: a scene review must be an object, not {type(review).__name__}")
+    # Each review's scene names it in an error; a review without one is named by its position.
+    named = [(str(r.get("scene", f"review {i + 1}")), r.get("scores")) for i, r in enumerate(reviews)]
+    for scene, scores in named:
+        if not isinstance(scores, dict):
+            raise ValueError(f"{scene}: scores must be an object of item scores")
+    for scene, scores in named:
+        lacking = [item for item in common.RUBRIC_ITEMS if item not in scores]
+        unknown = [item for item in scores if item not in common.RUBRIC_ITEMS]
+        if lacking or unknown:
+            wrong = [f"{verb} {', '.join(map(repr, names))}"
+                     for verb, names in (("lack", lacking), ("have unknown", unknown)) if names]
+            raise ValueError(f"{scene}: scores must name the sixteen rubric items, but {' and '.join(wrong)}")
+        for item, score in scores.items():
+            if not (_is_int(score) and 0 <= score <= 2):
+                raise ValueError(f"{scene}: '{item}' scored {score!r}, not 0, 1 or 2")
+    final = {}
+    for item in named[0][1]:  # every review holds the same sixteen items; the first sets their order
+        column = [scores[item] for _, scores in named]
+        final[item] = 0 if item in common.SINGLE_LAPSE_ITEMS and column.count(1) >= 2 else min(column)
+    zeros = sorted(item for item, score in final.items() if score == 0)
+    return {"scores": final, "zeros": zeros, "pass": sum(final.values()) >= common.RUBRIC_PASS_TOTAL and not zeros}
 
 
 def stage_inputs(lesson: dict, stage: str) -> str:

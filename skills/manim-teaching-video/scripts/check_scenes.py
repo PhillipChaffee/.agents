@@ -52,6 +52,19 @@ CAPTION_FIX = (
     "question_caption sets the question in Text, so spell the numbers and signs out in words, "
     f"or move them into a MathTex beside the caption, {WORD_FIX}"
 )
+# A letter alone cannot be told from a word, but one the file also sets in math is that symbol,
+# shown in two typefaces. MathTex sets all its strings in math, Tex only between $ signs.
+MATH_CLASSES = frozenset({"MathTex", "SingleStringMathTex"})
+TEX_CLASS = "Tex"
+TEX_MATH_SHIFT = re.compile(r"(?<!\\)\$\$?")
+# A text-mode command's braced argument (one brace level deep) holds words, and a command name,
+# as \frac, or an escaped sign, as \%, holds no symbol.
+TEX_WORDS = re.compile(r"\\(?:text[a-z]*|mbox|operatorname)\*?\s*\{(?:[^{}]|\{[^{}]*\})*\}")
+TEX_COMMAND = re.compile(r"\\(?:[A-Za-z]+|.)")
+# A Latin letter with no letter beside it; an apostrophe or a dot between letters joins them into
+# one word, as in isn't, model's or e.g.
+LONE_LETTER = re.compile(r"(?<![^\W\d_])(?<![^\W\d_]['’.])[A-Za-z](?![^\W\d_])(?!['’.][^\W\d_])")
+WORD_LETTERS = frozenset("aAI")
 
 
 def _finding(filename: str, line: int | None, name: str, fix: str) -> dict:
@@ -184,9 +197,47 @@ def _text_parts(node: ast.expr) -> tuple[str, bool]:
     return "", False
 
 
-def _sets_math(node: ast.expr, markup: bool) -> bool:
+def _shown_text(node: ast.expr, markup: bool) -> tuple[str, bool]:
     text, formatted = _text_parts(node)
-    return formatted or MATH_IN_TEXT.search(MARKUP_TAG.sub("", text) if markup else text) is not None
+    return (MARKUP_TAG.sub("", text) if markup else text), formatted
+
+
+def _sets_math(node: ast.expr, markup: bool) -> bool:
+    text, formatted = _shown_text(node, markup)
+    return formatted or MATH_IN_TEXT.search(text) is not None
+
+
+def _callee(node: ast.AST) -> str | None:
+    """The name ``node`` calls, by name or through its module, as Text or manim.Text; None if not a call."""
+    if not isinstance(node, ast.Call):
+        return None
+    func = node.func
+    return func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+
+
+def _math_symbols(tree: ast.Module) -> set[str]:
+    """The letters the file sets alone in math, as n in MathTex(r"\\log_2 n"), but not a or I."""
+    symbols = set()
+    for node in ast.walk(tree):
+        callee = _callee(node)
+        if callee not in MATH_CLASSES and callee != TEX_CLASS:
+            continue
+        # Both classes join their strings with a space.
+        tex = " ".join(_text_parts(arg)[0] for arg in node.args)
+        math = " ".join(TEX_MATH_SHIFT.split(tex)[1::2]) if callee == TEX_CLASS else tex
+        symbols.update(LONE_LETTER.findall(TEX_COMMAND.sub(" ", TEX_WORDS.sub(" ", math))))
+    return symbols - WORD_LETTERS
+
+
+def _symbol_fix(letters: list[str], caption: bool) -> str:
+    one = len(letters) == 1
+    named = letters[0] if one else f"{', '.join(letters[:-1])} and {letters[-1]}"
+    symbol = f"the letter {named} is the math symbol" if one else f"the letters {named} are the math symbols"
+    it = "it" if one else "them"
+    where = (f"and question_caption sets the question in Text, so set {it} in a MathTex beside the caption"
+             if caption else f"so set {it} in MathTex beside the words' Text")
+    return (f"{symbol} {named} set in MathTex elsewhere in the file, {where}, "
+            "in one VGroup(...).arrange(RIGHT, buff=0.15)")
 
 
 def _written(source: str, node: ast.AST) -> str:
@@ -205,23 +256,29 @@ def _written(source: str, node: ast.AST) -> str:
 def _text_findings(tree: ast.Module, source: str, filename: str) -> list[dict]:
     # The class or helper may be imported by name or reached through its module, as manim.Text.
     # The text keyword is the string being set too; the other keywords style it and are not
-    # judged, nor is question_caption's first argument, its target.
+    # judged, nor is question_caption's first argument, its target. A call setting a number gets
+    # that finding alone; one setting none is then read for a letter the file sets in math.
+    symbols = _math_symbols(tree)
     findings = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        callee = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+        callee = _callee(node)
         if callee not in TEXT_CLASSES and callee != CAPTION_HELPER:
             continue
+        markup, caption = callee == "MarkupText", callee == CAPTION_HELPER
         text_keywords = [keyword for keyword in node.keywords if keyword.arg == "text"]
-        positional = node.args[1:2] if callee == CAPTION_HELPER else node.args
+        positional = node.args[1:2] if caption else node.args
         judged = [*positional, *(keyword.value for keyword in text_keywords)]
-        if any(_sets_math(arg, callee == "MarkupText") for arg in judged):
-            shown = [*node.args, *text_keywords]
-            name = f"{_written(source, func)}({', '.join(_written(source, part) for part in shown)})"
-            fix = CAPTION_FIX if callee == CAPTION_HELPER else TEXT_FIX
-            findings.append(_finding(filename, node.lineno, name, fix))
+        if any(_sets_math(arg, markup) for arg in judged):
+            fix = CAPTION_FIX if caption else TEXT_FIX
+        else:
+            found = (letter for arg in judged for letter in LONE_LETTER.findall(_shown_text(arg, markup)[0]))
+            letters = [*dict.fromkeys(letter for letter in found if letter in symbols)]
+            if not letters:
+                continue
+            fix = _symbol_fix(letters, caption)
+        shown = [*node.args, *text_keywords]
+        name = f"{_written(source, node.func)}({', '.join(_written(source, part) for part in shown)})"
+        findings.append(_finding(filename, node.lineno, name, fix))
     return findings
 
 

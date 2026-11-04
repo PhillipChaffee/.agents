@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
 import hashlib
 import json
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -223,6 +222,13 @@ FRAME_WIDTH = 14.222222222222221
 FRAME_HEIGHT = 8.0
 
 TIERS = {"draft": (854, 480, 15), "standard": (1920, 1080, 30)}
+SKILL_DIR = Path(__file__).resolve().parents[2]
+
+
+def config_file(tier: str) -> Path:
+    """The manim.cfg that sets ``tier``'s size and frame rate, from the skill's assets."""
+    return SKILL_DIR / "assets" / f"manim.cfg.{tier}"
+
 
 LESSON_SCHEMA = "mtv-lesson/1"
 
@@ -324,61 +330,81 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _kill(process: subprocess.Popen, group: bool) -> None:
-    """Kill ``process``, and with ``group`` every process in the group it leads."""
-    if not group:
-        process.kill()
-        return
-    # The group lasts while any member runs, so it is gone only when nothing is left to kill.
-    with contextlib.suppress(ProcessLookupError):
-        os.killpg(process.pid, signal.SIGKILL)
-
-
 def run_cmd(
     argv: list[str],
     log_path: Path | None = None,
     env: dict[str, str] | None = None,
     cwd: Path | None = None,
-    timeout_s: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run ``argv`` with its output captured, and appended to ``log_path`` when one is given.
-
-    With ``timeout_s``, a command still running that many seconds after it started is killed,
-    with every process it started, and subprocess.TimeoutExpired carries its output so far.
-    """
     # On an inherited stdin a child reads input piped to this process (ffmpeg takes it as
     # interactive keys) and stops a background job; manim prompts on it for a missing class.
-    # A time limit puts the command in a process group of its own, so that expiry also kills
-    # what it started, as manim starts latex and dvisvgm: a survivor would hold the output
-    # pipes open, and stay running after the limit.
-    group = timeout_s is not None
-    with subprocess.Popen(
-        argv,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env,
-        cwd=cwd,
-        start_new_session=group,
-    ) as process:
-        expired = False
-        try:
-            stdout, stderr = process.communicate(timeout=timeout_s)
-        except subprocess.TimeoutExpired:
-            expired = True
-            _kill(process, group)
-            stdout, stderr = process.communicate()
-        except BaseException:
-            _kill(process, group)
-            raise
+    completed = subprocess.run(
+        argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, env=env, cwd=cwd, check=False
+    )
     if log_path is not None:
         with open(log_path, "a", encoding="utf-8") as log:
-            log.write(stdout)
-            log.write(stderr)
-    if expired:
-        raise subprocess.TimeoutExpired(argv, timeout_s, stdout, stderr)
-    return subprocess.CompletedProcess(argv, process.returncode, stdout, stderr)
+            log.write(completed.stdout)
+            log.write(completed.stderr)
+    return completed
+
+
+POLL_S = 0.5
+
+
+def _size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except FileNotFoundError:
+        return 0
+
+
+def run_with_watchdog(
+    argv: list[str],
+    env: dict[str, str],
+    cwd: Path,
+    log: Path,
+    hang_timeout_s: float,
+    also_watch: tuple[Path, ...] = (),
+) -> tuple[int | None, float]:
+    """Run ``argv`` with its output appended to ``log``; return its exit status, or None when it
+    was killed because neither ``log`` nor a file in ``also_watch`` grew for ``hang_timeout_s``,
+    and its wall time.
+
+    Growth counts bytes, not lines, because CE redraws its progress bar with a carriage return
+    and no newline, so a long animation is busy for minutes without a new line. stdin is closed
+    because CE asks on stdin which scene to render when the requested class is missing from a
+    file with several (manim/utils/module_ops.py:109-142); without stdin it fails at once
+    instead of waiting for the detector. Only ``argv``'s own process is killed, and it stays in
+    this process's group, so a kill sent to that group, as GNU timeout or a harness sends one,
+    reaches it and what it started. An exception here kills it too, as subprocess.run does.
+    Python raises the KeyboardInterrupt of a SIGINT sent to this process alone only on the main
+    thread, so such a SIGINT kills it where the watchdog runs there, as in check_scenes' dry
+    runs, but not in render.py's worker threads, where manim keeps running.
+    """
+    watched = (log, *also_watch)
+    start = time.monotonic()
+    with open(log, "ab") as out:
+        process = subprocess.Popen(
+            argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env, cwd=cwd
+        )
+    sizes, grew_at = tuple(map(_size, watched)), start
+    try:
+        while True:
+            try:
+                return process.wait(timeout=POLL_S), time.monotonic() - start
+            except subprocess.TimeoutExpired:
+                pass
+            now, current = time.monotonic(), tuple(map(_size, watched))
+            if current != sizes:
+                sizes, grew_at = current, now
+            elif now - grew_at >= hang_timeout_s:
+                process.kill()
+                process.wait()
+                return None, now - start
+    except BaseException:
+        process.kill()
+        process.wait()
+        raise
 
 
 def scripts_pythonpath(scripts_dir: Path) -> str:

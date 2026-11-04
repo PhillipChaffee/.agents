@@ -21,6 +21,7 @@ import platform
 import re
 import shlex
 import shutil
+import signal
 import struct
 import subprocess
 import sys
@@ -108,14 +109,17 @@ def example_run_dir(parent: Path) -> Path:
 
 # ManimCE is absent where the self-test runs, so the scripts under test find this stand-in
 # first on PATH. Its dry run fails for a class whose name contains Bad, so a test can take
-# the failing path with a scenes file that is otherwise clean, and for one whose name contains
-# Hang it runs 30 s with a child that holds its output open, as manim's latex does, writing
-# the child's pid to child.pid beside it. Its render writes what CE's
+# the failing path with a scenes file that is otherwise clean. For a class whose name contains
+# Hang it prints one line and then nothing for 30 s, with a child that holds its output open
+# as manim's latex does, writing its own pid to manim.pid and the child's to child.pid beside
+# it; for one whose name contains Busy it writes a byte to stderr every 0.2 s for 2.4 s, as
+# CE's progress bar redraws with no newline, then exits 0. Its render writes what CE's
 # --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
 # MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
 # MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang (=1 until the
 # --disable_caching retry, =always on every attempt), or real MP4s;
-# MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit.
+# MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit;
+# MTV_FAKE_QUIET=1 prints nothing and writes each beat's run-log line in four pieces 0.2 s apart.
 FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
 import ast
 import json
@@ -138,10 +142,16 @@ if "--dry_run" in argv:
     if "Bad" in argv[-1]:
         sys.exit(f"ValueError: {argv[-1]} failed its dry run")
     if "Hang" in argv[-1]:
+        (Path(__file__).resolve().parent / "manim.pid").write_text(str(os.getpid()))
         child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
         (Path(__file__).resolve().parent / "child.pid").write_text(str(child.pid))
         print(f"{argv[-1]}: still in construct", flush=True)
         time.sleep(30)
+    if "Busy" in argv[-1]:
+        for _ in range(12):
+            sys.stderr.write(".")
+            sys.stderr.flush()
+            time.sleep(0.2)
     sys.exit(0)
 lesson_py, scene_class = Path(argv[-2]), argv[-1]
 # Like CE, the class is looked up in the scenes file; lesson.json supplies only its beats.
@@ -177,11 +187,18 @@ with open(os.environ["MTV_RUN_LOG"], "a", encoding="utf-8") as run_log:
                   "audio_s": audio_s, "tail_s": tail_s, "overrun_s": 0.0, "boxes": []}
         if os.environ.get("MTV_FAKE_RUN_LOG") == "nobeat":
             del record["beat"]
-        if os.environ.get("MTV_FAKE_RUN_LOG") != "none":
-            run_log.write(json.dumps(record) + "\n")
+        line = json.dumps(record) + "\n" if os.environ.get("MTV_FAKE_RUN_LOG") != "none" else ""
+        if os.environ.get("MTV_FAKE_QUIET") == "1":
+            for piece in range(4):
+                run_log.write(line[piece * len(line) // 4:(piece + 1) * len(line) // 4])
+                run_log.flush()
+                time.sleep(0.2)
+        else:
+            run_log.write(line)
         enter_s += duration
 (sections_dir / f"{scene_class}.json").write_text(json.dumps(entries, indent=4))
-print("File ready")
+if os.environ.get("MTV_FAKE_QUIET") != "1":
+    print("File ready")
 '''
 
 # The example lesson's two scene classes, each with the base its flat scene_kind needs.
@@ -233,6 +250,24 @@ def process_ends(pid: int, within_s: float) -> bool:
         if time.monotonic() >= deadline:
             return False
         time.sleep(0.1)
+
+
+def pid_from(path: Path, within_s: float) -> int:
+    """The pid the fake manim writes to ``path``, waiting up to ``within_s`` seconds for it."""
+    deadline = time.monotonic() + within_s
+    while True:
+        text = path.read_text().strip() if path.exists() else ""
+        if text:
+            return int(text)
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"no pid in {path} after {within_s:g} s")
+        time.sleep(0.05)
+
+
+def kill_quietly(pid: int) -> None:
+    """SIGKILL ``pid`` unless it is already gone: a test's cleanup for a fake that may outlive it."""
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(pid, signal.SIGKILL)
 
 
 # A 1x1 JPEG that Pillow wrote (Image.new("RGB", (1, 1)).save(buf, "JPEG")), so a synthetic
@@ -1905,6 +1940,41 @@ class TestCheckScenes(ExampleLessonCase):
                          {"S01WorkingThing": True, "S02OneNeuron": True})
         calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
         self.assertTrue(all("--dry_run" in c for c in calls))
+        # The draft render's config, so the dry run draws the frames step 7's draft render draws.
+        for call in calls:
+            self.assertIn("--config_file", call)
+            self.assertEqual(call[call.index("--config_file") + 1], str(ASSETS_DIR / "manim.cfg.draft"))
+
+    def first_class_named(self, name: str) -> None:
+        """Rename the lesson's first scene class to ``name`` in lesson.json and lesson.py."""
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["scene_class"] = name
+        mtv_lesson.save(lesson, self.lesson_path)
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE.replace("S01WorkingThing", name))
+
+    def check_in_process(self, idle_bound_s: float) -> tuple[int, str, float]:
+        """check_scenes.main run in this process with the idle bound cut to ``idle_bound_s``
+        (which a child process would not see): its exit code, its stdout and its wall time."""
+        out, start = io.StringIO(), time.monotonic()
+        with mock.patch.dict(os.environ, {"PATH": self.env["PATH"]}), \
+                mock.patch.object(common, "HANG_TIMEOUT_S", idle_bound_s), contextlib.redirect_stdout(out):
+            code = check_scenes.main([str(self.run_dir / "lesson.py"), str(self.lesson_path)])
+        return code, out.getvalue(), time.monotonic() - start
+
+    def check_in_own_session(self) -> tuple[subprocess.Popen, int, int]:
+        """check_scenes.py started as the leader of a new session, so a test can signal it or its
+        group without signalling the self-test, once the fake's Hang class has written both pids;
+        returns the process, the dry run's manim pid and its child's pid."""
+        proc = subprocess.Popen(
+            [sys.executable, str(SCRIPTS_DIR / "check_scenes.py"), "lesson.py", "lesson.json"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=self.run_dir,
+            env={**self.env, "PYTHONPATH": str(SCRIPTS_DIR), "PYTHONDONTWRITEBYTECODE": "1"}, start_new_session=True)
+        self.addCleanup(proc.wait, 10)
+        self.addCleanup(proc.kill)
+        pids = pid_from(self.bin_dir / "manim.pid", 10), pid_from(self.bin_dir / "child.pid", 10)
+        for pid in pids:
+            self.addCleanup(kill_quietly, pid)
+        return proc, *pids
 
     def test_missing_manim_exits_2(self):
         (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE)
@@ -1918,10 +1988,7 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertEqual(run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=env).returncode, 1)
 
     def test_failed_dry_run_exits_1_with_its_output(self):
-        lesson = mtv_lesson.load(self.lesson_path)
-        lesson["scenes"][0]["scene_class"] = "S01BadThing"
-        mtv_lesson.save(lesson, self.lesson_path)
-        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE.replace("S01WorkingThing", "S01BadThing"))
+        self.first_class_named("S01BadThing")
         cp = run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=self.env)
         self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
         checks = mtv_lesson.load(self.lesson_path)["checks"]["scenes"]
@@ -1929,37 +1996,66 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertFalse(checks["pass"])
         self.assertIn("ValueError: S01BadThing failed its dry run", cp.stdout)
 
-    def test_hung_dry_run_is_killed_with_its_children_at_the_hang_bound(self):
-        # The fake's Hang class runs 30 s with a child holding its output; the bound is cut to
-        # 1 s in this process, so main runs in it rather than in a child process.
-        lesson = mtv_lesson.load(self.lesson_path)
-        lesson["scenes"][0]["scene_class"] = "S01HangThing"
-        mtv_lesson.save(lesson, self.lesson_path)
-        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE.replace("S01WorkingThing", "S01HangThing"))
-        out, start = io.StringIO(), time.monotonic()
-        with mock.patch.dict(os.environ, {"PATH": self.env["PATH"]}), \
-                mock.patch.object(common, "HANG_TIMEOUT_S", 1), contextlib.redirect_stdout(out):
-            code = check_scenes.main([str(self.run_dir / "lesson.py"), str(self.lesson_path)])
-        self.assertLess(time.monotonic() - start, 10, out.getvalue())
-        self.assertEqual(code, 1, out.getvalue())
+    def test_silent_dry_run_is_killed_at_the_idle_bound(self):
+        # The fake's Hang class prints one line, then nothing for 30 s, with a child that holds
+        # its output open; the bound on silence is cut to 1 s.
+        self.first_class_named("S01HangThing")
+        code, out, wall_s = self.check_in_process(1)
+        child = pid_from(self.bin_dir / "child.pid", 0)
+        self.addCleanup(kill_quietly, child)
+        self.assertLess(wall_s, 10, out)
+        self.assertEqual(code, 1, out)
         checks = mtv_lesson.load(self.lesson_path)["checks"]["scenes"]
         self.assertEqual(checks["dry_run"], {"S01HangThing": False, "S02OneNeuron": True})
-        self.assertIn("S01HangThing: dry run timed out after 1 s", out.getvalue())
-        # The output so far still reaches the scene coder.
-        self.assertIn("S01HangThing: still in construct", out.getvalue())
-        child = int((self.bin_dir / "child.pid").read_text())
-        self.assertTrue(process_ends(child, 5), "the dry run's child outlived the time limit")
+        message = "S01HangThing: dry run produced no output for 1 s | fix: end the loop, or cut the work, in construct"
+        self.assertIn(message, out)
+        # The output so far follows the message, so it still reaches the scene coder.
+        self.assertIn("S01HangThing: still in construct", out.partition(message)[2])
+        # Only manim is killed, and the check returned while the child it started still held the
+        # dry run's output open: the output goes to a file, which nothing has to drain.
+        self.assertFalse(process_ends(child, 0), "the check returns while manim's child is still alive, "
+                         "so it does not wait on the child's open output")
+
+    def test_busy_dry_run_outlasting_the_idle_bound_passes(self):
+        # The fake's Busy class writes a byte every 0.2 s for 2.4 s, longer than a 1 s bound on silence.
+        self.first_class_named("S01BusyThing")
+        code, out, wall_s = self.check_in_process(1)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["checks"]["scenes"]["dry_run"],
+                         {"S01BusyThing": True, "S02OneNeuron": True})
+        self.assertGreater(wall_s, 2.4, "the busy dry run did not outlast the bound")
+
+    def test_a_kill_sent_to_the_checks_process_group_reaches_its_dry_run(self):
+        # GNU timeout and a harness signal the whole process group of the command they started.
+        self.first_class_named("S01HangThing")
+        proc, manim, child = self.check_in_own_session()
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(10)
+        self.assertTrue(process_ends(manim, 5), "the dry run's manim outlived a kill sent to the check's group")
+        self.assertTrue(process_ends(child, 5), "manim's child outlived a kill sent to the check's group")
+
+    def test_an_interrupted_check_kills_its_dry_run(self):
+        # SIGINT sent to the check alone, as a harness may send it, raises KeyboardInterrupt there.
+        self.first_class_named("S01HangThing")
+        proc, manim, _ = self.check_in_own_session()
+        os.kill(proc.pid, signal.SIGINT)
+        proc.wait(10)
+        self.assertTrue(process_ends(manim, 5), "the dry run's manim outlived the interrupted check")
 
     def test_dry_run_and_render_share_one_pythonpath(self):
         # Both run the same scenes file, so a package it imports from the inherited PYTHONPATH
         # must load in the dry run as it does in the render.
         inherited = str(self.run_dir.parent / "site-packages")
-        completed = subprocess.CompletedProcess([], 0, "", "")
+
+        def passing_run(argv: list[str], **kwargs) -> tuple[int, float]:
+            kwargs["log"].touch()  # the watchdog opens its log before it starts the command
+            return 0, 0.0
+
         with mock.patch.dict(os.environ, {"PYTHONPATH": inherited, "MTV_RUN_LOG": "stale.log"}), \
-                mock.patch.object(check_scenes.common, "run_cmd", return_value=completed) as run_cmd:
+                mock.patch.object(check_scenes.common, "run_with_watchdog", side_effect=passing_run) as run:
             check_scenes.dry_run(self.run_dir / "lesson.py", ["S01WorkingThing"], self.run_dir, self.lesson_path)
             render_env = render.scene_env(render.SCRIPTS_DIR, self.run_dir / "run.log", self.lesson_path)
-        env = run_cmd.call_args.kwargs["env"]
+        env = run.call_args.kwargs["env"]
         self.assertEqual(env["PYTHONPATH"].split(os.pathsep), [str(SCRIPTS_DIR), inherited])
         self.assertEqual(env["PYTHONPATH"], render_env["PYTHONPATH"])
         self.assertNotIn("MTV_RUN_LOG", env)
@@ -2127,6 +2223,20 @@ class TestRender(ExampleLessonCase):
         calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
         self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False, True])
         self.assertEqual(mtv_lesson.load(self.lesson_path)["attempts"]["render_retries"], {"s01": 1})
+
+    def test_quiet_render_growing_its_run_log_outlasting_the_hang_bound_passes(self):
+        # The quiet fake leaves render.log empty and writes s01's three run-log lines in pieces
+        # 0.2 s apart, 2.4 s in all, longer than a 1 s bound: only run.log shows it is busy.
+        start = time.monotonic()
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", "--hang-timeout-s", "1",
+                        cwd=self.run_dir, env={**self.env, "MTV_FAKE_QUIET": "1"})
+        wall_s = time.monotonic() - start
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertGreater(wall_s, 2.4, "the quiet render did not outlast the bound")
+        self.assertEqual((self.run_dir / "render" / "draft" / "s01" / "render.log").read_bytes(), b"")
+        calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
+        self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False])
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["attempts"]["render_retries"], {})
 
     def test_error_table_match_in_verdict(self):
         cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,
@@ -3679,9 +3789,10 @@ class TestTexTemplate(unittest.TestCase):
     def test_div_is_the_division_sign_with_physics_loaded(self):
         # physics redefines \div as its divergence, a nabla and a dot; the reference is threeb1b
         # without physics, the same fonts with LaTeX's own \div.
-        physics = "\\usepackage{physics}\n"
-        reference = self.manim.TexTemplate(preamble=self.manim.TexTemplateLibrary.threeb1b.preamble.replace(physics, ""))
-        self.assertNotIn(physics, reference.preamble)
+        physics, threeb1b = "\\usepackage{physics}\n", self.manim.TexTemplateLibrary.threeb1b.preamble
+        # Spelled any other way, the line would survive the replace and the reference load physics.
+        self.assertIn(physics, threeb1b)
+        reference = self.manim.TexTemplate(preamble=threeb1b.replace(physics, ""))
         kit = self.look.TEMPLATE
         self.assertEqual(svg_glyphs(self.tex_to_svg(r"a \div b", "align*", kit)),
                          svg_glyphs(self.tex_to_svg(r"a \div b", "align*", reference)))

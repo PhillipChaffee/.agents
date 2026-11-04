@@ -25,13 +25,7 @@ from mtv import common
 from mtv import lesson as mtv_lesson
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
-SKILL_DIR = Path(__file__).resolve().parent.parent
-POLL_S = 0.5
 TAIL_LINES = 20
-
-
-def _config_file(tier: str) -> Path:
-    return SKILL_DIR / "assets" / f"manim.cfg.{tier}"
 
 
 def scene_command(lesson_py: Path, scene_class: str, cfg: Path, media_dir: Path, disable_caching: bool) -> list[str]:
@@ -53,45 +47,6 @@ def scene_env(scripts_dir: Path, run_log: Path, lesson_path: Path) -> dict[str, 
         "MTV_RUN_LOG": str(run_log),
         "MTV_LESSON": str(lesson_path.resolve()),
     }
-
-
-def _size(path: Path) -> int:
-    try:
-        return path.stat().st_size
-    except FileNotFoundError:
-        return 0
-
-
-def run_with_watchdog(
-    argv: list[str], env: dict[str, str], cwd: Path, render_log: Path, run_log: Path, hang_timeout_s: float
-) -> tuple[int | None, float]:
-    """Run ``argv`` with its output appended to ``render_log``; return its exit status, or None
-    when it was killed because neither log grew for ``hang_timeout_s``, and its wall time.
-
-    Growth counts bytes, not lines, because CE redraws its progress bar with a carriage return
-    and no newline, so a long animation is busy for minutes without a new line. stdin is closed
-    because CE asks on stdin which scene to render when the requested class is missing from a
-    file with several (manim/utils/module_ops.py:109-142); without stdin it fails at once
-    instead of waiting for the detector.
-    """
-    start = time.monotonic()
-    with open(render_log, "ab") as log:
-        process = subprocess.Popen(
-            argv, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=cwd
-        )
-    sizes, grew_at = (_size(render_log), _size(run_log)), start
-    while True:
-        try:
-            return process.wait(timeout=POLL_S), time.monotonic() - start
-        except subprocess.TimeoutExpired:
-            pass
-        now, current = time.monotonic(), (_size(render_log), _size(run_log))
-        if current != sizes:
-            sizes, grew_at = current, now
-        elif now - grew_at >= hang_timeout_s:
-            process.kill()
-            process.wait()
-            return None, now - start
 
 
 def _section_indexes(out_dir: Path, scene_class: str) -> list[Path]:
@@ -181,8 +136,8 @@ def render_scene(lesson: dict, lesson_path: Path, scene: dict, tier: str, hang_t
     def attempt(disable_caching: bool) -> tuple[int | None, float]:
         # A retried scene must not keep the hung attempt's beat lines.
         run_log.write_bytes(b"")
-        argv = scene_command(lesson_py, scene["scene_class"], _config_file(tier), media_dir, disable_caching)
-        returncode, wall_s = run_with_watchdog(argv, env, run_dir, render_log, run_log, hang_timeout_s)
+        argv = scene_command(lesson_py, scene["scene_class"], common.config_file(tier), media_dir, disable_caching)
+        returncode, wall_s = common.run_with_watchdog(argv, env, run_dir, render_log, hang_timeout_s, (run_log,))
         if returncode is None:
             _append(render_log, [f"mtv: no new output in render.log or run.log for {hang_timeout_s:g} s; killed"])
         return returncode, wall_s
@@ -344,8 +299,8 @@ def main(argv: list[str] | None = None) -> int:
         return common.usage_error("lesson invalid: " + "; ".join(unclassed))
     if common.which("manim") is None:
         return common.usage_error("manim is not on PATH; activate the venv that has ManimCE")
-    if not _config_file(args.tier).exists():
-        return common.usage_error(f"config file missing: {_config_file(args.tier)}")
+    if not common.config_file(args.tier).exists():
+        return common.usage_error(f"config file missing: {common.config_file(args.tier)}")
     if not mtv_lesson.scenes_file(args.lesson).exists():
         return common.usage_error(f"scenes file missing: {mtv_lesson.scenes_file(args.lesson)}")
     start = time.monotonic()

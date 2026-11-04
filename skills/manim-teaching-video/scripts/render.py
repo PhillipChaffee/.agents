@@ -279,6 +279,29 @@ def _failure_text(scene_id: str, result: dict) -> str:
     return f"{scene_id}: {last} | fix: see render.log"
 
 
+def unpassed_gates(lesson: dict, lesson_arg: Path) -> list[str]:
+    """Step 4's and step 5's gates that have not passed for ``lesson`` as it stands, each as
+    ``<gate>: <what> | fix: <command>`` with ``lesson_arg``, the path as the user gave it.
+
+    Nothing renders, at any tier, before both: a stage is current only while the fields it read
+    still hash to what its mark recorded. The fix loop edits only lesson.py, which neither reads.
+    """
+    gates = []
+    if mtv_lesson.needs_rerun(lesson, "storyboard"):
+        gates.append(
+            "storyboard: step 4 has not passed for the current storyboard (the stage is unmarked, or the "
+            "storyboard, script or brief changed since it was marked) | fix: run "
+            f"`python scripts/storyboard_check.py {lesson_arg}` until it exits 0 and the storyboard critic's "
+            "verdict is `pass`, then mark `storyboard` with the mark helper"
+        )
+    if mtv_lesson.needs_rerun(lesson, "narrate"):
+        gates.append(
+            "narrate: step 5's narration and marks are not current (the stage is unmarked, or the narration, "
+            f"marks, provider or voice changed since it ran) | fix: run `python scripts/narrate.py {lesson_arg}`"
+        )
+    return gates
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = common.lesson_parser("Render each scene of lesson.py in its own manim process.")
     parser.add_argument("--tier", required=True, choices=sorted(common.TIERS), help="render tier")
@@ -301,6 +324,9 @@ def main(argv: list[str] | None = None) -> int:
     empty = mtv_lesson.beatless(lesson)
     if empty:
         return common.usage_error("nothing to render: " + "; ".join(empty))
+    gates = unpassed_gates(lesson, args.lesson)
+    if gates:
+        return common.usage_error("not ready to render: " + "; ".join(gates))
     if args.jobs < 1:
         return common.usage_error("--jobs must be at least 1")
     if args.scenes is None:

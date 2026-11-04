@@ -1816,6 +1816,65 @@ class TestCheckScenes(ExampleLessonCase):
                                            mtv_lesson.load(self.lesson_path))
         self.assertEqual([(f["name"], f["fix"]) for f in missing], [("S02OneNeuron", "define class S02OneNeuron")])
 
+    @staticmethod
+    def text_findings(*lines: str) -> list[tuple[int | None, str]]:
+        """The lint's findings on ``lines``, one statement each, as (line, name).
+
+        The lesson names no scene and no color, so every finding is the lint's reading of a text call.
+        """
+        return [(f["line"], f["name"]) for f in check_scenes.lint_source("".join(f"{line}\n" for line in lines), {})]
+
+    def test_numbers_signs_and_greek_set_in_text_are_findings(self):
+        # The four GREEN iteration 1 renders set these in Text; a concatenation is judged as its literals.
+        calls = ['Text("1,000,000")', 'Text("≈ 20 looks")', 'Text("never exactly 0 or 1")', 'Text("σ(z)")',
+                 'Text("cost " "0.42")', 'Text("cost " + "≈")', 'MarkupText("<b>12</b>")', 'Text("guess " + str(n))']
+        self.assertEqual(self.text_findings(*calls), list(enumerate(calls, 1)))
+
+    def test_every_digit_sign_and_greek_letter_marks_a_text_call(self):
+        marks = ["0", "9", *"= ≈ ≠ ≤ ≥ < > + − × ÷ ± → ^ ∑ ∫ √ ∞ Α Ω α ω".split(), "\\"]
+        findings = self.text_findings(*(f"label = Text({'a' + mark + 'b'!r})" for mark in marks))
+        self.assertEqual([line for line, _ in findings], list(range(1, len(marks) + 1)))
+
+    def test_formatted_strings_in_text_are_findings(self):
+        calls = ['Text(f"{n} names")', 'Text(str(n))', 'Text(repr(n))', 'Text(format(n, ",d"))',
+                 'Text("%d" % n)', 'Text("{} looks".format(n))', 'Text(template.format(n))']
+        self.assertEqual(self.text_findings(*calls), list(enumerate(calls, 1)))
+
+    def test_words_unknown_values_keywords_and_other_classes_pass(self):
+        self.assertEqual(self.text_findings(
+            'Text("looks")', 'Text("sorted phone book")', 'Text("non-linear")', 'Text("isn\'t it?")', 'Text("(sorted)")',
+            'Text("A to Z: done; \\"quoted\\", a/b * c & d_e")', 'Text(f"looks")', 'Text("guess " + name)',
+            'Text(label)', 'Text(self.label)', 'Text(names[0])', 'Text(*lines)', 'Text("loss", 1.0)',
+            'Text("loss", font_size=28, color="#FF0000", t2c={"[0:2]": "#FF0000"})', 'Paragraph("first line", "second line")',
+            'MarkupText("<b>sorted</b>")', 'MarkupText(\'<span fgcolor="#FF0000">red</span>\')',
+            'MathTex("0.42")', 'MathTex(r"\\approx 20")', 'Tex("1,000 names")', 'DecimalNumber(0.42)',
+            'Integer(20)', 'Code(code_string="x = 1")',
+        ), [])
+
+    def test_attribute_calls_and_each_paragraph_line_are_judged(self):
+        calls = ['manim.Text("12")', 'Paragraph("first line", "2 lines")', 'Paragraph(*lines, "x = y")']
+        self.assertEqual(self.text_findings(*calls), list(enumerate(calls, 1)))
+
+    def test_one_text_finding_per_call_at_the_line_it_opens(self):
+        findings = self.text_findings('pair = VGroup(Text("≈"), Text("20"), Text("looks"))', 'n = Text(\n    "1,000"\n)')
+        self.assertEqual(findings, [(1, 'Text("≈")'), (1, 'Text("20")'), (2, 'Text("1,000")')])
+
+    def test_a_long_text_literal_is_cut_in_the_finding_name(self):
+        call = 'Text("make every score positive and keep the order of all 3 scores")'
+        [(line, name)] = self.text_findings(call)
+        self.assertTrue(name.startswith('Text("make every score'), name)
+        self.assertLess(len(name), len(call))
+
+    def test_cli_number_in_text_fails_the_gate_with_the_mathtex_fix(self):
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE + 'count = Text("1,000,000", font_size=40)\n')
+        cp = run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 1, cp.stdout + cp.stderr)
+        checks = mtv_lesson.load(self.lesson_path)["checks"]["scenes"]
+        self.assertEqual(checks["dry_run"], {})
+        self.assertEqual([(f["line"], f["name"]) for f in checks["findings"]], [(13, 'Text("1,000,000")')])
+        self.assertIn('lesson.py:13 Text("1,000,000") | fix: ', cp.stdout)
+        self.assertIn("MathTex", checks["findings"][0]["fix"])
+
 
 class TestRender(ExampleLessonCase):
     def setUp(self):

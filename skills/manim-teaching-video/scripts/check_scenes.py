@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -20,6 +21,21 @@ from mtv import lesson as mtv_lesson
 SCRIPTS_DIR = Path(__file__).resolve().parent
 KIND_BASES = {"flat": "NarratedScene", "camera": "NarratedCameraScene", "3d": "Narrated3DScene"}
 TAIL_LINES = 20
+# Pango sets these classes' positional strings, so a number, sign or Greek letter in one prints
+# in a different font from the same one in MathTex beside it; words are all they should hold.
+TEXT_CLASSES = frozenset({"Text", "MarkupText", "Paragraph"})
+# A digit, a math sign (\u2212 is the minus sign) or a Greek letter. The ASCII hyphen-minus
+# and the other punctuation belong to words, as in non-linear, isn't or (sorted).
+MATH_IN_TEXT = re.compile(r"[0-9=≈≠≤≥<>+\u2212×÷±→^\\∑∫√∞\u0391-\u03a9\u03b1-\u03c9]")
+# MarkupText's tags are markup, not text, and their attributes hold digits and = signs.
+MARKUP_TAG = re.compile(r"<[^>]*>")
+FORMAT_CALLS = frozenset({"str", "repr", "format"})
+TEXT_ARG_CHARS = 40
+TEXT_FIX = (
+    "put each number, sign and formula in MathTex (DecimalNumber or Integer when the value changes) "
+    "and the words in Text, side by side in one VGroup(...).arrange(RIGHT, buff=0.15), "
+    'as in VGroup(Text("loss"), MathTex(r"\\approx 0.42"))'
+)
 
 
 def _finding(filename: str, line: int | None, name: str, fix: str) -> dict:
@@ -128,10 +144,60 @@ def _class_findings(tree: ast.Module, lesson: dict, filename: str) -> list[dict]
     return findings
 
 
+def _text_parts(node: ast.expr) -> tuple[str, bool]:
+    """The literal text of a text argument, and whether a value is formatted into it.
+
+    A + concatenation is read as its parts. A name, attribute or subscript holds a value the
+    tree cannot show, so it adds no text and is not judged.
+    """
+    if isinstance(node, ast.Constant):
+        return (node.value, False) if isinstance(node.value, str) else ("", False)
+    if isinstance(node, ast.JoinedStr):
+        text = "".join(value.value for value in node.values if isinstance(value, ast.Constant))
+        return text, any(isinstance(value, ast.FormattedValue) for value in node.values)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        (left, left_formatted), (right, right_formatted) = _text_parts(node.left), _text_parts(node.right)
+        return left + right, left_formatted or right_formatted
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod):
+        return "", True
+    if isinstance(node, ast.Call):
+        func = node.func
+        return "", (isinstance(func, ast.Name) and func.id in FORMAT_CALLS) or (
+            isinstance(func, ast.Attribute) and func.attr == "format"
+        )
+    return "", False
+
+
+def _sets_math(node: ast.expr, markup: bool) -> bool:
+    text, formatted = _text_parts(node)
+    return formatted or MATH_IN_TEXT.search(MARKUP_TAG.sub("", text) if markup else text) is not None
+
+
+def _written(source: str, node: ast.AST) -> str:
+    """``node`` as the file writes it, on one line and cut to TEXT_ARG_CHARS characters."""
+    text = re.sub(r"\s*\n\s*", " ", ast.get_source_segment(source, node) or ast.unparse(node))
+    return text if len(text) <= TEXT_ARG_CHARS else text[: TEXT_ARG_CHARS - 3] + "..."
+
+
+def _text_findings(tree: ast.Module, source: str, filename: str) -> list[dict]:
+    # The class may be imported by name or reached through its module, as manim.Text.
+    findings = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        callee = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+        if callee in TEXT_CLASSES and any(_sets_math(arg, callee == "MarkupText") for arg in node.args):
+            name = f"{_written(source, func)}({', '.join(_written(source, arg) for arg in node.args)})"
+            findings.append(_finding(filename, node.lineno, name, TEXT_FIX))
+    return findings
+
+
 def lint_source(source: str, lesson: dict, filename: str = "lesson.py") -> list[dict]:
     tree, findings = _parse(source, filename)
     if tree is not None:
         findings += _call_findings(tree, filename)
+        findings += _text_findings(tree, source, filename)
         findings += _color_findings(tree, lesson, filename)
         findings += _class_findings(tree, lesson, filename)
     return _one_per_line(findings)

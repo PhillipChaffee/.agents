@@ -27,6 +27,7 @@ import tempfile
 import time
 import unittest
 import wave
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import NoReturn
@@ -3199,6 +3200,44 @@ class TestPatterns(unittest.TestCase):
         for y in (2.0, -3.0):
             caption, arrow = self.patterns.question_caption(manim.Square(side_length=1).shift(y * manim.UP), "why?")
             self.assertGreaterEqual(caption.get_bottom()[1], -common.FRAME_HEIGHT / 2)
+
+
+def svg_glyphs(svg: Path) -> list[tuple[str, str, str]]:
+    """Each glyph dvisvgm placed in ``svg``, in order: its outline's path data, then its x and y.
+
+    dvisvgm defines each glyph once as a path and places it with a use element, and the ids
+    it gives the paths depend on font load order, so glyphs are compared by outline.
+    """
+    svg_ns, xlink_href = "{http://www.w3.org/2000/svg}", "{http://www.w3.org/1999/xlink}href"
+    root = ET.parse(svg).getroot()
+    outlines = {path.get("id"): path.get("d") for path in root.iter(f"{svg_ns}path")}
+    return [(outlines[use.get(xlink_href).lstrip("#")], use.get("x"), use.get("y")) for use in root.iter(f"{svg_ns}use")]
+
+
+class TestTexTemplate(unittest.TestCase):
+    """What the kit's TeX template typesets, compiled with LaTeX and dvisvgm."""
+
+    def setUp(self):
+        self.manim = require("manim", "tex template")
+        require_tool("latex", "tex template")
+        require_tool("dvisvgm", "tex template")
+        self.look = importlib.import_module("mtv.look")
+        self.tex_to_svg = importlib.import_module("manim.utils.tex_file_writing").tex_to_svg_file
+        media = self.enterContext(Scratch())
+        self.enterContext(self.manim.tempconfig({"media_dir": media, "verbosity": "ERROR"}))
+
+    def test_div_is_the_division_sign_with_physics_loaded(self):
+        # physics redefines \div as its divergence, a nabla and a dot; the reference is threeb1b
+        # without physics, the same fonts with LaTeX's own \div.
+        physics = "\\usepackage{physics}\n"
+        reference = self.manim.TexTemplate(preamble=self.manim.TexTemplateLibrary.threeb1b.preamble.replace(physics, ""))
+        self.assertNotIn(physics, reference.preamble)
+        kit = self.look.TEMPLATE
+        self.assertEqual(svg_glyphs(self.tex_to_svg(r"a \div b", "align*", kit)),
+                         svg_glyphs(self.tex_to_svg(r"a \div b", "align*", reference)))
+        self.assertIn('\\mathchardef\\div="2204', kit.preamble)
+        # physics stays loaded: its divergence still typesets under its own name.
+        self.tex_to_svg(r"\divergence{x}", "align*", kit)
 
 
 class TestAttribution(unittest.TestCase):

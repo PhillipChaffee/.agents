@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import os
+import subprocess
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -141,23 +142,30 @@ def dry_run(lesson_py: Path, classes: list[str], cwd: Path, lesson_path: Path) -
 
     A dry run still executes construct, whose load_lesson finds the lesson through
     MTV_LESSON, and it writes no run log, so MTV_RUN_LOG is left out. A failed run's last
-    lines go to stdout, so the manim error text precedes the verdict.
+    lines go to stdout, so the manim error text precedes the verdict. A run still going
+    after common.HANG_TIMEOUT_S, the bound a render may go without output, is killed and
+    fails, so a construct that never ends cannot hold up the check.
     """
     env = {key: value for key, value in os.environ.items() if key != "MTV_RUN_LOG"}
     env.update(PYTHONPATH=common.scripts_pythonpath(SCRIPTS_DIR), MTV_LESSON=str(lesson_path.resolve()))
+    timeout_s = common.HANG_TIMEOUT_S
     results = {}
     for scene_class in classes:
         # CE global option, manim/cli/render/global_options.py:112; the class goes last.
         argv = ["manim", "render", "--dry_run", str(lesson_py.resolve()), scene_class]
+        failure = "dry run failed"
         try:
-            completed = common.run_cmd(argv, env=env, cwd=cwd)
+            completed = common.run_cmd(argv, env=env, cwd=cwd, timeout_s=timeout_s)
             ok, output = completed.returncode == 0, completed.stdout + completed.stderr
+        except subprocess.TimeoutExpired as exc:
+            ok, output = False, exc.stdout + exc.stderr
+            failure = f"dry run timed out after {timeout_s:g} s | fix: end the loop, or cut the work, in construct"
         # A manim found on PATH can still fail to start, as from a moved venv's shebang.
         except OSError as exc:
             ok, output = False, str(exc)
         results[scene_class] = ok
         if not ok:
-            print(f"{scene_class}: dry run failed")
+            print(f"{scene_class}: {failure}")
             for line in output.splitlines()[-TAIL_LINES:]:
                 print(line)
     return results

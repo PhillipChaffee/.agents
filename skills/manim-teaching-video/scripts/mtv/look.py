@@ -21,6 +21,10 @@ _palette: dict[str, str] = dict(ROLE_COLORS)
 # lesson's formulas use for a typographic minus.
 TEMPLATE: TexTemplate = TexTemplateLibrary.threeb1b.copy()
 TEMPLATE.add_to_preamble(r"\newcommand{\minus}{-}")
+# physics, which threeb1b loads, makes \div its divergence (physics 1.3, physics.sty:244-246),
+# so "a \div b" drew "a ∇· b"; plain TeX's division sign (plain.tex: \mathchardef\div="2204)
+# comes back after every package has loaded, and physics keeps \divergence.
+TEMPLATE.add_to_preamble(r'\mathchardef\div="2204')
 
 # Serif faces that sit beside Computer Modern math, most to least alike.
 FONT_CANDIDATES = ("CMU Serif", "Latin Modern Roman", "TeX Gyre Termes", "DejaVu Serif")

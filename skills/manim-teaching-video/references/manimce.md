@@ -290,6 +290,7 @@ both `zoom_to` and `orbit_with_hud` (fix: one camera idiom per scene).
   `texlive-latex-recommended`. `preflight.py` prints the line that installs them all:
   `apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended
   texlive-fonts-extra texlive-science dvisvgm`.
+- `physics` makes `\div` its divergence; `look.py` restores ÷, and `\divergence` keeps ∇·.
 - LaTeX missing stops the run before any scene renders; a formula never falls back to
   `Text`.
 - `MathTex` is math mode and `Tex` text mode. Give a part you will color, move or transform

@@ -19,6 +19,7 @@ import math
 import os
 import platform
 import re
+import shlex
 import shutil
 import struct
 import subprocess
@@ -27,6 +28,7 @@ import tempfile
 import time
 import unittest
 import wave
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import NoReturn
@@ -106,7 +108,9 @@ def example_run_dir(parent: Path) -> Path:
 
 # ManimCE is absent where the self-test runs, so the scripts under test find this stand-in
 # first on PATH. Its dry run fails for a class whose name contains Bad, so a test can take
-# the failing path with a scenes file that is otherwise clean. Its render writes what CE's
+# the failing path with a scenes file that is otherwise clean, and for one whose name contains
+# Hang it runs 30 s with a child that holds its output open, as manim's latex does, writing
+# the child's pid to child.pid beside it. Its render writes what CE's
 # --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
 # MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
 # MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang (=1 until the
@@ -133,6 +137,11 @@ if "--dry_run" in argv:
         sys.exit("ValueError: MTV_LESSON is not set")
     if "Bad" in argv[-1]:
         sys.exit(f"ValueError: {argv[-1]} failed its dry run")
+    if "Hang" in argv[-1]:
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+        (Path(__file__).resolve().parent / "child.pid").write_text(str(child.pid))
+        print(f"{argv[-1]}: still in construct", flush=True)
+        time.sleep(30)
     sys.exit(0)
 lesson_py, scene_class = Path(argv[-2]), argv[-1]
 # Like CE, the class is looked up in the scenes file; lesson.json supplies only its beats.
@@ -203,6 +212,27 @@ def env_with_fake_manim(bin_dir: Path) -> dict[str, str]:
     """This process's environment with ``bin_dir`` first on PATH; the fake manim there
     records every call's argv as one JSON line in ``bin_dir/calls.jsonl``."""
     return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+def process_ends(pid: int, within_s: float) -> bool:
+    """Whether process ``pid`` is gone or a zombie within ``within_s`` seconds.
+
+    An orphan's zombie stays until init reaps it, and a container's init may never do so,
+    so a zombie counts as ended; its state is the field after the parenthesized command
+    name in /proc/<pid>/stat (proc(5)). Where /proc is absent, only a gone process counts.
+    """
+    deadline = time.monotonic() + within_s
+    while True:
+        try:
+            os.kill(pid, 0)
+            stat = Path(f"/proc/{pid}/stat")
+            if stat.exists() and stat.read_text().rpartition(")")[2].split()[0] == "Z":
+                return True
+        except (ProcessLookupError, FileNotFoundError):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
 
 
 # A 1x1 JPEG that Pillow wrote (Image.new("RGB", (1, 1)).save(buf, "JPEG")), so a synthetic
@@ -359,6 +389,14 @@ def shift_run_log(lesson_path: Path, seconds: float) -> None:
         log = beat["render"]["log"]
         log["enter_s"] += seconds
         log["exit_s"] += seconds
+    mtv_lesson.save(lesson, lesson_path)
+
+
+def mark_storyboard(lesson_path: Path) -> None:
+    """Mark the storyboard stage done for the lesson as it now stands, as the parent does once
+    step 4's gate passes; render.py refuses a lesson whose storyboard stage is not current."""
+    lesson = mtv_lesson.load(lesson_path)
+    mtv_lesson.mark_done(lesson, "storyboard", {})
     mtv_lesson.save(lesson, lesson_path)
 
 
@@ -1741,6 +1779,27 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertFalse(checks["pass"])
         self.assertIn("ValueError: S01BadThing failed its dry run", cp.stdout)
 
+    def test_hung_dry_run_is_killed_with_its_children_at_the_hang_bound(self):
+        # The fake's Hang class runs 30 s with a child holding its output; the bound is cut to
+        # 1 s in this process, so main runs in it rather than in a child process.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["scene_class"] = "S01HangThing"
+        mtv_lesson.save(lesson, self.lesson_path)
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE.replace("S01WorkingThing", "S01HangThing"))
+        out, start = io.StringIO(), time.monotonic()
+        with mock.patch.dict(os.environ, {"PATH": self.env["PATH"]}), \
+                mock.patch.object(common, "HANG_TIMEOUT_S", 1), contextlib.redirect_stdout(out):
+            code = check_scenes.main([str(self.run_dir / "lesson.py"), str(self.lesson_path)])
+        self.assertLess(time.monotonic() - start, 10, out.getvalue())
+        self.assertEqual(code, 1, out.getvalue())
+        checks = mtv_lesson.load(self.lesson_path)["checks"]["scenes"]
+        self.assertEqual(checks["dry_run"], {"S01HangThing": False, "S02OneNeuron": True})
+        self.assertIn("S01HangThing: dry run timed out after 1 s", out.getvalue())
+        # The output so far still reaches the scene coder.
+        self.assertIn("S01HangThing: still in construct", out.getvalue())
+        child = int((self.bin_dir / "child.pid").read_text())
+        self.assertTrue(process_ends(child, 5), "the dry run's child outlived the time limit")
+
     def test_dry_run_and_render_share_one_pythonpath(self):
         # Both run the same scenes file, so a package it imports from the inherited PYTHONPATH
         # must load in the dry run as it does in the render.
@@ -1770,8 +1829,15 @@ class TestCheckScenes(ExampleLessonCase):
 class TestRender(ExampleLessonCase):
     def setUp(self):
         super().setUp()
+        # The provider is recorded, as make_one_beat_lesson does: narrate.py leaves its stage
+        # stale when --provider differs from the lesson's, and render.py would then refuse.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["provider"] = "null"
+        mtv_lesson.save(lesson, self.lesson_path)
         cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        # narrate.py marked its stage; steps 4 and 5 have both passed for this lesson.
+        mark_storyboard(self.lesson_path)
         (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE)
         self.bin_dir = self.run_dir.parent / "bin"
         write_fake_manim(self.bin_dir)
@@ -1810,6 +1876,8 @@ class TestRender(ExampleLessonCase):
         lesson = mtv_lesson.load(self.lesson_path)
         lesson["scenes"][0]["scene_class"] = "S01Missing"
         mtv_lesson.save(lesson, self.lesson_path)
+        # scene_class is a storyboard field, so the renamed class stands for a storyboard marked again.
+        mark_storyboard(self.lesson_path)
         cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir, env=self.env)
         self.assertEqual(cp.returncode, 1)
         self.assertNotIn("Traceback", cp.stderr)
@@ -1894,6 +1962,157 @@ class TestRender(ExampleLessonCase):
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertIn("render.draft", mtv_lesson.load(self.lesson_path)["stages"])
 
+    def test_storyboard_gate_refuses_before_any_render(self):
+        # Step 4 has not passed when the storyboard stage is unmarked, or when a storyboard field
+        # changed after it was marked; neither renders, a --scenes render included.
+        def unmark(lesson):
+            del lesson["stages"]["storyboard"]
+
+        def restage(lesson):
+            lesson["scenes"][0]["beats"][0]["visual"] += ", restaged"
+
+        for label, edit, args in (("unmarked", unmark, []), ("changed since marked", restage, ["--scenes", "s01"])):
+            with self.subTest(label):
+                mark_storyboard(self.lesson_path)
+                lesson = mtv_lesson.load(self.lesson_path)
+                edit(lesson)
+                mtv_lesson.save(lesson, self.lesson_path)
+                self.assertFalse(mtv_lesson.needs_rerun(lesson, "narrate"))
+                before = self.lesson_path.read_text()
+                cp = run_script("render", "lesson.json", "--tier", "draft", *args, cwd=self.run_dir, env=self.env)
+                self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+                self.assertIn("storyboard: step 4 has not passed for the current storyboard", cp.stderr)
+                self.assertIn("run `python scripts/storyboard_check.py lesson.json`", cp.stderr)
+                self.assertIn("the storyboard critic's verdict is `pass`", cp.stderr)
+                self.assertIn("mark `storyboard` with the mark helper", cp.stderr)
+                self.assertNotIn("narrate", cp.stderr)
+                self.assertEqual(self.lesson_path.read_text(), before)
+                self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+
+    def refused_naming_only_narrate(self) -> str:
+        """Check that render.py refuses the lesson, a narrate stage marked yet stale beside a current
+        storyboard, naming only narrate and touching neither the lesson nor manim; return the
+        command it prints."""
+        self.assertIn("narrate", mtv_lesson.load(self.lesson_path)["stages"])
+        before = self.lesson_path.read_text()
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("narrate: step 5's narration and marks are not current", cp.stderr)
+        self.assertNotIn("storyboard", cp.stderr)
+        self.assertEqual(self.lesson_path.read_text(), before)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+        return re.search(r"run `(python scripts/narrate\.py [^`]*)`", cp.stderr).group(1)
+
+    def assert_renders(self):
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("render.draft", mtv_lesson.load(self.lesson_path)["stages"])
+
+    def test_narrate_gate_refuses_a_mark_moved_after_narrating(self):
+        # narrate.py ran, then a mark moved and the storyboard was marked again: the storyboard is
+        # current and narrate is marked, but marks_s still times the old word. Marking step 4 again
+        # without narrating again is the shortcut the gate exists to catch.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["beats"][0]["marks"]["reveal"] = 6
+        mtv_lesson.save(lesson, self.lesson_path)
+        mark_storyboard(self.lesson_path)
+        command = shlex.split(self.refused_naming_only_narrate())
+        # The printed command, run where render.py ran, clears the gate.
+        self.assertEqual(command[:2], ["python", "scripts/narrate.py"])
+        cp = run_script("narrate", *command[2:], cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assert_renders()
+
+    def test_narrate_gate_refuses_a_narration_by_another_provider(self):
+        # narrate.py --provider null on a kokoro lesson marks narrate for the provider that spoke,
+        # so the lesson's own provider has still not narrated it.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["provider"] = "kokoro"
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=self.run_dir)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        # provider is a brief field and so a storyboard field: step 4 passed again for it.
+        mark_storyboard(self.lesson_path)
+        self.refused_naming_only_narrate()
+        # The self-test does not run Kokoro, so narrate is marked as narrate.py marks it once the
+        # lesson's own provider has spoken.
+        lesson = mtv_lesson.load(self.lesson_path)
+        mtv_lesson.mark_done(lesson, "narrate", {"provider": "kokoro", "voice": "af_heart"})
+        mtv_lesson.save(lesson, self.lesson_path)
+        self.assert_renders()
+
+    def test_narrate_gate_refuses_naming_only_narrate(self):
+        # Here narrate is unmarked. Every narrate field is a storyboard field too, yet a current
+        # storyboard does not make the narration current: narrate's mark keeps the hash narrate.py
+        # saw, so a marked narrate goes stale too, which the two tests above cover.
+        lesson = mtv_lesson.load(self.lesson_path)
+        del lesson["stages"]["narrate"]
+        mtv_lesson.save(lesson, self.lesson_path)
+        self.assertFalse(mtv_lesson.needs_rerun(lesson, "storyboard"))
+        before = self.lesson_path.read_text()
+        cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn("narrate: step 5's narration and marks are not current", cp.stderr)
+        self.assertIn("run `python scripts/narrate.py lesson.json`", cp.stderr)
+        self.assertNotIn("storyboard", cp.stderr)
+        self.assertEqual(self.lesson_path.read_text(), before)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+
+    def test_both_gates_named_with_the_lesson_path_given(self):
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["stages"] = {}
+        mtv_lesson.save(lesson, self.lesson_path)
+        cp = run_script("render", str(self.lesson_path), "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertTrue(cp.stderr.startswith("ERROR not ready to render: storyboard: "), cp.stderr)
+        self.assertLess(cp.stderr.index("storyboard: step 4"), cp.stderr.index("; narrate: step 5"))
+        self.assertIn(f"run `python scripts/storyboard_check.py {self.lesson_path}`", cp.stderr)
+        self.assertIn(f"run `python scripts/narrate.py {self.lesson_path}`", cp.stderr)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+
+    def test_null_stages_refuse_naming_the_gates(self):
+        # validate leaves stages unchecked, so a null stages value or a null stage entry is a stage
+        # not done: bad input, refused with exit 2 like the other preconditions, not a traceback.
+        cases = (
+            ("stages null", lambda l: l.update(stages=None), {"storyboard: step 4", "narrate: step 5"}),
+            ("storyboard entry null", lambda l: l["stages"].update(storyboard=None), {"storyboard: step 4"}),
+            ("narrate entry null", lambda l: l["stages"].update(narrate=None), {"narrate: step 5"}),
+        )
+        original = self.lesson_path.read_text()
+        for label, edit, named in cases:
+            with self.subTest(label):
+                lesson = json.loads(original)
+                edit(lesson)
+                self.lesson_path.write_text(json.dumps(lesson))
+                before = self.lesson_path.read_text()
+                cp = run_script("render", "lesson.json", "--tier", "draft", cwd=self.run_dir, env=self.env)
+                self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+                self.assertNotIn("Traceback", cp.stderr)
+                self.assertTrue(cp.stderr.startswith("ERROR not ready to render: "), cp.stderr)
+                for gate in ("storyboard: step 4", "narrate: step 5"):
+                    (self.assertIn if gate in named else self.assertNotIn)(gate, cp.stderr)
+                self.assertEqual(self.lesson_path.read_text(), before)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+
+    def test_fix_commands_quote_a_lesson_path_with_a_space(self):
+        # The agent pastes the printed command into a shell, where an unquoted space would split
+        # the lesson path in two.
+        spaced = self.run_dir.parent / "my run"
+        shutil.copytree(self.run_dir, spaced)
+        lesson_path = spaced / "lesson.json"
+        lesson = mtv_lesson.load(lesson_path)
+        lesson["stages"] = {}
+        mtv_lesson.save(lesson, lesson_path)
+        cp = run_script("render", str(lesson_path), "--tier", "draft", cwd=self.run_dir, env=self.env)
+        self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
+        self.assertIn(f"run `python scripts/storyboard_check.py '{lesson_path}'`", cp.stderr)
+        self.assertIn(f"run `python scripts/narrate.py '{lesson_path}'`", cp.stderr)
+        commands = re.findall(r"run `(python scripts/[a-z_]+\.py [^`]*)`", cp.stderr)
+        self.assertEqual(len(commands), 2, cp.stderr)
+        for command in commands:
+            self.assertEqual(shlex.split(command)[2:], [str(lesson_path)], command)
+        self.assertFalse((self.bin_dir / "calls.jsonl").exists())
+
     def test_usage_errors_exit_2_before_any_render(self):
         no_manim = {**os.environ, "PATH": str(self.scratch.path)}
         cases = (
@@ -1912,6 +2131,9 @@ class TestRender(ExampleLessonCase):
                 lesson = json.loads(original)
                 edit(lesson)
                 self.lesson_path.write_text(json.dumps(lesson))
+                # Each edit stands for a storyboard that passed step 4 (removing scene_class edits a
+                # storyboard field), so every case reaches the precondition it tests.
+                mark_storyboard(self.lesson_path)
                 before = self.lesson_path.read_text()
                 cp = run_script("render", "lesson.json", "--tier", "draft", *args, cwd=self.run_dir, env=env)
                 self.assertEqual(cp.returncode, 2, cp.stdout + cp.stderr)
@@ -2794,7 +3016,9 @@ TWO_SCENE_LESSON_PY = (SCENES_HEADER + _scene_class("S01WorkingThing", "s01", S0
 
 
 def make_one_beat_lesson(run_dir: Path) -> Path:
-    """Write ``run_dir/lesson.json``: the example's first beat alone, as class OneBeat, narrated with the null provider."""
+    """Write ``run_dir/lesson.json``: the example's first beat alone, as class OneBeat, narrated with the
+    null provider and its storyboard marked, so that render.py, which refuses an unmarked storyboard,
+    takes it from --fixtures as from --one-beat."""
     run_dir.mkdir(parents=True, exist_ok=True)
     lesson = mtv_lesson.load(ASSETS_DIR / "lesson.example.json")
     scene = lesson["scenes"][0]
@@ -2807,6 +3031,7 @@ def make_one_beat_lesson(run_dir: Path) -> Path:
     cp = run_script("narrate", "lesson.json", "--provider", "null", cwd=run_dir)
     if cp.returncode != 0:
         raise RuntimeError(f"narrate.py failed on the one-beat lesson: {cp.stdout}{cp.stderr}")
+    mark_storyboard(path)
     return path
 
 
@@ -2883,6 +3108,19 @@ class TestFixtures(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(check_scenes.lint_source((two_scene / "lesson.py").read_text(), lesson), [])
         self.assertTrue((self.scratch.path / "pack" / "index.json").exists())
+
+    def test_one_beat_fixture_passes_the_render_gate(self):
+        # --fixtures hands the one-beat lesson out to be rendered, so steps 4 and 5 must have passed
+        # for it, as they have for --one-beat's: render.py refuses a storyboard that is not marked.
+        fixtures = Path(tempfile.mkdtemp(dir=self.scratch.path))
+        cp = run_script("selftest", "--fixtures", str(fixtures), cwd=fixtures)
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        write_fake_manim(fixtures / "bin")
+        run_dir = fixtures / "one-beat"
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--jobs", "1", cwd=run_dir,
+                        env=env_with_fake_manim(fixtures / "bin"))
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertIn("render.draft", mtv_lesson.load(run_dir / "lesson.json")["stages"])
 
 
 # Section 5.7's note, five physical lines byte for byte: the kit's patterns.py and references
@@ -3150,6 +3388,44 @@ class TestPatterns(unittest.TestCase):
         for y in (2.0, -3.0):
             caption, arrow = self.patterns.question_caption(manim.Square(side_length=1).shift(y * manim.UP), "why?")
             self.assertGreaterEqual(caption.get_bottom()[1], -common.FRAME_HEIGHT / 2)
+
+
+def svg_glyphs(svg: Path) -> list[tuple[str, str, str]]:
+    """Each glyph dvisvgm placed in ``svg``, in order: its outline's path data, then its x and y.
+
+    dvisvgm defines each glyph once as a path and places it with a use element, and the ids
+    it gives the paths depend on font load order, so glyphs are compared by outline.
+    """
+    svg_ns, xlink_href = "{http://www.w3.org/2000/svg}", "{http://www.w3.org/1999/xlink}href"
+    root = ET.parse(svg).getroot()
+    outlines = {path.get("id"): path.get("d") for path in root.iter(f"{svg_ns}path")}
+    return [(outlines[use.get(xlink_href).lstrip("#")], use.get("x"), use.get("y")) for use in root.iter(f"{svg_ns}use")]
+
+
+class TestTexTemplate(unittest.TestCase):
+    """What the kit's TeX template typesets, compiled with LaTeX and dvisvgm."""
+
+    def setUp(self):
+        self.manim = require("manim", "tex template")
+        require_tool("latex", "tex template")
+        require_tool("dvisvgm", "tex template")
+        self.look = importlib.import_module("mtv.look")
+        self.tex_to_svg = importlib.import_module("manim.utils.tex_file_writing").tex_to_svg_file
+        media = self.enterContext(Scratch())
+        self.enterContext(self.manim.tempconfig({"media_dir": media, "verbosity": "ERROR"}))
+
+    def test_div_is_the_division_sign_with_physics_loaded(self):
+        # physics redefines \div as its divergence, a nabla and a dot; the reference is threeb1b
+        # without physics, the same fonts with LaTeX's own \div.
+        physics = "\\usepackage{physics}\n"
+        reference = self.manim.TexTemplate(preamble=self.manim.TexTemplateLibrary.threeb1b.preamble.replace(physics, ""))
+        self.assertNotIn(physics, reference.preamble)
+        kit = self.look.TEMPLATE
+        self.assertEqual(svg_glyphs(self.tex_to_svg(r"a \div b", "align*", kit)),
+                         svg_glyphs(self.tex_to_svg(r"a \div b", "align*", reference)))
+        self.assertIn('\\mathchardef\\div="2204', kit.preamble)
+        # physics stays loaded: its divergence still typesets under its own name.
+        self.tex_to_svg(r"\divergence{x}", "align*", kit)
 
 
 class TestAttribution(unittest.TestCase):

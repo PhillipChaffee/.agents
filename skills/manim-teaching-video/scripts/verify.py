@@ -438,7 +438,8 @@ def _rubric(lesson: dict) -> str:
     final_text = "n/a"
     if isinstance(final, dict):
         zeros = ", ".join(final.get("zeros") or []) or "none"
-        final_text = f"{_score(final)} (minimum per item across scenes), zeros: {zeros}"
+        rule = "per item across scenes: minimum, and 0 for a single-lapse item at 1 in two or more scenes"
+        final_text = f"{_score(final)} ({rule}), zeros: {zeros}"
     return f"storyboard {_score(checks.get('storyboard'))}; frames per scene {scenes}; final {final_text}"
 
 

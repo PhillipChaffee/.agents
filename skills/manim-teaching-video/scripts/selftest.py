@@ -933,6 +933,118 @@ class TestLessonStages(unittest.TestCase):
             mtv_lesson.stage_inputs({}, "nope")
 
 
+# The sixteen rubric items in rubric.md's order, and the nine whose 1 anchor names a single lapse
+# (rubric.md, How to score step 2), written out so the tests never read the kit's own constant.
+RUBRIC_ITEMS = (
+    "hook before definition", "destination previewed", "value before symbol", "one idea per scene",
+    "question before answer", "honesty beat", "picture carried into recap", "voice", "role colors",
+    "dim not delete", "captions beside referents", "object budget", "legible at 480p",
+    "boundaries continuous", "motion with a reason", "sync",
+)
+SINGLE_LAPSE = (
+    "one idea per scene", "voice", "role colors", "dim not delete", "captions beside referents",
+    "object budget", "legible at 480p", "boundaries continuous", "motion with a reason",
+)
+
+
+def scene_review(scene: str, scores: dict[str, object] | None = None) -> dict:
+    """A frame critic's return for ``scene``: every item 2 except those ``scores`` names."""
+    return {"scene": scene, "scores": {**dict.fromkeys(RUBRIC_ITEMS, 2), **(scores or {})}, "failed_beats": []}
+
+
+class TestFramesFinal(unittest.TestCase):
+    """checks.frames.final, the lesson's score from its frame critics' scene reviews."""
+
+    def test_single_lapse_item_at_1_in_two_scenes_scores_0(self):
+        # GREEN iteration 1's T2: legible at 480p 1 in two of eight scenes, boundaries 1 in one,
+        # passed as the frame-critic helper passes them, the values of checks.frames.scenes.
+        reviews = [scene_review(f"s{n:02d}") for n in range(1, 9)]
+        reviews[2]["scores"]["legible at 480p"] = 1
+        reviews[5]["scores"]["legible at 480p"] = 1
+        reviews[4]["scores"]["boundaries continuous"] = 1
+        final = mtv_lesson.frames_final({review["scene"]: review for review in reviews}.values())
+        self.assertEqual(final["scores"]["legible at 480p"], 0)
+        self.assertEqual(final["scores"]["boundaries continuous"], 1)
+        self.assertEqual(final["zeros"], ["legible at 480p"])
+
+    def test_rolled_up_zero_fails_at_a_passing_total(self):
+        lapse = {"motion with a reason": 1}
+        final = mtv_lesson.frames_final([scene_review("s01", lapse), scene_review("s02", lapse)])
+        self.assertEqual((sum(final["scores"].values()), final["zeros"]), (30, ["motion with a reason"]))
+        self.assertIs(final["pass"], False)
+
+    def test_each_single_lapse_item_counts_and_no_other(self):
+        for item in RUBRIC_ITEMS:
+            with self.subTest(item=item):
+                reviews = [scene_review("s01", {item: 1}), scene_review("s02"), scene_review("s03", {item: 1})]
+                self.assertEqual(mtv_lesson.frames_final(reviews)["scores"][item], 0 if item in SINGLE_LAPSE else 1)
+
+    def test_graded_items_at_1_in_several_scenes_stay_1(self):
+        graded = {"hook before definition": 1, "sync": 1, "value before symbol": 1}
+        final = mtv_lesson.frames_final([scene_review(f"s{n:02d}", graded) for n in range(1, 5)])
+        self.assertEqual({item: final["scores"][item] for item in graded}, graded)
+        self.assertEqual((final["zeros"], final["pass"]), ([], True))
+
+    def test_a_zero_stays_zero(self):
+        reviews = [scene_review("s01", {"voice": 0, "sync": 1}), scene_review("s02", {"voice": 1, "sync": 0}),
+                   scene_review("s03", {"object budget": 0})]
+        final = mtv_lesson.frames_final(reviews)
+        self.assertEqual(final["zeros"], ["object budget", "sync", "voice"])
+        self.assertIs(final["pass"], False)
+
+    def test_pass_needs_25_of_32(self):
+        at_25 = dict.fromkeys((item for item in RUBRIC_ITEMS if item not in SINGLE_LAPSE), 1)
+        final = mtv_lesson.frames_final([scene_review("s01", at_25)])
+        self.assertEqual((sum(final["scores"].values()), final["pass"]), (25, True))
+        final = mtv_lesson.frames_final([scene_review("s01", {**at_25, "voice": 1})])
+        self.assertEqual((sum(final["scores"].values()), final["zeros"], final["pass"]), (24, [], False))
+
+    def test_single_review_is_its_own_final(self):
+        lapses = {"legible at 480p": 1, "boundaries continuous": 1, "motion with a reason": 1, "sync": 1}
+        final = mtv_lesson.frames_final([scene_review("s01", lapses)])
+        self.assertEqual(final, {"scores": {**dict.fromkeys(RUBRIC_ITEMS, 2), **lapses}, "zeros": [], "pass": True})
+
+    def test_item_order_is_the_first_reviews(self):
+        first = {"scene": "s01", "scores": dict.fromkeys(reversed(RUBRIC_ITEMS), 2)}
+        final = mtv_lesson.frames_final([first, scene_review("s02")])
+        self.assertEqual(list(final["scores"]), list(reversed(RUBRIC_ITEMS)))
+
+    def test_malformed_reviews_raise_value_error(self):
+        lacking = scene_review("s02")
+        del lacking["scores"]["sync"]
+        lacking_first = {**lacking, "scene": "s01"}
+        cases = (
+            ([], ("no scene reviews",)),
+            ([scene_review("s01"), lacking], ("s02", "sync")),
+            ([lacking_first, scene_review("s02")], ("s01", "sync")),
+            ([{"scene": "s01", "failed_beats": []}], ("s01", "scores")),
+            ([scene_review("s01"), scene_review("s02", {"voice": 3})], ("s02", "voice", "3")),
+            ([scene_review("s01", {"voice": -1})], ("s01", "voice", "-1")),
+            ([scene_review("s01", {"sync": 1.5})], ("s01", "sync", "1.5")),
+            ([scene_review("s01", {"sync": "2"})], ("s01", "sync", "'2'")),
+            ([scene_review("s01", {"sync": True})], ("s01", "sync", "True")),
+        )
+        for reviews, names in cases:
+            with self.subTest(names=names):
+                with self.assertRaises(ValueError) as caught:
+                    mtv_lesson.frames_final(reviews)
+                for name in names:
+                    self.assertIn(name, str(caught.exception))
+
+    def test_single_lapse_items_are_rubric_md_step_2s_nine(self):
+        ref = SKILL_DIR / "references" / "rubric.md"
+        if not ref.exists():
+            print("SKIP single-lapse items: references/rubric.md not present (M2 writes it)")
+            raise unittest.SkipTest("references absent")
+        text = ref.read_text(encoding="utf-8")
+        table = re.search(r"^## Items\n\n(.*?)\n\n", text, re.DOTALL | re.MULTILINE).group(1)
+        names = [row.split("|")[1].strip() for row in table.splitlines()[2:]]
+        self.assertEqual(names, list(RUBRIC_ITEMS))
+        step_2 = re.search(r"Nine items name a single lapse in their 1 anchor: (.*?)\. For these", " ".join(text.split()))
+        nine = re.split(r", | and ", step_2.group(1))
+        self.assertEqual(sorted(common.SINGLE_LAPSE_ITEMS), sorted(nine))
+
+
 class TestTts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -2496,8 +2608,8 @@ class TestVerify(ExampleLessonCase):
             "Narration: null, voice af_heart, model n/a",
             "Font: n/a",
             "Exemplars: corpus 0123abcd; storyboarder aaaaaaaaaaa-s01-b01; frame-critic s02 none",
-            "Rubric: storyboard pass; frames per scene s01: 32/32, s02: 30/32; final 30/32 (minimum per item"
-            " across scenes), zeros: R03",
+            "Rubric: storyboard pass; frames per scene s01: 32/32, s02: 30/32; final 30/32 (per item across"
+            " scenes: minimum, and 0 for a single-lapse item at 1 in two or more scenes), zeros: R03",
             "Render: draft 12.5 s wall clock, standard n/a wall clock, jobs 3",
         ):
             self.assertIn(paragraph, paragraphs)

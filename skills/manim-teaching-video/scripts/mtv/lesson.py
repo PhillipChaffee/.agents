@@ -10,7 +10,7 @@ import json
 import keyword
 import math
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -240,6 +240,41 @@ def mark_name_error(name: Any) -> str | None:
     if not (isinstance(name, str) and _MARK_NAME.fullmatch(name)):
         return f"mark name '{name}' has a character outside A-Z, a-z, 0-9, '.', '_' and '-'"
     return None
+
+
+def frames_final(reviews: Iterable[dict]) -> dict:
+    """``checks.frames.final`` from the frame critics' scene reviews, each with its ``scores``.
+
+    An item's final score is its minimum across the scenes, except that an item of
+    ``common.SINGLE_LAPSE_ITEMS`` at 1 in two or more scenes scores 0: its 1 anchor counts one
+    lapse in the whole lesson and a second lapse scores 0, as rubric.md's How to score step 2
+    reads it. The items keep the first review's order; ``zeros`` lists those at 0, sorted, and
+    ``pass`` is a total of at least ``common.RUBRIC_PASS_TOTAL`` with no item at 0. A review
+    lacking an item another has, or scoring one other than 0, 1 or 2, raises ValueError.
+    """
+    reviews = list(reviews)
+    if not reviews:
+        raise ValueError("no scene reviews to score")
+    # Each review's scene names it in an error; a review without one is named by its position.
+    named = [(str(r.get("scene", f"review {i + 1}")), r.get("scores")) for i, r in enumerate(reviews)]
+    for scene, scores in named:
+        if not isinstance(scores, dict):
+            raise ValueError(f"{scene}: scores must be an object of item scores")
+    items = list(dict.fromkeys(item for _, scores in named for item in scores))
+    for scene, scores in named:
+        lacking = [item for item in items if item not in scores]
+        if lacking:
+            raise ValueError(f"{scene}: scores lack {', '.join(repr(item) for item in lacking)}")
+        for item, score in scores.items():
+            if not (_is_int(score) and 0 <= score <= 2):
+                raise ValueError(f"{scene}: '{item}' scored {score!r}, not 0, 1 or 2")
+    final = {}
+    for item in items:
+        column = [scores[item] for _, scores in named]
+        lowest = min(column)
+        final[item] = 0 if item in common.SINGLE_LAPSE_ITEMS and lowest == 1 and column.count(1) >= 2 else lowest
+    zeros = sorted(item for item, score in final.items() if score == 0)
+    return {"scores": final, "zeros": zeros, "pass": sum(final.values()) >= common.RUBRIC_PASS_TOTAL and not zeros}
 
 
 def stage_inputs(lesson: dict, stage: str) -> str:

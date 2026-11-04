@@ -202,7 +202,10 @@ Dispatch one scene coder per scene, at most four at a time, bumping `attempts.di
 for each. Each coder receives its own scene of `lesson.json`, the lesson's `seed` and
 `colors`, the previous scene's `closing_state` when its `opening_state` is `continue`, and
 the signatures and docstrings of the helpers its beats name, printed by the helper-docs
-helper. Each returns one class. The parent writes `<run>/lesson.py` as this header followed
+helper. Each returns one class. Once every class is back, a second round sends one coder per
+`continue` scene its class and the previous scene's returned class, to make its opening copy
+that class's end state; each round goes out four Agent calls per message, every one with
+`run_in_background: false`. The parent writes `<run>/lesson.py` as this header followed
 by the classes in scene order, two blank lines between them:
 
 ```python
@@ -231,6 +234,9 @@ The lint also rejects a `Text`, `MarkupText`, `Paragraph` or `question_caption` 
 holds a digit, a math sign or a Greek letter, or has a value formatted into it (an f-string
 field, `str()`, `%` or `.format`): numbers, signs and formulas go in `MathTex` (`DecimalNumber`
 or `Integer` when the value changes) beside the words' `Text` in one `VGroup`.
+So does a single letter, other than a, A or I, standing alone in such a string when the same
+file sets that letter as math (`MathTex("n")`, or between `$` signs in `Tex`), as the n of
+`Text("list size n")`: the symbol goes in `MathTex` too, or the caption is reworded.
 Each finding names a line and its fix (from `manimce.md`, or the `MathTex` form above), and
 each failed dry run names its class; the owning coder gets them in one re-dispatch (`attempts.redispatches`), and a second
 failure of the same scene is a stop. Then mark `scenes`.

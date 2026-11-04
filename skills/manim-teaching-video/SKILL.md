@@ -37,7 +37,10 @@ otherwise it is none.
    asks or approves, and no `Text` fallback is planned. `Text` can't lay out fractions, subscripts,
    exponents or alignment, so `\log_2 n` comes out as the wrong content, not a different font.
    Anything shown as a formula, inequality, complexity bound (`O(log n)`) or numeric value goes
-   through `MathTex`/`DecimalNumber`. Code shown as code goes through `Code`.
+   through `MathTex`/`DecimalNumber`. Code shown as code goes through `Code`. The way forward
+   is a different render machine or IT: rendering on another machine that passes preflight. The
+   manager decides how and when the client is told and whether the deadline moves. The manager
+   doesn't decide which math engine renders the video or what goes in the report.
 2. Brief: at most three questions (audience, length, and ElevenLabs only when
    `ELEVENLABS_API_KEY` is present); write the `lesson.json` header with `colors`:
    `emphasis` `PURE_YELLOW`; `weight_pos` `BLUE`, `weight_neg` `RED`, `bias` `MAROON_B` and
@@ -55,14 +58,23 @@ otherwise it is none.
    helper. Gate: exit 0 and verdict `pass`. Bound: 2 rounds (`attempts.storyboard_rounds`),
    then ask; mark `storyboard`. Nothing renders, at any tier, before this gate passes; a
    critic run beside a render is not this gate. No deadline, cost, label, authority or parallel
-   process changes the order of the gates. Work done out of order gets thrown away, not reused.
-   `render.py` enforces this gate; if it refuses, run the command it prints.
+   process changes the order of the gates. Work done out of order is re-coded wherever the gates
+   change it, then rendered. The critic catches beats that are wrong to teach, and every scene
+   and render after it inherits those errors. `render.py` enforces this gate; if it refuses, run
+   the command it prints. What to bring when the gates can't pass in time: the passed script, the
+   storyboard and its check output, the critic's status, and an estimate to finish, plus a short
+   status message, such as: “Not rendering yet: the storyboard gate hasn't passed. Check and
+   critic take about N minutes; a gated draft could be ready by T. What can be shown now is the
+   storyboard and script, labelled as such.”
 5. Narrate: `python scripts/narrate.py <run>/lesson.json`. Gate: every beat has
    `duration_s` and `marks_s`. Bound: `narrate.py` retries the provider 3 times itself
    (`attempts.provider_retries`), then falls back to Kokoro, named in the report; exit 2 is
    a stop. A job that times out is a failed step: rerun it.
-6. Scenes: one scene coder per scene, four at a time; a `continue` scene's coder starts once
-   the previous scene's class has returned and gets that class's source;
+6. Scenes: scene coders in two rounds, four Agent calls per message until each round is
+   done. Round 1: one coder per scene, a `continue` scene's coder rebuilding the previous
+   scene's `closing_state`.
+   Round 2, once every class is back: one coder per `continue` scene, given its class and the
+   previous scene's returned class, to make its opening copy that class's end state;
    `python scripts/check_scenes.py <run>/lesson.py <run>/lesson.json`.
    Gate: exit 0, dry run included. Bound: 1 re-dispatch per malformed return
    (`attempts.redispatches`), then stop; mark `scenes`.
@@ -91,10 +103,13 @@ otherwise it is none.
     `verify.py` exited 0 on that exact file. This holds at every tier, under any deadline, and
     whoever approves. Disclosing a defect does not substitute for passing. No artifact derived
     from a failing render leaves the run, and fixes happen only in `lesson.py`, followed by a
-    re-render and a fresh `verify.py`. The manager decides what the client hears, when, and any
-    renegotiation. The gate decides whether the file passes. A check is a gate's result, never your own look at
-    stills, a level meter or a word-count estimate; your final message names what no gate
-    checked, such as narration nobody has heard.
+    re-render and a fresh `verify.py`. Any action that puts a non-verified file in front of anyone
+    outside the run is delivery, whether email, link, preview or screen-share. The agent hands the
+    user a verified path and never emails, uploads or attaches anything itself. The manager decides
+    what the client hears, when, and any renegotiation. The gate decides whether the file passes.
+    When a file fails, you state that it failed `verify.py` and do not send, rename or relabel it.
+    A check is a gate's result, never your own look at stills, a level meter or a word-count
+    estimate; your final message names what no gate checked, such as narration nobody has heard.
 
 Mark means the mark helper (`lesson.mark_done`): you mark `brief`, `script`, `storyboard`
 and `scenes`; the scripts mark their own stages. Bump `attempts.dispatches` before every

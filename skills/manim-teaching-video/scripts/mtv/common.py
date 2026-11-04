@@ -337,8 +337,10 @@ def run_with_watchdog(
     file with several (manim/utils/module_ops.py:109-142); without stdin it fails at once
     instead of waiting for the detector. Only ``argv``'s own process is killed, and it stays in
     this process's group, so a kill sent to that group, as GNU timeout or a harness sends one,
-    reaches it and what it started. An exception here, such as the KeyboardInterrupt of a
-    SIGINT sent to this process alone, kills it too, as subprocess.run does.
+    reaches it and what it started. An exception here kills it too, as subprocess.run does.
+    Python raises the KeyboardInterrupt of a SIGINT sent to this process alone only on the main
+    thread, so such a SIGINT kills it where the watchdog runs there, as in check_scenes' dry
+    runs, but not in render.py's worker threads, where manim keeps running.
     """
     watched = (log, *also_watch)
     start = time.monotonic()

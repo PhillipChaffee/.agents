@@ -117,7 +117,8 @@ def example_run_dir(parent: Path) -> Path:
 # MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
 # MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang (=1 until the
 # --disable_caching retry, =always on every attempt), or real MP4s;
-# MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit.
+# MTV_FAKE_RUN_LOG=none or nobeat drops each run-log line or its beat key after a clean exit;
+# MTV_FAKE_QUIET=1 prints nothing and writes each beat's run-log line in four pieces 0.2 s apart.
 FAKE_MANIM_SOURCE = r'''"""A stand-in for ManimCE's manim command that records each call in calls.jsonl beside it."""
 import ast
 import json
@@ -185,11 +186,18 @@ with open(os.environ["MTV_RUN_LOG"], "a", encoding="utf-8") as run_log:
                   "audio_s": audio_s, "tail_s": tail_s, "overrun_s": 0.0, "boxes": []}
         if os.environ.get("MTV_FAKE_RUN_LOG") == "nobeat":
             del record["beat"]
-        if os.environ.get("MTV_FAKE_RUN_LOG") != "none":
-            run_log.write(json.dumps(record) + "\n")
+        line = json.dumps(record) + "\n" if os.environ.get("MTV_FAKE_RUN_LOG") != "none" else ""
+        if os.environ.get("MTV_FAKE_QUIET") == "1":
+            for piece in range(4):
+                run_log.write(line[piece * len(line) // 4:(piece + 1) * len(line) // 4])
+                run_log.flush()
+                time.sleep(0.2)
+        else:
+            run_log.write(line)
         enter_s += duration
 (sections_dir / f"{scene_class}.json").write_text(json.dumps(entries, indent=4))
-print("File ready")
+if os.environ.get("MTV_FAKE_QUIET") != "1":
+    print("File ready")
 '''
 
 # The example lesson's two scene classes, each with the base its flat scene_kind needs.
@@ -1846,7 +1854,8 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertIn("S01HangThing: still in construct", out.partition(message)[2])
         # Only manim is killed, and the check returned while the child it started still held the
         # dry run's output open: the output goes to a file, which nothing has to drain.
-        self.assertFalse(process_ends(child, 0), "the check returned only once manim's child had ended")
+        self.assertFalse(process_ends(child, 0), "the check returns while manim's child is still alive, "
+                         "so it does not wait on the child's open output")
 
     def test_busy_dry_run_outlasting_the_idle_bound_passes(self):
         # The fake's Busy class writes a byte every 0.2 s for 2.4 s, longer than a 1 s bound on silence.
@@ -1936,6 +1945,20 @@ class TestRender(ExampleLessonCase):
         calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
         self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False, True])
         self.assertEqual(mtv_lesson.load(self.lesson_path)["attempts"]["render_retries"], {"s01": 1})
+
+    def test_quiet_render_growing_its_run_log_outlasting_the_hang_bound_passes(self):
+        # The quiet fake leaves render.log empty and writes s01's three run-log lines in pieces
+        # 0.2 s apart, 2.4 s in all, longer than a 1 s bound: only run.log shows it is busy.
+        start = time.monotonic()
+        cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", "--hang-timeout-s", "1",
+                        cwd=self.run_dir, env={**self.env, "MTV_FAKE_QUIET": "1"})
+        wall_s = time.monotonic() - start
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        self.assertGreater(wall_s, 2.4, "the quiet render did not outlast the bound")
+        self.assertEqual((self.run_dir / "render" / "draft" / "s01" / "render.log").read_bytes(), b"")
+        calls = [json.loads(l) for l in (self.bin_dir / "calls.jsonl").read_text().splitlines()]
+        self.assertEqual(["--disable_caching" in c for c in calls if "render" in c], [False])
+        self.assertEqual(mtv_lesson.load(self.lesson_path)["attempts"]["render_retries"], {})
 
     def test_error_table_match_in_verdict(self):
         cp = run_script("render", "lesson.json", "--tier", "draft", "--scenes", "s01", cwd=self.run_dir,

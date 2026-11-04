@@ -35,10 +35,13 @@ otherwise it is none.
    `latex` or `dvisvgm` is a stop: math is never set in `Text`, disclosed or not, whoever
    asks or approves, and no `Text` fallback is planned.
 2. Brief: at most three questions (audience, length, and ElevenLabs only when
-   `ELEVENLABS_API_KEY` is present); write the `lesson.json` header with `exemplars`: `dir`
-   and the printed `index_sha256` when the triage check passed; `dir`, a null
-   `index_sha256` and `check_findings` when it failed; both null when `MTV_EXEMPLARS` is
-   unset. Gate: the validate helper prints `valid`; mark `brief`.
+   `ELEVENLABS_API_KEY` is present); write the `lesson.json` header with `colors`:
+   `emphasis` `PURE_YELLOW`; `weight_pos` `BLUE`, `weight_neg` `RED`, `bias` `MAROON_B` and
+   `cost` `RED` for those of these roles the topic has; one key per further role, each in a
+   color the map leaves free; `exemplars`: `dir` and the printed `index_sha256` when the
+   triage check passed; `dir`, a null `index_sha256` and `check_findings` when it failed;
+   both null when `MTV_EXEMPLARS` is unset. Gate: the validate helper prints `valid`; mark
+   `brief`.
 3. Script: dispatch the scriptwriter; `python scripts/storyboard_check.py <run>/lesson.json --script`.
    Gate: exit 0 (150 words per minute within 15 percent, R08 to R11). Bound: 1 retry
    (`attempts.script_retries`), then ask; mark `script`.

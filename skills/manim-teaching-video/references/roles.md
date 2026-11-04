@@ -142,26 +142,30 @@ Fields of each scene:
   beat orbits with `orbit_with_hud`. No scene does both.
 - `opening_state`: `black` to open on an empty frame, `continue` to open on the frame the
   previous scene closed on, or `cut` for a declared cut. The first scene is never `continue`.
-- `closing_state`: what stays on screen at the scene's end and where, such as
-  `network scaled 0.75 at the bottom, pixel grid upper left`. It is never blank before a
+- `closing_state`, written after the scene's `beats`: every object on screen when its last beat's `visual` ends, each with its place, such as
+  `pixel grid upper left, network at the bottom with output node 3 lit, label 3 beside that node`. It is never blank before a
   `continue` scene (R16), and it gives each recurring object the place it keeps (R22).
 
 Fields of each beat:
 
 - `marks`: names to word indices, such as `{"reveal": 8, "answer": 23}`. A name uses letters,
   digits, `.`, `_` and `-`, and is never `first` or `last`.
+ When the narration says a number that an earlier beat put on screen, mark that word, and at that mark the `visual` includes the clause `a copy of <that number> scaled 1.5 times beside it` (R15).
 - `visual`: what the frame shows and how it changes. Name every object; where each caption
-  sits beside its referent (R13); what is dimmed instead of removed (R12); what transforms
+  sits, and each heading or title: written after the drawn object it labels, as its text, its side (above, below, left or right) and that object, such as `3 right of the output node`, `forward pass above the lit path` or `title above the network`, and kept on that side wherever the object moves (R13); what is dimmed instead of removed (R12); what transforms
   into what (R17); the kind of each play, a confirmation, a transform that carries meaning,
   a reveal of several parts or an orbit (R24); how many items a stagger holds and whether
-  they are a crowd or a reveal (R27); the on-screen label of any simplified picture (R29).
+  they are a crowd or a reveal (R27); REQUIRED for a picture the narration calls simplified or made up: the on-screen label shown with it from its first frame, a heading, a struck-through claim, an approximately-equal sign or a toy named as a toy (R29).
   Never an image, a photo, a dataset file or a download (R30).
+ Write each colored object as the object, then its key in `colors`, then that key's color, such as `bias label (bias, MAROON_B)`; an object with no key in `colors` is WHITE or a grey (R18, R19).
+
+- The destination (R02) takes three beats, in order: the preview, early, whose `visual` shows the finished picture the narration points to, with empty `symbol_introduced` and no `formula` in `moves`; the next beat, whose `visual` takes it away; the payoff, whose `visual` moves objects drawn in the beats between into their places in that picture, naming each source.
 - `patterns`: the helpers the beat uses, by their names in `patterns.md`.
 - `moves`: values from `hook`, `concrete`, `abstraction`, `formula`, `recap`, `aside`,
   `meta` and `outro`.
 - `introduces`: the ideas and objects the beat introduces for the first time.
 - `shows_value_of`: the quantities whose concrete value the beat shows.
-- `symbol_introduced`: the symbols the beat writes for the first time, named as in
+- `symbol_introduced`: the symbols the beat writes for the first time, each one after a strictly earlier beat that showed its number, its `visual` transforming a copy of that number into the symbol while the number stays on screen (`numbers_to_symbol`), named as in
   `shows_value_of`.
 - `lands`: the visual that must be on screen when the narration reaches each mark, such as
   `[{"mark": "reveal", "visual": "pixel grid and network", "lead_s": 0.2}]`.
@@ -170,7 +174,7 @@ Fields of each beat:
 
 Rules `storyboard_check.py` checks in these fields:
 
-- R01: the lesson's first beat has `hook` in `moves`.
+- R01: the lesson's first beat has `hook` in `moves`, and its `visual` holds the working thing and the labels of its own parts.
 - R03: a beat whose narration ends in a question mark is not the lesson's last beat and has
   empty `introduces` and `symbol_introduced`.
 - R06: the last scene has a beat with `recap` in `moves`, and every recap beat there has
@@ -182,7 +186,7 @@ Rules `storyboard_check.py` checks in these fields:
 - R11: the first beat with `formula` in `moves` or a non-empty `symbol_introduced` comes
   after a beat with `concrete` in `moves`, with at most 0.564 of the lesson's words before it.
 - R16: a `continue` scene follows a scene whose `closing_state` is not blank.
-- R28: at least one beat has `aside` in `moves`.
+- R28: at least one beat has `aside` in `moves`. Its `visual`, in order: first `<the simplified picture's objects> stay at full opacity where the beat before left them, through the narration and the tail;`, then a mark on the simplified part of that picture, then any picture of the reason as a small inset beside it.
 - Every mark names a word index of its beat, every `lands` mark is a key of `marks`, and no
   field holds an exemplar id.
 
@@ -200,8 +204,8 @@ applied, which the parent reads and discards.
 
 ```json
 {"scenes": [{"id": "s01", "title": "A working thing first", "scene_class": "S01WorkingThing",
-             "scene_kind": "flat", "opening_state": "black",
-             "closing_state": "network scaled 0.75 at the bottom, pixel grid upper left",
+             "scene_kind": "flat",
+             "opening_state": "black",
              "beats": [{"id": "s01-b01", "narration": "Here is a network that already reads handwritten digits. Feed it this three, and watch the signal run through its layers to the answer.",
                         "marks": {"reveal": 8, "answer": 23},
                         "visual": "a handwritten 3 upper left as a 5 by 7 pixel grid of WHITE squares, each square's fill opacity its pixel's brightness, typed in row by row from the top: 0.2 0.9 1 0.8 0.1 / 0.6 0.1 0 0.9 0.4 / 0 0 0.1 0.9 0.2 / 0 0.5 1 0.6 0 / 0 0 0.1 0.8 0.5 / 0.7 0.1 0 0.7 0.5 / 0.1 0.9 1 0.7 0.1; the grid and a four-layer network at the bottom fade in together, a reveal of two parts; copies of the lit squares move into the input layer and light its nodes, a transform that carries meaning; flash_along lights a path through the edges to the output node for 3, a confirmation; that node brightens with the label 3 written beside it, a confirmation",
@@ -209,7 +213,8 @@ applied, which the parent reads and discards.
                         "introduces": ["network", "pixel grid"], "shows_value_of": [], "symbol_introduced": [],
                         "lands": [{"mark": "reveal", "visual": "pixel grid and network", "lead_s": 0.2},
                                   {"mark": "answer", "visual": "label 3 beside the output node", "lead_s": 0.2}],
-                        "tail_s": 0.4}]}],
+                        "tail_s": 0.4}],
+             "closing_state": "pixel grid upper left, network at the bottom with output node 3 lit, label 3 beside that node"}],
  "notes": [{"scene": "s01", "rule_ids": ["R01", "R13", "R16", "R19", "R24", "R30"]}]}
 ```
 

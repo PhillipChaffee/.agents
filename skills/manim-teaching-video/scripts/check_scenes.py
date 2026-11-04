@@ -222,8 +222,8 @@ def _math_symbols(tree: ast.Module) -> set[str]:
         callee = _callee(node)
         if callee not in MATH_CLASSES and callee != TEX_CLASS:
             continue
-        # Both classes join their strings with a space.
-        tex = " ".join(_text_parts(arg)[0] for arg in node.args)
+        # ManimCE joins MathTex's strings with a space and Tex's with nothing, so Tex("$x", "y$") sets xy.
+        tex = ("" if callee == TEX_CLASS else " ").join(_text_parts(arg)[0] for arg in node.args)
         math = " ".join(TEX_MATH_SHIFT.split(tex)[1::2]) if callee == TEX_CLASS else tex
         symbols.update(LONE_LETTER.findall(TEX_COMMAND.sub(" ", TEX_WORDS.sub(" ", math))))
     return symbols - WORD_LETTERS
@@ -232,12 +232,16 @@ def _math_symbols(tree: ast.Module) -> set[str]:
 def _symbol_fix(letters: list[str], caption: bool) -> str:
     one = len(letters) == 1
     named = letters[0] if one else f"{', '.join(letters[:-1])} and {letters[-1]}"
-    symbol = f"the letter {named} is the math symbol" if one else f"the letters {named} are the math symbols"
+    symbol = f"the letter {named} is the symbol" if one else f"the letters {named} are the symbols"
     it = "it" if one else "them"
     where = (f"and question_caption sets the question in Text, so set {it} in a MathTex beside the caption"
              if caption else f"so set {it} in MathTex beside the words' Text")
-    return (f"{symbol} {named} set in MathTex elsewhere in the file, {where}, "
-            "in one VGroup(...).arrange(RIGHT, buff=0.15)")
+    # The file may set the letter in MathTex or between a Tex string's $ signs. A letter can also be
+    # a word or a label, as the B of plan B, which MathTex is not for.
+    letter = "the letter" if one else "a letter"
+    return (f"{symbol} {named} set as math elsewhere in the file, {where}, "
+            "in one VGroup(...).arrange(RIGHT, buff=0.15), "
+            f"or, when {letter} is a word or a label (plan B, part b), reword it")
 
 
 def _written(source: str, node: ast.AST) -> str:

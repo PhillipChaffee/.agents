@@ -222,9 +222,11 @@ def _math_symbols(tree: ast.Module) -> set[str]:
         callee = _callee(node)
         if callee not in MATH_CLASSES and callee != TEX_CLASS:
             continue
-        # ManimCE joins MathTex's strings with a space and Tex's with nothing, so Tex("$x", "y$") sets xy.
-        tex = ("" if callee == TEX_CLASS else " ").join(_text_parts(arg)[0] for arg in node.args)
-        math = " ".join(TEX_MATH_SHIFT.split(tex)[1::2]) if callee == TEX_CLASS else tex
+        # ManimCE joins MathTex's strings with a space, and Tex's with nothing but a marker between
+        # them, so Tex("$x", "y$") sets xy while Tex("$x$", "$y$") sets two formulas: a NUL keeps the
+        # strings apart for the $ split and is dropped from the math it finds.
+        tex = ("\0" if callee == TEX_CLASS else " ").join(_text_parts(arg)[0] for arg in node.args)
+        math = " ".join(TEX_MATH_SHIFT.split(tex)[1::2]).replace("\0", "") if callee == TEX_CLASS else tex
         symbols.update(LONE_LETTER.findall(TEX_COMMAND.sub(" ", TEX_WORDS.sub(" ", math))))
     return symbols - WORD_LETTERS
 

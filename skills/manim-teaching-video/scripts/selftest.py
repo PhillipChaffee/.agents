@@ -2206,6 +2206,14 @@ class TestCheckScenes(ExampleLessonCase):
             *calls, 'Tex("$x", "y$")', 'MathTex("u", "v")', 'Text("input x")', 'Text("output y")'),
             list(enumerate(calls, 1)))
 
+    def test_adjacent_tex_strings_each_close_their_own_math(self):
+        # ManimCE separates Tex's strings with markers, so Tex("$x$", "$y$ grows at step k") is two
+        # formulas, x and y, then the words grows at step k: y is a symbol and k is not.
+        calls = ['Text("input x")', 'Text("output y")']
+        self.assertEqual(self.text_findings(
+            'Tex("$x$", "$y$ grows at step k")', *calls, 'Text("step k")'),
+            list(enumerate(calls, 2)))
+
     def test_a_one_letter_command_name_is_not_a_symbol(self):
         # \P is a command name as \frac is, so in \P(B) only B stands alone: plan B is marked and part P is not.
         self.assertEqual(self.text_findings('MathTex(r"\\P(B)")', 'Text("plan B")', 'Text("part P")'),

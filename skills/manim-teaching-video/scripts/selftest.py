@@ -986,8 +986,9 @@ class TestFramesFinal(unittest.TestCase):
         self.assertEqual((final["zeros"], final["pass"]), ([], True))
 
     def test_a_zero_stays_zero(self):
+        # voice at 0 in one scene and 1 in the other two: a 0 beside two lapses stays 0.
         reviews = [scene_review("s01", {"voice": 0, "sync": 1}), scene_review("s02", {"voice": 1, "sync": 0}),
-                   scene_review("s03", {"object budget": 0})]
+                   scene_review("s03", {"object budget": 0, "voice": 1})]
         final = mtv_lesson.frames_final(reviews)
         self.assertEqual(final["zeros"], ["object budget", "sync", "voice"])
         self.assertIs(final["pass"], False)
@@ -1031,16 +1032,53 @@ class TestFramesFinal(unittest.TestCase):
                 for name in names:
                     self.assertIn(name, str(caught.exception))
 
-    def test_single_lapse_items_are_rubric_md_step_2s_nine(self):
+    def test_score_keys_other_than_the_sixteen_items_raise_value_error(self):
+        # Every critic spelling the scores alike: an item misspelled the same way in each review
+        # fell back to the plain minimum, and empty scores totalled 0/32, both without an error.
+        misspelled = {("legible at 480P" if item == "legible at 480p" else item): 2 for item in RUBRIC_ITEMS}
+        cases = (
+            (misspelled, ("'legible at 480p'", "'legible at 480P'")),
+            ({}, ("'hook before definition'", "'sync'")),
+            ({item: 2 for item in RUBRIC_ITEMS if item != "sync"}, ("'sync'",)),
+            ({**dict.fromkeys(RUBRIC_ITEMS, 2), "pacing": 2}, ("'pacing'",)),
+        )
+        for scores, names in cases:
+            with self.subTest(names=names):
+                reviews = [{"scene": scene, "scores": dict(scores), "failed_beats": []} for scene in ("s01", "s02")]
+                with self.assertRaises(ValueError) as caught:
+                    mtv_lesson.frames_final(reviews)
+                for name in ("s01", *names):
+                    self.assertIn(name, str(caught.exception))
+
+    def test_a_review_that_is_not_an_object_raises_value_error(self):
+        for reviews, position in (([None], "review 1"), ([scene_review("s01"), "s02"], "review 2"),
+                                  ([scene_review("s01"), ["scores"]], "review 2")):
+            with self.subTest(reviews=reviews):
+                with self.assertRaises(ValueError) as caught:
+                    mtv_lesson.frames_final(reviews)
+                self.assertIn(position, str(caught.exception))
+
+    def rubric_md(self) -> str:
+        """references/rubric.md's text; the calling test skips while it is absent."""
         ref = SKILL_DIR / "references" / "rubric.md"
         if not ref.exists():
-            print("SKIP single-lapse items: references/rubric.md not present (M2 writes it)")
+            print("SKIP rubric items: references/rubric.md not present (M2 writes it)")
             raise unittest.SkipTest("references absent")
-        text = ref.read_text(encoding="utf-8")
-        table = re.search(r"^## Items\n\n(.*?)\n\n", text, re.DOTALL | re.MULTILINE).group(1)
-        names = [row.split("|")[1].strip() for row in table.splitlines()[2:]]
-        self.assertEqual(names, list(RUBRIC_ITEMS))
-        step_2 = re.search(r"Nine items name a single lapse in their 1 anchor: (.*?)\. For these", " ".join(text.split()))
+        return ref.read_text(encoding="utf-8")
+
+    def items_table_names(self) -> list[str]:
+        """The Item column of rubric.md's Items table, row by row."""
+        table = re.search(r"^## Items\n\n(.*?)\n\n", self.rubric_md(), re.DOTALL | re.MULTILINE).group(1)
+        return [row.split("|")[1].strip() for row in table.splitlines()[2:]]
+
+    def test_rubric_items_are_rubric_md_items_table(self):
+        self.assertEqual(list(common.RUBRIC_ITEMS), self.items_table_names())
+        self.assertLessEqual(set(common.SINGLE_LAPSE_ITEMS), set(common.RUBRIC_ITEMS))
+
+    def test_single_lapse_items_are_rubric_md_step_2s_nine(self):
+        self.assertEqual(self.items_table_names(), list(RUBRIC_ITEMS))
+        step_2 = re.search(r"Nine items name a single lapse in their 1 anchor: (.*?)\. For these",
+                           " ".join(self.rubric_md().split()))
         nine = re.split(r", | and ", step_2.group(1))
         self.assertEqual(sorted(common.SINGLE_LAPSE_ITEMS), sorted(nine))
 

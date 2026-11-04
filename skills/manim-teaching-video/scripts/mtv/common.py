@@ -171,6 +171,26 @@ R08_MAX_WORDS = 55
 R09_MINUTES_PER_QUESTION = 5.5
 R11_FIRST_FORMULA_FRACTION = 0.364
 
+# The sixteen rubric items in the order and spelling of references/rubric.md's Items table, whose
+# Item column names the keys every critic's scores carry; lesson.frames_final accepts no others.
+RUBRIC_ITEMS: tuple[str, ...] = (
+    "hook before definition",
+    "destination previewed",
+    "value before symbol",
+    "one idea per scene",
+    "question before answer",
+    "honesty beat",
+    "picture carried into recap",
+    "voice",
+    "role colors",
+    "dim not delete",
+    "captions beside referents",
+    "object budget",
+    "legible at 480p",
+    "boundaries continuous",
+    "motion with a reason",
+    "sync",
+)
 # The rubric items whose 1 anchor counts one lapse in the whole lesson ("one small label"),
 # spelled as references/rubric.md's Items table spells them; its How to score step 2 lists the
 # same nine and scores a second lapse 0. Each frame critic scores one scene, so one of these at 1

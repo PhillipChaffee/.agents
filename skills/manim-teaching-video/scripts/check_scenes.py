@@ -21,20 +21,36 @@ from mtv import lesson as mtv_lesson
 SCRIPTS_DIR = Path(__file__).resolve().parent
 KIND_BASES = {"flat": "NarratedScene", "camera": "NarratedCameraScene", "3d": "Narrated3DScene"}
 TAIL_LINES = 20
-# Pango sets these classes' positional strings, so a number, sign or Greek letter in one prints
+# Pango sets these classes' strings (positional or text=), so a number, sign or Greek letter in one prints
 # in a different font from the same one in MathTex beside it; words are all they should hold.
 TEXT_CLASSES = frozenset({"Text", "MarkupText", "Paragraph"})
-# A digit, a math sign (\u2212 is the minus sign) or a Greek letter. The ASCII hyphen-minus
-# and the other punctuation belong to words, as in non-linear, isn't or (sorted).
-MATH_IN_TEXT = re.compile(r"[0-9=≈≠≤≥<>+\u2212×÷±→^\\∑∫√∞\u0391-\u03a9\u03b1-\u03c9]")
+# A digit, a math sign or a Greek letter: the ASCII signs = < > + ^ \, the Latin-1 ± ² ³ µ ¹
+# ¼ ½ ¾ × ÷, then whole blocks: Greek and Coptic (letters and symbols such as ϕ ϵ ϑ), the
+# primes, superscripts and subscripts, vulgar fractions, arrows and mathematical operators
+# (the minus sign \u2212 among them). The ASCII hyphen-minus and the other punctuation belong
+# to words, as in non-linear, isn't or (sorted), and so do dashes, curly quotes, the ellipsis,
+# the bullet and the middle dot captions use as a separator, which sit outside these blocks.
+MATH_IN_TEXT = re.compile(
+    r"[0-9=<>+^\\\u00b1\u00b2\u00b3\u00b5\u00b9\u00bc-\u00be\u00d7\u00f7\u0370-\u03ff"
+    r"\u2032-\u2037\u2070-\u209f\u2150-\u215f\u2190-\u21ff\u2200-\u22ff]"
+)
 # MarkupText's tags are markup, not text, and their attributes hold digits and = signs.
 MARKUP_TAG = re.compile(r"<[^>]*>")
 FORMAT_CALLS = frozenset({"str", "repr", "format"})
 TEXT_ARG_CHARS = 40
+CLOSING_QUOTES = re.compile(r"(\"\"\"|'''|\"|')\Z")
+# A value formatted in, or a digit in a name such as GPT-2, can be a word, which MathTex is not for.
+WORD_FIX = "or, when the value is a word or a name, reword it or build the string without formatting"
 TEXT_FIX = (
     "put each number, sign and formula in MathTex (DecimalNumber or Integer when the value changes) "
     "and the words in Text, side by side in one VGroup(...).arrange(RIGHT, buff=0.15), "
-    'as in VGroup(Text("loss"), MathTex(r"\\approx 0.42"))'
+    f'as in VGroup(Text("loss"), MathTex(r"\\approx 0.42")), {WORD_FIX}'
+)
+# The kit's question_caption(target, text) (mtv/patterns.py) sets its question in Text too.
+CAPTION_HELPER = "question_caption"
+CAPTION_FIX = (
+    "question_caption sets the question in Text, so spell the numbers and signs out in words, "
+    f"or move them into a MathTex beside the caption, {WORD_FIX}"
 )
 
 
@@ -174,22 +190,38 @@ def _sets_math(node: ast.expr, markup: bool) -> bool:
 
 
 def _written(source: str, node: ast.AST) -> str:
-    """``node`` as the file writes it, on one line and cut to TEXT_ARG_CHARS characters."""
+    """``node`` as the file writes it, on one line and cut to TEXT_ARG_CHARS characters.
+
+    A cut string keeps its closing quotes, so the name still reads as the literal it cuts.
+    """
     text = re.sub(r"\s*\n\s*", " ", ast.get_source_segment(source, node) or ast.unparse(node))
-    return text if len(text) <= TEXT_ARG_CHARS else text[: TEXT_ARG_CHARS - 3] + "..."
+    if len(text) <= TEXT_ARG_CHARS:
+        return text
+    close = CLOSING_QUOTES.search(text)
+    end = close.group() if close else ""
+    return text[: TEXT_ARG_CHARS - 3 - len(end)] + "..." + end
 
 
 def _text_findings(tree: ast.Module, source: str, filename: str) -> list[dict]:
-    # The class may be imported by name or reached through its module, as manim.Text.
+    # The class or helper may be imported by name or reached through its module, as manim.Text.
+    # The text keyword is the string being set too; the other keywords style it and are not
+    # judged, nor is question_caption's first argument, its target.
     findings = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
         callee = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
-        if callee in TEXT_CLASSES and any(_sets_math(arg, callee == "MarkupText") for arg in node.args):
-            name = f"{_written(source, func)}({', '.join(_written(source, arg) for arg in node.args)})"
-            findings.append(_finding(filename, node.lineno, name, TEXT_FIX))
+        if callee not in TEXT_CLASSES and callee != CAPTION_HELPER:
+            continue
+        text_keywords = [keyword for keyword in node.keywords if keyword.arg == "text"]
+        positional = node.args[1:2] if callee == CAPTION_HELPER else node.args
+        judged = [*positional, *(keyword.value for keyword in text_keywords)]
+        if any(_sets_math(arg, callee == "MarkupText") for arg in judged):
+            shown = [*node.args, *text_keywords]
+            name = f"{_written(source, func)}({', '.join(_written(source, part) for part in shown)})"
+            fix = CAPTION_FIX if callee == CAPTION_HELPER else TEXT_FIX
+            findings.append(_finding(filename, node.lineno, name, fix))
     return findings
 
 

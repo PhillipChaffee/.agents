@@ -1835,21 +1835,73 @@ class TestCheckScenes(ExampleLessonCase):
         findings = self.text_findings(*(f"label = Text({'a' + mark + 'b'!r})" for mark in marks))
         self.assertEqual([line for line, _ in findings], list(range(1, len(marks) + 1)))
 
+    def test_superscripts_fractions_arrows_operators_primes_and_greek_symbols_mark_a_text_call(self):
+        # The first and last code point of each range, then the review's probes, which passed before.
+        ranges = [(0x2070, 0x209F), (0x2150, 0x215F), (0x2190, 0x21FF), (0x2200, 0x22FF), (0x2032, 0x2037),
+                  (0x0370, 0x03FF)]
+        marks = [chr(point) for pair in ranges for point in pair]
+        marks += ["²", "³", "¹", "¼", "¾", "µ", "x²", "O(n²)", "x₁", "x¹", "½",
+                  *"∂ ∇ ∈ ⋅ ← ⇒ ≡ ∏ ∀ ∓ ′ ϕ ϵ ϑ".split()]
+        findings = self.text_findings(*(f"label = Text({'a' + mark + 'b'!r})" for mark in marks))
+        self.assertEqual([line for line, _ in findings], list(range(1, len(marks) + 1)))
+
+    def test_caption_punctuation_and_accented_letters_pass(self):
+        # Words carry these: dashes, curly quotes, the ellipsis, the bullet, the middle dot captions
+        # use as a separator, & / * and accented letters.
+        self.assertEqual(self.text_findings(
+            'Text("guess — then halve – again")', 'Text("‘halve’ and “halve”")', 'Text("and so on…")',
+            'Text("• sorted · halved")', 'Text("names & looks / guesses * halves")', 'Text("café naïve façade Ñandú")',
+        ), [])
+
     def test_formatted_strings_in_text_are_findings(self):
         calls = ['Text(f"{n} names")', 'Text(str(n))', 'Text(repr(n))', 'Text(format(n, ",d"))',
                  'Text("%d" % n)', 'Text("{} looks".format(n))', 'Text(template.format(n))']
         self.assertEqual(self.text_findings(*calls), list(enumerate(calls, 1)))
 
     def test_words_unknown_values_keywords_and_other_classes_pass(self):
+        # Each other class's positional string holds a digit, so judging that class would make it a finding.
         self.assertEqual(self.text_findings(
             'Text("looks")', 'Text("sorted phone book")', 'Text("non-linear")', 'Text("isn\'t it?")', 'Text("(sorted)")',
             'Text("A to Z: done; \\"quoted\\", a/b * c & d_e")', 'Text(f"looks")', 'Text("guess " + name)',
             'Text(label)', 'Text(self.label)', 'Text(names[0])', 'Text(*lines)', 'Text("loss", 1.0)',
             'Text("loss", font_size=28, color="#FF0000", t2c={"[0:2]": "#FF0000"})', 'Paragraph("first line", "second line")',
             'MarkupText("<b>sorted</b>")', 'MarkupText(\'<span fgcolor="#FF0000">red</span>\')',
-            'MathTex("0.42")', 'MathTex(r"\\approx 20")', 'Tex("1,000 names")', 'DecimalNumber(0.42)',
-            'Integer(20)', 'Code(code_string="x = 1")',
+            'MathTex("0.42")', 'MathTex(r"\\approx 20")', 'Tex("1,000 names")', 'DecimalNumber("0.42")',
+            'Integer("20")', 'Code("x = 1")',
         ), [])
+
+    def test_the_text_keyword_is_judged_and_style_keywords_are_not(self):
+        findings = self.text_findings(
+            'Text(text="12")', 'MarkupText(text="<b>12</b>", font_size=24)', 'Text(text=f"{n} names", color="#FF0000")',
+            'Text(text="looks", font_size=28, color="#FF0000", t2c={"[0:2]": "#FF0000"})',
+            'MarkupText(text=\'<span fgcolor="#FF0000">red</span>\')')
+        self.assertEqual(findings, [(1, 'Text(text="12")'), (2, 'MarkupText(text="<b>12</b>")'),
+                                    (3, 'Text(text=f"{n} names")')])
+
+    def test_question_caption_text_is_judged_with_the_caption_fix(self):
+        # T4's lesson.py:309; question_caption sets its second argument, the question, in Text. Its
+        # first, the target, is a mobject and is not judged even when written as a string.
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'q = question_caption(looks20, "×1000 names, only +10 looks?")',
+            'q = patterns.question_caption(dots[2], "why 2?")', 'q = question_caption(box, text="why +1?")',
+            'q = question_caption(box, "what is it doing inside?")', 'q = question_caption("box 2", "why?")')), {})
+        self.assertEqual([(f["line"], f["name"]) for f in findings], [
+            (1, 'question_caption(looks20, "×1000 names, only +10 looks?")'),
+            (2, 'patterns.question_caption(dots[2], "why 2?")'), (3, 'question_caption(box, text="why +1?")')])
+        for finding in findings:
+            self.assertIn("question_caption sets", finding["fix"])
+            self.assertIn("in words", finding["fix"])
+            self.assertIn("MathTex beside the caption", finding["fix"])
+
+    def test_word_valued_formatting_and_digits_in_names_are_findings_with_word_advice(self):
+        # The rule stands for a word or a name, so the fix says how to keep a word without MathTex.
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'Text(f"{name}\'s turn")', 'Text(str(name))', 'Text("GPT-2")', 'Text("3D view")', 'Text("limit 1")',
+            'question_caption(box, f"why {name}?")')), {})
+        self.assertEqual([f["line"] for f in findings], [1, 2, 3, 4, 5, 6])
+        for finding in findings:
+            self.assertIn("or, when the value is a word or a name, reword it or build the string without formatting",
+                          finding["fix"])
 
     def test_attribute_calls_and_each_paragraph_line_are_judged(self):
         calls = ['manim.Text("12")', 'Paragraph("first line", "2 lines")', 'Paragraph(*lines, "x = y")']
@@ -1859,11 +1911,12 @@ class TestCheckScenes(ExampleLessonCase):
         findings = self.text_findings('pair = VGroup(Text("≈"), Text("20"), Text("looks"))', 'n = Text(\n    "1,000"\n)')
         self.assertEqual(findings, [(1, 'Text("≈")'), (1, 'Text("20")'), (2, 'Text("1,000")')])
 
-    def test_a_long_text_literal_is_cut_in_the_finding_name(self):
-        call = 'Text("make every score positive and keep the order of all 3 scores")'
-        [(line, name)] = self.text_findings(call)
-        self.assertTrue(name.startswith('Text("make every score'), name)
-        self.assertLess(len(name), len(call))
+    def test_a_long_text_literal_is_cut_inside_its_quotes_in_the_finding_name(self):
+        # T2's lesson.py:1317; each argument is cut to 40 characters, its closing quote kept.
+        findings = self.text_findings('Text("limit 1 of small steps: the ground curves", font_size=24)',
+                                      "Text(f'{n} small steps: the ground curves under them')")
+        self.assertEqual(findings, [(1, 'Text("limit 1 of small steps: the ground ...")'),
+                                    (2, "Text(f'{n} small steps: the ground curves...')")])
 
     def test_cli_number_in_text_fails_the_gate_with_the_mathtex_fix(self):
         (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE + 'count = Text("1,000,000", font_size=40)\n')

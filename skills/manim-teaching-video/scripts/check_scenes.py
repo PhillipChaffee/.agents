@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import ast
 import os
-import subprocess
 import sys
+import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -138,36 +138,41 @@ def lint_source(source: str, lesson: dict, filename: str = "lesson.py") -> list[
 
 
 def dry_run(lesson_py: Path, classes: list[str], cwd: Path, lesson_path: Path) -> dict[str, bool]:
-    """``manim render --dry_run`` once per class; True where it exits 0.
+    """``manim render --dry_run`` once per class, with the draft render's config; True where it exits 0.
 
     A dry run still executes construct, whose load_lesson finds the lesson through
-    MTV_LESSON, and it writes no run log, so MTV_RUN_LOG is left out. A failed run's last
-    lines go to stdout, so the manim error text precedes the verdict. A run still going
-    after common.HANG_TIMEOUT_S, the bound a render may go without output, is killed and
-    fails, so a construct that never ends cannot hold up the check.
+    MTV_LESSON, and it writes no run log, so MTV_RUN_LOG is left out. It also draws every
+    frame, so the draft config keeps it to the frames step 7's draft render draws, at 854x480
+    and 15 fps rather than CE's default 1920x1080 and 60. A failed run's last lines go to
+    stdout, so the manim error text precedes the verdict. Like a render, a run is killed and
+    fails once its output has not grown for common.HANG_TIMEOUT_S, so a construct that never
+    ends cannot hold up the check while a long one that keeps drawing finishes.
     """
     env = {key: value for key, value in os.environ.items() if key != "MTV_RUN_LOG"}
     env.update(PYTHONPATH=common.scripts_pythonpath(SCRIPTS_DIR), MTV_LESSON=str(lesson_path.resolve()))
-    timeout_s = common.HANG_TIMEOUT_S
+    hang_timeout_s = common.HANG_TIMEOUT_S
     results = {}
-    for scene_class in classes:
-        # CE global option, manim/cli/render/global_options.py:112; the class goes last.
-        argv = ["manim", "render", "--dry_run", str(lesson_py.resolve()), scene_class]
-        failure = "dry run failed"
-        try:
-            completed = common.run_cmd(argv, env=env, cwd=cwd, timeout_s=timeout_s)
-            ok, output = completed.returncode == 0, completed.stdout + completed.stderr
-        except subprocess.TimeoutExpired as exc:
-            ok, output = False, exc.stdout + exc.stderr
-            failure = f"dry run timed out after {timeout_s:g} s | fix: end the loop, or cut the work, in construct"
-        # A manim found on PATH can still fail to start, as from a moved venv's shebang.
-        except OSError as exc:
-            ok, output = False, str(exc)
-        results[scene_class] = ok
-        if not ok:
-            print(f"{scene_class}: {failure}")
-            for line in output.splitlines()[-TAIL_LINES:]:
-                print(line)
+    with tempfile.TemporaryDirectory(prefix="mtv-dry-run-") as logs:
+        for scene_class in classes:
+            # CE global options, manim/cli/render/global_options.py:60,112; the class goes last.
+            argv = ["manim", "render", "--config_file", str(common.config_file("draft")), "--dry_run",
+                    str(lesson_py.resolve()), scene_class]
+            log, failure = Path(logs) / f"{scene_class}.log", "dry run failed"
+            try:
+                returncode, _ = common.run_with_watchdog(argv, env=env, cwd=cwd, log=log, hang_timeout_s=hang_timeout_s)
+            # A manim found on PATH can still fail to start, as from a moved venv's shebang.
+            except OSError as exc:
+                ok, output = False, str(exc)
+            else:
+                ok, output = returncode == 0, log.read_text(encoding="utf-8", errors="replace")
+                if returncode is None:
+                    failure = (f"dry run produced no output for {hang_timeout_s:g} s"
+                               " | fix: end the loop, or cut the work, in construct")
+            results[scene_class] = ok
+            if not ok:
+                print(f"{scene_class}: {failure}")
+                for line in output.splitlines()[-TAIL_LINES:]:
+                    print(line)
     return results
 
 

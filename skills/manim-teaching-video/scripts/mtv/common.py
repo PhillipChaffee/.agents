@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -283,22 +285,61 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _kill(process: subprocess.Popen, group: bool) -> None:
+    """Kill ``process``, and with ``group`` every process in the group it leads."""
+    if not group:
+        process.kill()
+        return
+    # The group lasts while any member runs, so it is gone only when nothing is left to kill.
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGKILL)
+
+
 def run_cmd(
     argv: list[str],
     log_path: Path | None = None,
     env: dict[str, str] | None = None,
     cwd: Path | None = None,
+    timeout_s: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    """Run ``argv`` with its output captured, and appended to ``log_path`` when one is given.
+
+    With ``timeout_s``, a command still running that many seconds after it started is killed,
+    with every process it started, and subprocess.TimeoutExpired carries its output so far.
+    """
     # On an inherited stdin a child reads input piped to this process (ffmpeg takes it as
     # interactive keys) and stops a background job; manim prompts on it for a missing class.
-    completed = subprocess.run(
-        argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, env=env, cwd=cwd, check=False
-    )
+    # A time limit puts the command in a process group of its own, so that expiry also kills
+    # what it started, as manim starts latex and dvisvgm: a survivor would hold the output
+    # pipes open, and stay running after the limit.
+    group = timeout_s is not None
+    with subprocess.Popen(
+        argv,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        cwd=cwd,
+        start_new_session=group,
+    ) as process:
+        expired = False
+        try:
+            stdout, stderr = process.communicate(timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            expired = True
+            _kill(process, group)
+            stdout, stderr = process.communicate()
+        except BaseException:
+            _kill(process, group)
+            raise
     if log_path is not None:
         with open(log_path, "a", encoding="utf-8") as log:
-            log.write(completed.stdout)
-            log.write(completed.stderr)
-    return completed
+            log.write(stdout)
+            log.write(stderr)
+    if expired:
+        raise subprocess.TimeoutExpired(argv, timeout_s, stdout, stderr)
+    return subprocess.CompletedProcess(argv, process.returncode, stdout, stderr)
 
 
 def scripts_pythonpath(scripts_dir: Path) -> str:

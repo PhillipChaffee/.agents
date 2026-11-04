@@ -106,7 +106,9 @@ def example_run_dir(parent: Path) -> Path:
 
 # ManimCE is absent where the self-test runs, so the scripts under test find this stand-in
 # first on PATH. Its dry run fails for a class whose name contains Bad, so a test can take
-# the failing path with a scenes file that is otherwise clean. Its render writes what CE's
+# the failing path with a scenes file that is otherwise clean, and for one whose name contains
+# Hang it runs 30 s with a child that holds its output open, as manim's latex does, writing
+# the child's pid to child.pid beside it. Its render writes what CE's
 # --save_sections writes ({media_dir}/videos/{module}/{quality}/sections/<Class>.json and one
 # MP4 per section) plus the mixin's run log, timing each beat at its duration_s + tail_s;
 # MTV_FAKE_FAIL, MTV_FAKE_HANG and MTV_FAKE_FFMPEG select a failure, a hang (=1 until the
@@ -133,6 +135,11 @@ if "--dry_run" in argv:
         sys.exit("ValueError: MTV_LESSON is not set")
     if "Bad" in argv[-1]:
         sys.exit(f"ValueError: {argv[-1]} failed its dry run")
+    if "Hang" in argv[-1]:
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+        (Path(__file__).resolve().parent / "child.pid").write_text(str(child.pid))
+        print(f"{argv[-1]}: still in construct", flush=True)
+        time.sleep(30)
     sys.exit(0)
 lesson_py, scene_class = Path(argv[-2]), argv[-1]
 # Like CE, the class is looked up in the scenes file; lesson.json supplies only its beats.
@@ -203,6 +210,27 @@ def env_with_fake_manim(bin_dir: Path) -> dict[str, str]:
     """This process's environment with ``bin_dir`` first on PATH; the fake manim there
     records every call's argv as one JSON line in ``bin_dir/calls.jsonl``."""
     return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+def process_ends(pid: int, within_s: float) -> bool:
+    """Whether process ``pid`` is gone or a zombie within ``within_s`` seconds.
+
+    An orphan's zombie stays until init reaps it, and a container's init may never do so,
+    so a zombie counts as ended; its state is the field after the parenthesized command
+    name in /proc/<pid>/stat (proc(5)). Where /proc is absent, only a gone process counts.
+    """
+    deadline = time.monotonic() + within_s
+    while True:
+        try:
+            os.kill(pid, 0)
+            stat = Path(f"/proc/{pid}/stat")
+            if stat.exists() and stat.read_text().rpartition(")")[2].split()[0] == "Z":
+                return True
+        except (ProcessLookupError, FileNotFoundError):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
 
 
 # A 1x1 JPEG that Pillow wrote (Image.new("RGB", (1, 1)).save(buf, "JPEG")), so a synthetic
@@ -1740,6 +1768,27 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertEqual(checks["dry_run"], {"S01BadThing": False, "S02OneNeuron": True})
         self.assertFalse(checks["pass"])
         self.assertIn("ValueError: S01BadThing failed its dry run", cp.stdout)
+
+    def test_hung_dry_run_is_killed_with_its_children_at_the_hang_bound(self):
+        # The fake's Hang class runs 30 s with a child holding its output; the bound is cut to
+        # 1 s in this process, so main runs in it rather than in a child process.
+        lesson = mtv_lesson.load(self.lesson_path)
+        lesson["scenes"][0]["scene_class"] = "S01HangThing"
+        mtv_lesson.save(lesson, self.lesson_path)
+        (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE.replace("S01WorkingThing", "S01HangThing"))
+        out, start = io.StringIO(), time.monotonic()
+        with mock.patch.dict(os.environ, {"PATH": self.env["PATH"]}), \
+                mock.patch.object(common, "HANG_TIMEOUT_S", 1), contextlib.redirect_stdout(out):
+            code = check_scenes.main([str(self.run_dir / "lesson.py"), str(self.lesson_path)])
+        self.assertLess(time.monotonic() - start, 10, out.getvalue())
+        self.assertEqual(code, 1, out.getvalue())
+        checks = mtv_lesson.load(self.lesson_path)["checks"]["scenes"]
+        self.assertEqual(checks["dry_run"], {"S01HangThing": False, "S02OneNeuron": True})
+        self.assertIn("S01HangThing: dry run timed out after 1 s", out.getvalue())
+        # The output so far still reaches the scene coder.
+        self.assertIn("S01HangThing: still in construct", out.getvalue())
+        child = int((self.bin_dir / "child.pid").read_text())
+        self.assertTrue(process_ends(child, 5), "the dry run's child outlived the time limit")
 
     def test_dry_run_and_render_share_one_pythonpath(self):
         # Both run the same scenes file, so a package it imports from the inherited PYTHONPATH

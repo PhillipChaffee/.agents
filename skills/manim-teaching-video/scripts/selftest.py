@@ -2290,6 +2290,129 @@ class TestCheckScenes(ExampleLessonCase):
         self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings],
                          [(2, 'Text("n = 7")', check_scenes.TEXT_FIX)])
 
+    def test_a_function_name_the_file_sets_as_math_marks_a_text_call(self):
+        # GREEN iteration 4: T2's readout rows set "cos" in Text (lesson.py:1142, :1507, :1611) while :1621 sets
+        # MathTex(r"\cos(\text{angle})"), the name in two typefaces (corpus ruling G30, manim-3b1b-corpus).
+        # The MathTex may come before or after.
+        self.assertEqual(self.text_findings('row = VGroup(Text("cos"), MathTex("="))',
+                                            'q = question_caption(box, "why cos?")',
+                                            'dot = MathTex(r"\\cos(\\text{angle})")'),
+                         [(1, 'Text("cos")'), (2, 'question_caption(box, "why cos?")')])
+
+    def test_each_standard_operator_and_any_operatorname_mark_their_name_in_text(self):
+        # LaTeX sets these names upright as operators, and \operatorname, starred or not, sets any name so,
+        # in MathTex, in SingleStringMathTex or between a Tex string's $ signs.
+        names = ("sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh log ln lg exp max min arg det lim "
+                 "sup inf gcd deg dim ker Pr").split()
+        calls = [*(f'Text("the {name} row")' for name in names), 'Text("softmax")', 'Paragraph("then", "argmax")',
+                 'Text(text="relu")']
+        self.assertEqual(self.text_findings(
+            *calls, *(f'MathTex(r"\\{name}")' for name in names), 'MathTex(r"\\operatorname{softmax}(z)")',
+            'SingleStringMathTex(r"\\operatorname*{argmax}_i")', 'Tex(r"apply $\\operatorname{relu}$")'),
+            list(enumerate(calls, 1)))
+
+    def test_a_name_inside_a_word_or_in_another_case_never_marks_a_text_call(self):
+        self.assertEqual(self.text_findings(
+            'MathTex(r"\\cos x + \\log y + \\max z")', 'Text("cosine")', 'Text("logarithm and login")',
+            'Text("maximum")', 'Text("cosmos")', 'Text("Cos")', 'Text("MAX")'), [])
+
+    def test_a_longer_command_sets_no_shorter_name(self):
+        # \cosh, \arcsin and \limsup are their own commands, so they set no cos, sin, lim or sup.
+        self.assertEqual(self.text_findings('MathTex(r"\\cosh t + \\arcsin u + \\limsup v")', 'Text("cos")',
+                                            'Text("sin")', 'Text("lim sup")'), [])
+
+    def test_a_name_the_file_never_sets_as_a_math_operator_never_marks_a_text_call(self):
+        # Letters in math (MathTex("max") sets italic m, a, x), a text-mode command's words (\text{max}),
+        # \mathrm{min}, Tex's text mode, a word after a line break \\ and \operatorname of more than a name set no
+        # operator, so the words max speed and log in, and the name cos, are words in this file.
+        self.assertEqual(self.text_findings(
+            'MathTex(r"\\tan x")', 'MathTex("max")', 'MathTex(r"\\text{max} + \\mathrm{min} + \\textbf{cos}")',
+            'Tex("the log of sin")', 'MathTex(r"a \\\\ exp")', 'MathTex(r"\\operatorname{step\\,k}")',
+            'Text("max speed")', 'Text("min")', 'Text("log in")', 'Text("cos")', 'Text("sin")', 'Text("exp")',
+            'Text("step")', 'question_caption(box, "why max?")'), [])
+
+    def test_each_judged_text_string_is_read_for_the_function_name(self):
+        # The text keyword, MarkupText's text between its tags (not a tag's attribute), each Paragraph line,
+        # the caption's question and a quoted or bracketed name.
+        calls = ['Text(text="cos")', 'MarkupText("the <b>cos</b> row")', 'Paragraph("first line", "cos")',
+                 'question_caption(box, "why cos?")', 'Text("the \'cos\' row")', 'Text("cos(angle)")']
+        self.assertEqual(self.text_findings('MathTex(r"\\cos x")', *calls,
+                                            'MarkupText(\'<span font_family="cos">angle</span>\')'),
+                         list(enumerate(calls, 2)))
+
+    def test_a_local_function_setting_a_parameter_in_text_carries_the_name_from_its_calls(self):
+        # T2's readout rows went through ro_line(words, tracker, decimals, unit=None), which sets words in Text
+        # among its parts (lesson.py:1125, :1491), and panel_row, its twin (:1594). A call's other arguments are
+        # not read, as unit, which ro_line passes to MathTex. A method is left out, as a call reaches it through
+        # self with one argument fewer than its parameters, so one of the same name leaves lbl's s as it is.
+        self.assertEqual(self.text_findings(
+            'MathTex(r"\\cos(x)")',
+            'class Rows:\n    def lbl(self, s):\n        return Text(s)\n\n    def build(self):\n'
+            '        return self.lbl("cos")',
+            'def lbl(s):\n    return Text(s)',
+            'one = lbl("cos")',
+            'def ro_line(words, tracker, decimals, unit=None):\n'
+            '    parts_ = [Text(words, font_size=16), MathTex(unit or "=", font_size=20)]\n'
+            '    return VGroup(*parts_)',
+            'two = ro_line("cos", cos_t, 2)',
+            'three = ro_line(tracker=cos_t, decimals=2, words="cos")',
+            'four = ro_line("angle", deg_t, 0, unit=r"\\cos")',
+            'def marked(s):\n    return MarkupText(s)',
+            'five = marked("the <b>cos</b> row")',
+            'def ask(target, s):\n    return question_caption(target, s)',
+            'six = ask(box, "why cos?")'),
+            [(10, 'lbl("cos")'), (14, 'ro_line("cos", cos_t, 2)'), (15, 'ro_line(words="cos")'),
+             (19, 'marked("the <b>cos</b> row")'), (22, 'ask(box, "why cos?")')])
+
+    def test_a_wrapper_carries_the_name_only_where_its_parameter_reaches_text_unchanged(self):
+        # A rebound parameter, one a nested function's own parameter hides, a name defined again without Text
+        # and a position after a starred argument, which the tree cannot count, carry no name.
+        self.assertEqual(self.text_findings(
+            'MathTex(r"\\cos x")',
+            'def renamed(s):\n    s = "angle"\n    return Text(s)',
+            'def outer(s):\n    def inner(s):\n        return Text(s)\n    return inner("angle")',
+            'def twice(s):\n    return Text(s)',
+            'def twice(s):\n    return MathTex(s)',
+            'def pair(a, s):\n    return Text(s)',
+            'renamed("cos")', 'outer("cos")', 'twice("cos")', 'pair(*names, "cos")'), [])
+
+    def test_a_wrappers_strings_are_read_for_function_names_only(self):
+        # The number and letter readings keep to the classes' and question_caption's own calls.
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'MathTex(r"n + \\cos x")', 'def lbl(s):\n    return Text(s)', 'lbl("step 2")', 'lbl("size n")',
+            'lbl("≈ cos")')), {})
+        self.assertEqual([(f["line"], f["name"]) for f in findings], [(6, 'lbl("≈ cos")')])
+        self.assertTrue(findings[0]["fix"].startswith("the name cos is the function \\cos"), findings[0]["fix"])
+
+    def test_a_call_with_a_number_or_a_symbol_letter_keeps_that_one_finding(self):
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'MathTex(r"\\cos x")', 'a = Text("cos x")', 'b = Text("cos 2")', 'c = question_caption(box, "cos x?")')), {})
+        self.assertEqual([(f["line"], f["name"]) for f in findings],
+                         [(2, 'Text("cos x")'), (3, 'Text("cos 2")'), (4, 'question_caption(box, "cos x?")')])
+        self.assertTrue(findings[0]["fix"].startswith("the letter x is the symbol x"), findings[0]["fix"])
+        self.assertEqual(findings[1]["fix"], check_scenes.TEXT_FIX)
+        self.assertTrue(findings[2]["fix"].startswith("the letter x is the symbol x"), findings[2]["fix"])
+
+    def test_the_function_name_finding_names_the_function_the_mathtex_fix_and_the_reword(self):
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'MathTex(r"\\cos\\theta + \\sin\\theta = \\operatorname{softmax}")', 'row = Text("cos")',
+            'rows = Text("sin or cos, then sin")', 'q = question_caption(box, "why softmax?")',
+            'def ro_line(words, tracker):\n    return VGroup(Text(words), DecimalNumber(tracker))',
+            'r = ro_line("cos", cos_t)')), {})
+        tail = ("in one VGroup(...).arrange(RIGHT, buff=0.15), "
+                "or, when the name is an English word, as in max speed, reword it")
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings], [
+            (2, 'Text("cos")', "the name cos is the function \\cos set as math elsewhere in the file, "
+             f"so set it in MathTex beside the words' Text, {tail}"),
+            (3, 'Text("sin or cos, then sin")', "the names sin and cos are the functions \\sin and \\cos set as math "
+             "elsewhere in the file, so set them in MathTex beside the words' Text, in one "
+             "VGroup(...).arrange(RIGHT, buff=0.15), or, when a name is an English word, as in max speed, reword it"),
+            (4, 'question_caption(box, "why softmax?")', "the name softmax is the function \\operatorname{softmax} "
+             "set as math elsewhere in the file, and question_caption sets the question in Text, so set it in a "
+             f"MathTex beside the caption, {tail}"),
+            (7, 'ro_line("cos", cos_t)', "the name cos is the function \\cos set as math elsewhere in the file, "
+             f"and ro_line sets its words argument in Text, so set it in MathTex beside the words' Text, {tail}")])
+
     def test_cli_number_in_text_fails_the_gate_with_the_mathtex_fix(self):
         (self.run_dir / "lesson.py").write_text(CLEAN_TWO_CLASS_SOURCE + 'count = Text("1,000,000", font_size=40)\n')
         cp = run_script("check_scenes", "lesson.py", "lesson.json", cwd=self.run_dir, env=self.env)

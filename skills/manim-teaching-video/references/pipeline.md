@@ -202,11 +202,14 @@ Dispatch one scene coder per scene, at most four at a time, bumping `attempts.di
 for each. Each coder receives its own scene of `lesson.json`, the lesson's `seed` and
 `colors`, the previous scene's `closing_state` when its `opening_state` is `continue`, and
 the signatures and docstrings of the helpers its beats name, printed by the helper-docs
-helper. Each returns one class. Once every class is back, a second round sends one coder per
-`continue` scene its class and the previous scene's returned class, to make its opening copy
-that class's end state; each round goes out four Agent calls per message, every one with
-`run_in_background: false`. The parent writes `<run>/lesson.py` as this header followed
-by the classes in scene order, two blank lines between them:
+helper. Each returns one class. Once every class is back, a second round runs down each
+chain of `continue` scenes: a `continue` scene's coder goes out once the previous scene's
+last class is back (its round-2 class when that scene continues, else its round-1 class),
+with its class and that one, to open on that class's end state and adapt every beat to it,
+each recurring object staying where that state has it until a beat's `visual` moves it. Each
+round goes out at most four Agent calls per message, every one with
+`run_in_background: false`. The parent writes `<run>/lesson.py` as this header followed by
+the classes in scene order, two blank lines between them:
 
 ```python
 import random

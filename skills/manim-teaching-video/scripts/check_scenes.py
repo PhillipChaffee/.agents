@@ -327,7 +327,7 @@ def _set_strings(node: ast.Call, callee: str) -> list[ast.expr]:
 
 
 # A parameter of the file's own function that reaches Text: its position (None when keyword-only), its name,
-# and the class or question_caption it reaches.
+# and a class or question_caption it reaches, one entry for each.
 Wrapped = tuple[int | None, str, str]
 # A string a call sets in Text: the parameter it passes through (None in the class's or question_caption's own
 # call), its argument, and the class or question_caption that sets it.
@@ -338,12 +338,16 @@ def _wrappers(tree: ast.Module) -> dict[str, frozenset[Wrapped]]:
     """The file's own functions that set a parameter in Text, each with the parameters it sets there.
 
     A parameter counts only when the caller's string reaches the call unchanged: one assigned in the
-    body, or bound again by a nested function's own parameter, may hold another. A name defined more
-    than once keeps the parameters every definition sets, and a method is left out, since a call
-    reaches it through self or cls with one argument fewer than it has parameters.
+    body, or bound again by a nested function's own parameter, may hold another. One the function also
+    passes unchanged to MathTex, SingleStringMathTex or Tex, as in MathTex(s) if math else Text(s), is
+    left out, since the tree cannot tell which of them a call reaches. A name defined more than once
+    keeps the parameters every definition sets in Text, whichever class or question_caption sets each,
+    and a method is left out, since a call reaches it through self or cls with one argument fewer than
+    it has parameters.
     """
     methods = {id(node) for cls in ast.walk(tree) if isinstance(cls, ast.ClassDef) for node in cls.body}
-    wrappers: dict[str, frozenset[Wrapped]] = {}
+    math_classes = MATH_CLASSES | {TEX_CLASS}
+    definitions: dict[str, list[set[Wrapped]]] = {}
     for function in ast.walk(tree):
         if not isinstance(function, ast.FunctionDef) or id(function) in methods:
             continue
@@ -352,6 +356,8 @@ def _wrappers(tree: ast.Module) -> dict[str, frozenset[Wrapped]]:
         inside = list(ast.walk(function))
         bound = [node.arg for node in inside if isinstance(node, ast.arg)]
         stored = {node.id for node in inside if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)}
+        as_math = {arg.id for node in inside if _callee(node) in math_classes
+                   for arg in node.args if isinstance(arg, ast.Name)}
         sets = set()
         for node in inside:
             callee = _callee(node)
@@ -359,12 +365,17 @@ def _wrappers(tree: ast.Module) -> dict[str, frozenset[Wrapped]]:
                 continue
             for arg in _set_strings(node, callee):
                 if (isinstance(arg, ast.Name) and arg.id in parameters and bound.count(arg.id) == 1
-                        and arg.id not in stored):
+                        and arg.id not in stored and arg.id not in as_math):
                     position = positional.index(arg.id) if arg.id in positional else None
                     sets.add((position, arg.id, callee))
-        wrappers[function.name] = wrappers.get(function.name, frozenset(sets)) & sets
-    return {name: sets for name, sets in wrappers.items()
-            if sets and name not in TEXT_CLASSES and name != CAPTION_HELPER}
+        definitions.setdefault(function.name, []).append(sets)
+    wrappers: dict[str, frozenset[Wrapped]] = {}
+    for name, each in definitions.items():
+        every = set.intersection(*({wrapped[:2] for wrapped in sets} for sets in each))
+        kept = frozenset(wrapped for sets in each for wrapped in sets if wrapped[:2] in every)
+        if kept and name not in TEXT_CLASSES and name != CAPTION_HELPER:
+            wrappers[name] = kept
+    return wrappers
 
 
 def _wrapper_strings(node: ast.Call, wrapped: frozenset[Wrapped]) -> list[SetString]:
@@ -418,9 +429,10 @@ def _setter(wrapper: str | None, hits: list[Hit]) -> tuple[bool, str | None]:
     if wrapper is None:
         return caption, CAPTION_SETS if caption else None
     params = [*dict.fromkeys(param for param, _ in hits)]
-    arguments = f"its {_listed(params)} argument{'' if len(params) == 1 else 's'}"
+    plural = "" if len(params) == 1 else "s"
+    arguments = f"its {_listed(params)} argument{plural}"
     if caption:
-        return True, f"{wrapper} passes {arguments} to question_caption, which sets the question in Text"
+        return True, f"{wrapper} passes {arguments} to question_caption, which sets the question{plural} in Text"
     return False, f"{wrapper} sets {arguments} in Text"
 
 

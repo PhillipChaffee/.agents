@@ -2406,6 +2406,27 @@ class TestCheckScenes(ExampleLessonCase):
             'def pair(a, s):\n    return Text(s)',
             'renamed("cos")', 'outer("cos")', 'twice("cos")', 'again("cos")', 'pair(*names, "cos")'), [])
 
+    def test_a_name_defined_again_with_another_text_class_or_question_caption_stays_a_wrapper(self):
+        # The review of 4cf8f00: a parameter set by Text in one definition and by Paragraph or question_caption in
+        # the other reaches Text either way, as it did at 4f2e7db. The fix says question_caption only when every
+        # definition passes the argument to it.
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'MathTex(r"\\cos x")',
+            'def lbl(s):\n    return Text(s)', 'def lbl(s):\n    return Paragraph(s)',
+            'def ask(s):\n    return Text(s)', 'def ask(s):\n    return question_caption(box, s)',
+            'def quiz(s):\n    return question_caption(box, s)', 'def quiz(s):\n    return question_caption(title, s)',
+            'lbl("cos")', 'ask("cos")', 'ask("7")', 'quiz("why 7?")')), {})
+        name_fix = ("the name cos is the function \\cos set as math elsewhere in the file, and {} sets its s argument "
+                    "in Text, so set it in MathTex beside the words' Text, in one "
+                    "VGroup(...).arrange(RIGHT, buff=0.15), or, when the name is an English word, as in max speed, "
+                    "reword it")
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings], [
+            (14, 'lbl("cos")', name_fix.format("lbl")),
+            (15, 'ask("cos")', name_fix.format("ask")),
+            (16, 'ask("7")', f"ask sets its s argument in Text, so {check_scenes.TEXT_FIX}"),
+            (17, 'quiz("why 7?")', "quiz passes its s argument to question_caption, which sets the question in Text, "
+             f"so {check_scenes.CAPTION_REMEDY}")])
+
     def test_a_wrapper_carries_every_text_reading_to_its_calls(self):
         # GREEN iteration 4: T2's inner run set digits in Text through its lbl(s) helper, which the lint could not
         # see; numbers, signs and formulas go in MathTex whether or not a string passes through a helper. A call
@@ -2438,6 +2459,21 @@ class TestCheckScenes(ExampleLessonCase):
             'pair(box, "7")'),
             [(26, 'pair(box, "7")')])
 
+    def test_a_parameter_the_wrapper_also_passes_to_math_carries_nothing(self):
+        # The review of 4cf8f00: lbl(s, math=False) returns MathTex(s) if math else Text(s), so lbl("x^2", math=True)
+        # sets math, and the tree cannot tell which branch a call takes. A parameter the same function also passes
+        # unchanged to MathTex, SingleStringMathTex or Tex is left out, while one it passes only to Text is not.
+        self.assertEqual(self.text_findings(
+            'MathTex(r"n + \\cos x")',
+            'def lbl(s, math=False):\n    return MathTex(s) if math else Text(s)',
+            'def pick(s, kind="text"):\n    if kind == "math":\n        return MathTex(s)\n    return Text(s)',
+            'def single(s, math):\n    return SingleStringMathTex(s) if math else Text(s)',
+            'def tex(s, math):\n    return Tex(s) if math else Text(s)',
+            'def word(s):\n    return Text(s)',
+            'lbl("x^2", math=True)', 'lbl("2", math=True)', 'lbl(r"\\cos n", math=True)', 'lbl("n", math=True)',
+            'pick("x^2", "math")', 'pick("n", kind="math")', 'single("2", True)', 'tex("$x^2$", True)', 'word("2")'),
+            [(22, 'word("2")')])
+
     def test_a_wrapper_into_markuptext_judges_only_the_text_between_its_tags(self):
         # Pango reads size="150%" in a span tag as a size, so a tag's attribute passed through a wrapper is not
         # judged, while a digit or a name in the text it shows is.
@@ -2450,6 +2486,10 @@ class TestCheckScenes(ExampleLessonCase):
     def test_a_keyword_only_wrapper_parameter_carries_its_string(self):
         self.assertEqual(self.text_findings('def lbl(*, s):\n    return Text(s)', 'lbl(s="7")', 'lbl(s="sorted")'),
                          [(3, 'lbl(s="7")')])
+
+    def test_a_positional_only_wrapper_parameter_carries_its_string(self):
+        self.assertEqual(self.text_findings('def lbl(s, /):\n    return Text(s)', 'lbl("7")', 'lbl("sorted")'),
+                         [(3, 'lbl("7")')])
 
     def test_a_wrapper_finding_names_the_wrapper_and_the_arguments_it_sets_in_text(self):
         # Only the arguments holding what the finding names are named. A wrapper around question_caption gets the
@@ -2484,6 +2524,14 @@ class TestCheckScenes(ExampleLessonCase):
             (18, 'row("cos", "angle")', "the name cos is the function \\cos set as math elsewhere in the file, and row "
              f"sets its a argument in Text, so set it in MathTex beside the words' Text, {twin} name is an English "
              "word, as in max speed, reword it")])
+
+    def test_a_wrapper_passing_two_arguments_to_question_caption_names_the_questions(self):
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'def ask(s, t):\n    return VGroup(question_caption(box, s), question_caption(box, t))',
+            'ask("why 1?", "why 2?")')), {})
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings], [
+            (3, 'ask("why 1?", "why 2?")', "ask passes its s and t arguments to question_caption, which sets the "
+             f"questions in Text, so {check_scenes.CAPTION_REMEDY}")])
 
     def test_a_call_with_a_number_or_a_symbol_letter_keeps_that_one_finding(self):
         findings = check_scenes.lint_source("".join(f"{line}\n" for line in (

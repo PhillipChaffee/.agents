@@ -162,7 +162,9 @@ storyboard critic, always, even when the check passed; save its return as
 `<run>/reviews/storyboard.json` and, once the check has passed, file its scores with the
 storyboard-critic helper so that `report.md` shows the storyboard's total.
 
-Gate: the check exits 0 and the critic's verdict is `pass`. Otherwise bump
+Gate: the check exits 0 and the critic's verdict is `pass`. A pass ends the step: the critic's
+failed beats go with their scenes to step 6's coders and its wording requests into the final
+message. Otherwise bump
 `attempts.storyboard_rounds` and send the storyboard back: the check's findings and the
 critic's failed beats go to the storyboarder; the critic's wording requests go first to the
 scriptwriter. Its return holds only ids, titles, beat ids and narration, so in this round the
@@ -200,13 +202,20 @@ the report lists; it is never a stop. Gate: exit 0, so every beat has `duration_
 
 Dispatch one scene coder per scene, at most four at a time, bumping `attempts.dispatches`
 for each. Each coder receives its own scene of `lesson.json`, the lesson's `seed` and
-`colors`, the previous scene's `closing_state` when its `opening_state` is `continue`, and
-the signatures and docstrings of the helpers its beats name, printed by the helper-docs
-helper. Each returns one class. Once every class is back, a second round runs down each
+`colors`, the previous scene's `closing_state` when its `opening_state` is `continue`, the
+storyboard critic's failed beats for its scene when step 4 passed with some, and the
+signatures and docstrings of the helpers its beats name, printed by the helper-docs helper. Each returns one class. Once every class is back, a second round runs down each
 chain of `continue` scenes: a `continue` scene's coder goes out once the previous scene's
 last class is back (its round-2 class when that scene continues, else its round-1 class),
 with its class and that one, to open on that class's end state and adapt every beat to it,
-each recurring object staying where that state has it until a beat's `visual` moves it. Each
+each recurring object staying where that state has it until a beat's `visual` moves it. The
+parent keeps each class in a file and copies each round-1 file aside; a round-2 coder reads
+both classes from their files, overwrites its own, dry-runs only its class (once unless it
+fixes something) and returns the path, that run's result and, for a camera scene, its closing
+camera frame (the center and width its last `zoom_to` or camera move leaves, read from its
+code), not the class; the parent passes that frame on to the next scene's coder. Before the
+next coder or the check, a file that `cmp` finds equal to its round-1 copy, or a return whose
+dry run failed, is malformed (one re-dispatch, `attempts.redispatches`). Each
 round goes out at most four Agent calls per message, every one with
 `run_in_background: false`. The parent writes `<run>/lesson.py` as this header followed by
 the classes in scene order, two blank lines between them:
@@ -240,6 +249,15 @@ or `Integer` when the value changes) beside the words' `Text` in one `VGroup`.
 So does a single letter, other than a, A or I, standing alone in such a string when the same
 file sets that letter as math (`MathTex("n")`, or between `$` signs in `Tex`), as the n of
 `Text("list size n")`: the symbol goes in `MathTex` too, or the caption is reworded.
+The percent sign is one of those signs (`MathTex` sets it as `\%`); a function name the same
+file sets as a math operator (one of LaTeX's 32, such as `\cos`, `\log` or `\limsup`, read
+as lim sup, or any `\operatorname{name}` other than a, A or I) is rejected when it stands
+alone in such a string, as the cos of `Text("cos")`, and goes in `MathTex` beside the words
+or is reworded; and all of these readings follow a string through a function the file
+defines outside a class body (such as one nested in `construct`) whose parameter reaches
+`Text`, `MarkupText`, `Paragraph` or `question_caption` unchanged, as `lbl("slope 6")` for
+`def lbl(s): return Text(s)`, unless that function also passes the parameter to `MathTex`,
+`SingleStringMathTex` or `Tex`.
 Each finding names a line and its fix (from `manimce.md`, or the `MathTex` form above), and
 each failed dry run names its class; the owning coder gets them in one re-dispatch (`attempts.redispatches`), and a second
 failure of the same scene is a stop. Then mark `scenes`.
@@ -385,7 +403,7 @@ section of `roles.md` into that role's dispatch and works from nothing else in t
 | scriptwriter | `framework.md`; the brief, which is the `lesson.json` header |
 | storyboarder | `framework.md`, `patterns.md`, the script and its indexed words; the picked exemplars when a pack is present |
 | storyboard critic | `rubric.md`, the storyboard |
-| scene coder | its scene of `lesson.json` with the seed, the colors and the previous scene's `closing_state`; the signatures and docstrings of the helpers it names; `manimce.md` |
+| scene coder | its scene of `lesson.json` with the seed, the colors and the previous scene's `closing_state`; the storyboard critic's failed beats for its scene when step 4 passed with some; in round 2, its own class file and the previous scene's, and that scene's closing camera frame when it is a camera scene; the signatures and docstrings of the helpers it names; `manimce.md` |
 | frame critic | `rubric.md`, its whole scene of `lesson.json` with the colors and, when it opens with `continue`, the previous scene's `closing_state`; the `shows_value_of` and `symbol_introduced` of every earlier beat; its scene's sheets and mark frames, its boundary in `continuity.json`, the bounding boxes of its `run.log`; its scene's picked exemplars when a pack is present |
 
 ## Parent helpers

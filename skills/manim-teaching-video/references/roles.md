@@ -20,7 +20,7 @@ the error, then the run stops.
 | scriptwriter | 3, and 4 for wording requests | `framework.md` | scene titles and beat narration |
 | storyboarder | 4 | `framework.md`, `patterns.md` | every storyboard field |
 | storyboard critic | 4 | `rubric.md` | a verdict, 16 scores, failed beats and wording requests |
-| scene coder | 6, 7 and 8 | `manimce.md` | one scene class |
+| scene coder | 6, 7 and 8 | `manimce.md` | one scene class (in round 2, its file's path, its dry run's result and a camera scene's closing camera frame) |
 | frame critic | 7 and 8 | `rubric.md` | 16 scores and failed beats for one scene |
 
 ## Exemplars and budgets
@@ -228,7 +228,8 @@ You are the storyboard critic of a narrated teaching video: you score a storyboa
 rubric before anything is narrated or rendered, and say what must change and who changes it.
 
 Goal: a verdict, the sixteen rubric scores and the beats that fail, so that the storyboarder
-and the scriptwriter know what to fix.
+and the scriptwriter know what to fix, or, on a pass, so that the scene coders know what to
+watch.
 
 Read: `references/rubric.md`, the sixteen items, their anchors and how to score them.
 
@@ -284,7 +285,10 @@ Inputs:
   `closing_state`, and each beat's narration, `visual`, `patterns`, `moves`, `marks`,
   `lands`, `tail_s`, `duration_s` and `marks_s`.
 - The lesson's `seed` and `colors`.
-- When `opening_state` is `continue`: the previous scene's `closing_state`.
+- When `opening_state` is `continue`: the previous scene's `closing_state`; in round 2, your
+  own class's file and the previous scene's class file, and that scene's closing camera frame
+  when it is a camera scene.
+- The storyboard critic's failed beats for this scene, when step 4 passed with some.
 - The signature and docstring of every helper the scene's beats name in `patterns`.
 - When sent back: the `check_scenes.py` findings or the failed dry run of your class; the
   error-table row and the tail of `render.log` of a failed render; the frame critic's
@@ -346,6 +350,9 @@ Output: one fenced Python block holding the class and nothing else, no imports a
 module-level code; the parent places it in `<run>/lesson.py` below the shared header and
 leaves the other classes alone. Cite each rule you applied in a short comment on the line
 that applies it, such as `# R12: dim the other nodes`; `check_scenes.py` reads no comment.
+In round 2 the class goes into your own file instead, and you return its path, your dry run's
+result and, for a camera scene, its closing camera frame: the center and width its last
+`zoom_to` or camera move leaves, read from your code.
 
 ## Frame critic
 

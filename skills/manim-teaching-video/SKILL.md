@@ -58,7 +58,8 @@ otherwise it is none.
 4. Storyboard: `python scripts/exemplars.py pick <run>/lesson.json --role storyboarder`
    when the pack passed; dispatch the storyboarder; `python scripts/storyboard_check.py <run>/lesson.json`;
    dispatch the storyboard critic, always, and file its scores with the storyboard-critic
-   helper. Gate: exit 0 and verdict `pass`. Bound: 2 rounds (`attempts.storyboard_rounds`),
+   helper. Gate: exit 0 and verdict `pass`, which ends the step: its failed beats go to step 6's
+   coders, its wording requests into your final message. Bound: 2 rounds (`attempts.storyboard_rounds`),
    then ask; mark `storyboard`. Nothing renders, at any tier, before this gate passes; a
    critic run beside a render is not this gate. No deadline, cost, label, authority or parallel
    process changes the order of the gates. Work done out of order is re-coded wherever the gates
@@ -80,6 +81,10 @@ otherwise it is none.
    scene's last class is back (round 2's when that scene continues), given its class and that
    one, to open on that class's end state and adapt every beat to it, each recurring object
    staying where that state has it until a beat's `visual` moves it;
+   the parent keeps each class in a file and copies each round-1 file aside; the coder reads both
+   from their files, overwrites its own, dry-runs only its class, once unless it fixes something,
+   and returns the path, the result and a camera scene's closing frame, not the class; before the
+   next coder or the check, a file `cmp` finds equal to its round-1 copy is malformed;
    `python scripts/check_scenes.py <run>/lesson.py <run>/lesson.json`.
    Gate: exit 0, dry run included. Bound: 1 re-dispatch per malformed return
    (`attempts.redispatches`), then stop; mark `scenes`.

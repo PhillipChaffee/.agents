@@ -24,17 +24,19 @@ TAIL_LINES = 20
 # Pango sets these classes' strings (positional or text=), so a number, sign or Greek letter in one prints
 # in a different font from the same one in MathTex beside it; words are all they should hold.
 TEXT_CLASSES = frozenset({"Text", "MarkupText", "Paragraph"})
-# A digit, a math sign or a Greek letter: the ASCII signs = < > + ^ \, the Latin-1 ± ² ³ µ ¹
-# ¼ ½ ¾ × ÷, then whole blocks: Greek and Coptic (letters and symbols such as ϕ ϵ ϑ), the
-# primes, superscripts and subscripts, vulgar fractions, arrows and mathematical operators
-# (the minus sign \u2212 among them). The ASCII hyphen-minus and the other punctuation belong
-# to words, as in non-linear, isn't or (sorted), and so do dashes, curly quotes, the ellipsis,
-# the bullet and the middle dot captions use as a separator, which sit outside these blocks.
+# A digit, a math sign or a Greek letter: the ASCII signs = < > + ^ % \, the Latin-1 ± ² ³ µ ¹
+# ¼ ½ ¾ × ÷, then whole blocks: Greek and Coptic (letters and symbols such as ϕ ϵ ϑ), the per
+# mille and per ten thousand signs ‰ ‱ with the primes, superscripts and subscripts, vulgar
+# fractions, arrows and mathematical operators (the minus sign \u2212 among them). A percent
+# sign that stands for the word, as in guess a %, is still the sign MathTex sets as \%. The
+# ASCII hyphen-minus and the other punctuation belong to words, as in non-linear, isn't or
+# (sorted), and so do dashes, curly quotes, the ellipsis, the bullet and the middle dot
+# captions use as a separator, which sit outside these blocks.
 MATH_IN_TEXT = re.compile(
-    r"[0-9=<>+^\\\u00b1\u00b2\u00b3\u00b5\u00b9\u00bc-\u00be\u00d7\u00f7\u0370-\u03ff"
-    r"\u2032-\u2037\u2070-\u209f\u2150-\u215f\u2190-\u21ff\u2200-\u22ff]"
+    r"[0-9=<>+^%\\\u00b1\u00b2\u00b3\u00b5\u00b9\u00bc-\u00be\u00d7\u00f7\u0370-\u03ff"
+    r"\u2030-\u2037\u2070-\u209f\u2150-\u215f\u2190-\u21ff\u2200-\u22ff]"
 )
-# MarkupText's tags are markup, not text, and their attributes hold digits and = signs.
+# MarkupText's tags are markup, not text, and their attributes hold digits, = and %, as size="150%".
 MARKUP_TAG = re.compile(r"<[^>]*>")
 FORMAT_CALLS = frozenset({"str", "repr", "format"})
 TEXT_ARG_CHARS = 40

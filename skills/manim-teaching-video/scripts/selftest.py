@@ -2092,13 +2092,39 @@ class TestCheckScenes(ExampleLessonCase):
 
     def test_superscripts_fractions_arrows_operators_primes_and_greek_symbols_mark_a_text_call(self):
         # The first and last code point of each range, then the review's probes, which passed before.
-        ranges = [(0x2070, 0x209F), (0x2150, 0x215F), (0x2190, 0x21FF), (0x2200, 0x22FF), (0x2032, 0x2037),
+        ranges = [(0x2070, 0x209F), (0x2150, 0x215F), (0x2190, 0x21FF), (0x2200, 0x22FF), (0x2030, 0x2037),
                   (0x0370, 0x03FF)]
         marks = [chr(point) for pair in ranges for point in pair]
         marks += ["²", "³", "¹", "¼", "¾", "µ", "x²", "O(n²)", "x₁", "x¹", "½",
                   *"∂ ∇ ∈ ⋅ ← ⇒ ≡ ∏ ∀ ∓ ′ ϕ ϵ ϑ".split()]
         findings = self.text_findings(*(f"label = Text({'a' + mark + 'b'!r})" for mark in marks))
         self.assertEqual([line for line, _ in findings], list(range(1, len(marks) + 1)))
+
+    def test_a_percent_sign_in_the_caption_question_is_a_finding_with_the_caption_fix(self):
+        # GREEN iteration 4: T3's lesson.py:44 and :150 asked "guess a %" in question_caption while the
+        # same file sets 100\%, 90\% and 50\% in MathTex, the sign in two typefaces (corpus ruling G30, manim-3b1b-corpus).
+        findings = check_scenes.lint_source(
+            'caption_group = question_caption(column, "how sure of each?\\nguess a %")\n', {})
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings],
+                         [(1, 'question_caption(column, "how sure of each?\\nguess a %")', check_scenes.CAPTION_FIX)])
+
+    def test_percent_per_mille_and_per_ten_thousand_signs_mark_a_text_call_with_the_mathtex_fix(self):
+        # The sign is judged in each string the lint reads: the text keyword, each Paragraph line and
+        # MarkupText's text between its tags.
+        calls = ['Text("guess a %")', 'Text("a‰b")', 'Text("a‱b")', 'Text(text="%")',
+                 'Paragraph("first line", "guess a %")', 'MarkupText("guess a <b>%</b>")']
+        findings = check_scenes.lint_source("".join(f"{call}\n" for call in calls), {})
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings],
+                         [(line, call, check_scenes.TEXT_FIX) for line, call in enumerate(calls, 1)])
+
+    def test_a_number_with_a_percent_sign_keeps_its_one_finding_and_words_and_tag_attributes_pass(self):
+        # Text("100%") was a finding for its digits, and the sign adds no second one. Pango reads
+        # size="150%" in a span tag as a size, which MarkupText's tag stripping leaves unjudged.
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'label = Text("100%")', 'Text("percent")', 'Text("per cent, per mille")',
+            'MarkupText(\'<span size="150%">big</span>\')', 'MarkupText(text=\'<span size="150%">sure</span>\')')), {})
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings],
+                         [(1, 'Text("100%")', check_scenes.TEXT_FIX)])
 
     def test_caption_punctuation_and_accented_letters_pass(self):
         # Words carry these: dashes, curly quotes, the ellipsis, the bullet, the middle dot captions

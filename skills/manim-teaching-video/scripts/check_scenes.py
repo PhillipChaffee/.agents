@@ -50,10 +50,9 @@ TEXT_FIX = (
 )
 # The kit's question_caption(target, text) (mtv/patterns.py) sets its question in Text too.
 CAPTION_HELPER = "question_caption"
-CAPTION_FIX = (
-    "question_caption sets the question in Text, so spell the numbers and signs out in words, "
-    f"or move them into a MathTex beside the caption, {WORD_FIX}"
-)
+CAPTION_SETS = "question_caption sets the question in Text"
+CAPTION_REMEDY = f"spell the numbers and signs out in words, or move them into a MathTex beside the caption, {WORD_FIX}"
+CAPTION_FIX = f"{CAPTION_SETS}, so {CAPTION_REMEDY}"
 # A letter alone cannot be told from a word, but one the file also sets in math is that symbol,
 # shown in two typefaces. MathTex sets all its strings in math, Tex only between $ signs.
 MATH_CLASSES = frozenset({"MathTex", "SingleStringMathTex"})
@@ -67,15 +66,18 @@ TEX_COMMAND = re.compile(r"\\(?:[A-Za-z]+|.)")
 # one word, as in isn't, model's or e.g.
 LONE_LETTER = re.compile(r"(?<![^\W\d_])(?<![^\W\d_]['’.])[A-Za-z](?![^\W\d_])(?!['’.][^\W\d_])")
 WORD_LETTERS = frozenset("aAI")
-# LaTeX sets these function names upright as operators, and \operatorname sets any name so: a name the
-# file sets that way is that function wherever it stands alone in Text, shown in two typefaces.
+# LaTeX's 32 built-in commands set these function names upright as operators, and \operatorname sets any
+# name so: a name the file sets that way is that function wherever it stands alone in Text, shown in two
+# typefaces.
 OPERATOR_NAMES = frozenset(
-    "sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh log ln lg exp max min arg det lim sup inf gcd "
-    "deg dim ker Pr".split()
+    "sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh coth log ln lg exp max min arg det lim sup inf "
+    "limsup liminf gcd deg dim ker hom Pr".split()
 )
+# \limsup and \liminf set two words, lim sup and lim inf, which Text may write with space between them or none.
+OPERATOR_WORDS = {"limsup": "lim sup", "liminf": "lim inf"}
 TEX_OPERATORNAME = re.compile(r"\\operatorname\*?\s*\{\s*([A-Za-z]+)\s*\}")
 # A run of letters is one word, so a name stands alone only as a whole run: cos in cosine is not the name.
-LETTER_RUN = re.compile(r"[^\W\d_]+")
+NO_LETTER_BEFORE, NO_LETTER_AFTER, ANY_SPACE = r"(?<![^\W\d_])", r"(?![^\W\d_])", r"\s*"
 
 
 def _finding(filename: str, line: int | None, name: str, fix: str) -> dict:
@@ -250,15 +252,18 @@ def _math_symbols(tree: ast.Module) -> set[str]:
 def _math_operators(tree: ast.Module) -> dict[str, str]:
     """The function names the file sets as operators in math, each with its command, as cos with \\cos.
 
-    A command is read whole, so \\cosh sets cosh and no cos, and \\text{max} sets no max.
+    A command is read whole, so \\cosh sets cosh and no cos, \\limsup sets lim sup and no lim, and
+    \\text{max} sets no max. A one-letter \\operatorname is a letter, and a, A and I are words, as in
+    I think, so they set no name.
     """
     operators = {}
     for math in _math_texts(tree):
         for name in TEX_OPERATORNAME.findall(math):
-            operators.setdefault(name, f"\\operatorname{{{name}}}")
+            if name not in WORD_LETTERS:
+                operators.setdefault(name, f"\\operatorname{{{name}}}")
         for command in TEX_COMMAND.findall(math):
             if command[1:] in OPERATOR_NAMES:
-                operators.setdefault(command[1:], command)
+                operators.setdefault(OPERATOR_WORDS.get(command[1:], command[1:]), command)
     return operators
 
 
@@ -266,39 +271,49 @@ def _listed(items: list[str]) -> str:
     return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
 
 
-def _twin_fix(subject: str, one: bool, caption: bool, reword: str, wrapper: str = "") -> str:
+def _twin_fix(subject: str, one: bool, reword: str, caption: bool, setter: str | None) -> str:
     """The fix for what ``subject`` names, set in Text and as math elsewhere in the file.
 
-    ``wrapper`` names the file's own function that sets it in Text, and ``reword`` when it is a word.
+    ``setter`` says what sets it in Text when that is question_caption or the file's own function,
+    and ``reword`` when it is a word.
     """
     it = "it" if one else "them"
-    where = (f"and question_caption sets the question in Text, so set {it} in a MathTex beside the caption"
-             if caption else f"{wrapper}so set {it} in MathTex beside the words' Text")
+    beside = "a MathTex beside the caption" if caption else "MathTex beside the words' Text"
+    where = (f"and {setter}, " if setter else "") + f"so set {it} in {beside}"
     return (f"{subject} set as math elsewhere in the file, {where}, "
             f"in one VGroup(...).arrange(RIGHT, buff=0.15), or, when {reword}, reword it")
 
 
-def _symbol_fix(letters: list[str], caption: bool) -> str:
+def _symbol_fix(letters: list[str], caption: bool, setter: str | None) -> str:
     one, named = len(letters) == 1, _listed(letters)
     symbol = f"the letter {named} is the symbol {named}" if one else f"the letters {named} are the symbols {named}"
     # The file may set the letter in MathTex or between a Tex string's $ signs. A letter can also be
     # a word or a label, as the B of plan B, which MathTex is not for.
     letter = "the letter" if one else "a letter"
-    return _twin_fix(symbol, one, caption, f"{letter} is a word or a label (plan B, part b)")
+    return _twin_fix(symbol, one, f"{letter} is a word or a label (plan B, part b)", caption, setter)
 
 
-def _operator_fix(names: list[str], operators: dict[str, str], caption: bool, wrapper: str = "") -> str:
+def _operator_fix(names: list[str], operators: dict[str, str], caption: bool, setter: str | None) -> str:
     one, commands = len(names) == 1, _listed([operators[name] for name in names])
     function = (f"the name {names[0]} is the function {commands}" if one
                 else f"the names {_listed(names)} are the functions {commands}")
     # A function name used as a row label is still the function; max in max speed is a word.
     name = "the name" if one else "a name"
-    return _twin_fix(function, one, caption, f"{name} is an English word, as in max speed", wrapper)
+    return _twin_fix(function, one, f"{name} is an English word, as in max speed", caption, setter)
 
 
-def _names(texts: list[str], operators: dict[str, str]) -> list[str]:
-    """The function names in ``operators`` standing alone in ``texts``, each once, in the order they come."""
-    return [*dict.fromkeys(word for text in texts for word in LETTER_RUN.findall(text) if word in operators)]
+def _names(text: str, operators: dict[str, str]) -> list[str]:
+    """The function names in ``operators`` standing alone in ``text``, in the order they come.
+
+    A longer name is tried first, so lim sup is one name, not lim and then sup.
+    """
+    if not operators:
+        return []
+    names = sorted(operators, key=len, reverse=True)
+    # Each name is its own group, so the group a match fills says which name it is.
+    alternatives = "|".join(f"({ANY_SPACE.join(map(re.escape, name.split()))})" for name in names)
+    found = re.finditer(f"{NO_LETTER_BEFORE}(?:{alternatives}){NO_LETTER_AFTER}", text)
+    return [names[match.lastindex - 1] for match in found]
 
 
 def _set_strings(node: ast.Call, callee: str) -> list[ast.expr]:
@@ -311,17 +326,21 @@ def _set_strings(node: ast.Call, callee: str) -> list[ast.expr]:
     return [*positional, *(keyword.value for keyword in node.keywords if keyword.arg == "text")]
 
 
-Wrapped = tuple[int | None, str, bool]
+# A parameter of the file's own function that reaches Text: its position (None when keyword-only), its name,
+# and the class or question_caption it reaches.
+Wrapped = tuple[int | None, str, str]
+# A string a call sets in Text: the parameter it passes through (None in the class's or question_caption's own
+# call), its argument, and the class or question_caption that sets it.
+SetString = tuple[str | None, ast.expr, str]
 
 
 def _wrappers(tree: ast.Module) -> dict[str, frozenset[Wrapped]]:
     """The file's own functions that set a parameter in Text, each with the parameters it sets there.
 
-    A parameter is its position (None when keyword-only), its name and whether MarkupText sets it.
-    It counts only when the caller's string reaches the call unchanged: one assigned in the body, or
-    bound again by a nested function's own parameter, may hold another. A name defined more than
-    once keeps the parameters every definition sets, and a method is left out, since a call reaches
-    it through self or cls with one argument fewer than it has parameters.
+    A parameter counts only when the caller's string reaches the call unchanged: one assigned in the
+    body, or bound again by a nested function's own parameter, may hold another. A name defined more
+    than once keeps the parameters every definition sets, and a method is left out, since a call
+    reaches it through self or cls with one argument fewer than it has parameters.
     """
     methods = {id(node) for cls in ast.walk(tree) if isinstance(cls, ast.ClassDef) for node in cls.body}
     wrappers: dict[str, frozenset[Wrapped]] = {}
@@ -342,23 +361,23 @@ def _wrappers(tree: ast.Module) -> dict[str, frozenset[Wrapped]]:
                 if (isinstance(arg, ast.Name) and arg.id in parameters and bound.count(arg.id) == 1
                         and arg.id not in stored):
                     position = positional.index(arg.id) if arg.id in positional else None
-                    sets.add((position, arg.id, callee == "MarkupText"))
+                    sets.add((position, arg.id, callee))
         wrappers[function.name] = wrappers.get(function.name, frozenset(sets)) & sets
     return {name: sets for name, sets in wrappers.items()
             if sets and name not in TEXT_CLASSES and name != CAPTION_HELPER}
 
 
-def _wrapper_strings(node: ast.Call, wrapped: frozenset[Wrapped]) -> list[tuple[str, ast.expr, bool]]:
-    """The strings a call to a wrapper passes on to Text, each with its parameter's name and markup."""
+def _wrapper_strings(node: ast.Call, wrapped: frozenset[Wrapped]) -> list[SetString]:
+    """The strings a call to a wrapper passes on to Text."""
     # A starred argument stands for any number of arguments, so no position after it is known.
     starred = next((i for i, arg in enumerate(node.args) if isinstance(arg, ast.Starred)), len(node.args))
     keywords = {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg is not None}
     strings = []
-    for position, name, markup in sorted(wrapped, key=lambda item: (item[0] is None, item[0] or 0, item[1:])):
+    for position, name, sink in sorted(wrapped, key=lambda item: (item[0] is None, item[0] or 0, item[1:])):
         if position is not None and position < starred:
-            strings.append((name, node.args[position], markup))
+            strings.append((name, node.args[position], sink))
         elif name in keywords:
-            strings.append((name, keywords[name], markup))
+            strings.append((name, keywords[name], sink))
     return strings
 
 
@@ -375,52 +394,80 @@ def _written(source: str, node: ast.AST) -> str:
     return text[: TEXT_ARG_CHARS - 3 - len(end)] + "..." + end
 
 
-def _set_text_fix(node: ast.Call, callee: str, symbols: set[str], operators: dict[str, str]) -> str | None:
-    """The fix for a Text, MarkupText, Paragraph or question_caption call, or None when it sets only words.
+# A string a finding names: the parameter it passes through, and the class or helper that sets it.
+Hit = tuple[str | None, str]
 
-    A call setting a number gets that finding alone; one setting none is then read for a letter the
-    file sets in math, and one setting neither for a function name the file sets in math.
+
+def _found(readings: list[tuple[str | None, str, list[str]]]) -> tuple[list[str], list[Hit]]:
+    """What one reading finds in a call's strings, each once in the order it comes, and the strings it is in.
+
+    A reading is a string's parameter, the class or helper that sets it, and what was found in it.
     """
-    markup, caption = callee == "MarkupText", callee == CAPTION_HELPER
-    judged = _set_strings(node, callee)
-    if any(_sets_math(arg, markup) for arg in judged):
-        return CAPTION_FIX if caption else TEXT_FIX
-    texts = [_shown_text(arg, markup)[0] for arg in judged]
-    found = (letter for text in texts for letter in LONE_LETTER.findall(text))
-    if letters := [*dict.fromkeys(letter for letter in found if letter in symbols)]:
-        return _symbol_fix(letters, caption)
-    if names := _names(texts, operators):
-        return _operator_fix(names, operators, caption)
+    return ([*dict.fromkeys(item for _, _, items in readings for item in items)],
+            [(param, sink) for param, sink, items in readings if items])
+
+
+def _setter(wrapper: str | None, hits: list[Hit]) -> tuple[bool, str | None]:
+    """Whether question_caption sets the strings a finding names, and what sets them in Text when the fix says so.
+
+    ``hits`` holds each such string's parameter and the class or helper that sets it. A wrapper is named
+    with the arguments that hold what the finding names, and question_caption's fix is kept for a wrapper
+    whose every such argument reaches question_caption.
+    """
+    caption = all(sink == CAPTION_HELPER for _, sink in hits)
+    if wrapper is None:
+        return caption, CAPTION_SETS if caption else None
+    params = [*dict.fromkeys(param for param, _ in hits)]
+    arguments = f"its {_listed(params)} argument{'' if len(params) == 1 else 's'}"
+    if caption:
+        return True, f"{wrapper} passes {arguments} to question_caption, which sets the question in Text"
+    return False, f"{wrapper} sets {arguments} in Text"
+
+
+def _set_text_fix(strings: list[SetString], wrapper: str | None, symbols: set[str],
+                  operators: dict[str, str]) -> str | None:
+    """The fix for the strings a call sets in Text, or None when they hold only words.
+
+    ``wrapper`` names the file's own function the strings pass through, and is None for a Text,
+    MarkupText, Paragraph or question_caption call. A call setting a number gets that finding alone;
+    one setting none is then read for a letter the file sets in math, and one setting neither for a
+    function name the file sets in math.
+    """
+    if numbers := [(param, sink) for param, arg, sink in strings if _sets_math(arg, sink == "MarkupText")]:
+        caption, setter = _setter(wrapper, numbers)
+        remedy = CAPTION_REMEDY if caption else TEXT_FIX
+        return f"{setter}, so {remedy}" if setter else remedy
+    shown = [(param, sink, _shown_text(arg, sink == "MarkupText")[0]) for param, arg, sink in strings]
+    letters, hits = _found([(param, sink, [letter for letter in LONE_LETTER.findall(text) if letter in symbols])
+                            for param, sink, text in shown])
+    if letters:
+        return _symbol_fix(letters, *_setter(wrapper, hits))
+    names, hits = _found([(param, sink, _names(text, operators)) for param, sink, text in shown])
+    if names:
+        return _operator_fix(names, operators, *_setter(wrapper, hits))
     return None
-
-
-def _wrapper_fix(node: ast.Call, callee: str, wrapped: frozenset[Wrapped], operators: dict[str, str]) -> str | None:
-    """The fix for a call to the file's own function that passes a function name on to Text, or None."""
-    hits = [(param, _names([_shown_text(arg, markup)[0]], operators))
-            for param, arg, markup in _wrapper_strings(node, wrapped)]
-    if not (names := [*dict.fromkeys(name for _, found in hits for name in found)]):
-        return None
-    params = [*dict.fromkeys(param for param, found in hits if found)]
-    arguments = "argument" if len(params) == 1 else "arguments"
-    return _operator_fix(names, operators, False, f"and {callee} sets its {_listed(params)} {arguments} in Text, ")
 
 
 def _text_findings(tree: ast.Module, source: str, filename: str) -> list[dict]:
     # The class or helper may be imported by name or reached through its module, as manim.Text, and
-    # the file's own wrapper is called by its name. A wrapper's strings are read for function names
-    # only; the number and letter readings keep to the classes' and the helper's own calls.
+    # the file's own wrapper is called by its name; its calls are read as the class's own are. A wrapper
+    # is matched by its name across the file, so a call reaches it even where a lambda, an assignment, a
+    # parameter or an import binds that name to something else. Scope-aware lookup was not added: it
+    # would have to follow Python's scopes (nested functions, class bodies, rebinding, imports, a def
+    # inside an if), and in the GREEN lessons a wrapper's name bound again, as green-i3-T3's row,
+    # green-i3-T4's words and green-i4-T2's ro_line, holds a mobject or a string that is never called.
     symbols, operators, wrappers = _math_symbols(tree), _math_operators(tree), _wrappers(tree)
     findings = []
     for node in ast.walk(tree):
         callee = _callee(node)
         if callee in TEXT_CLASSES or callee == CAPTION_HELPER:
-            fix, keywords = _set_text_fix(node, callee, symbols, operators), {"text"}
+            strings, wrapper, keywords = [(None, arg, callee) for arg in _set_strings(node, callee)], None, {"text"}
         elif callee in wrappers and isinstance(node.func, ast.Name):
             wrapped = wrappers[callee]
-            fix, keywords = _wrapper_fix(node, callee, wrapped, operators), {param for _, param, _ in wrapped}
+            strings, wrapper, keywords = _wrapper_strings(node, wrapped), callee, {param for _, param, _ in wrapped}
         else:
             continue
-        if fix is None:
+        if (fix := _set_text_fix(strings, wrapper, symbols, operators)) is None:
             continue
         shown = [*node.args, *(keyword for keyword in node.keywords if keyword.arg in keywords)]
         name = f"{_written(source, node.func)}({', '.join(_written(source, part) for part in shown)})"

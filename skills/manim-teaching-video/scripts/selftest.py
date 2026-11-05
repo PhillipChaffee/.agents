@@ -2302,8 +2302,8 @@ class TestCheckScenes(ExampleLessonCase):
     def test_each_standard_operator_and_any_operatorname_mark_their_name_in_text(self):
         # LaTeX sets these names upright as operators, and \operatorname, starred or not, sets any name so,
         # in MathTex, in SingleStringMathTex or between a Tex string's $ signs.
-        names = ("sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh log ln lg exp max min arg det lim "
-                 "sup inf gcd deg dim ker Pr").split()
+        names = ("sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh coth log ln lg exp max min arg det lim "
+                 "sup inf gcd deg dim ker hom Pr").split()
         calls = [*(f'Text("the {name} row")' for name in names), 'Text("softmax")', 'Paragraph("then", "argmax")',
                  'Text(text="relu")']
         self.assertEqual(self.text_findings(
@@ -2314,12 +2314,39 @@ class TestCheckScenes(ExampleLessonCase):
     def test_a_name_inside_a_word_or_in_another_case_never_marks_a_text_call(self):
         self.assertEqual(self.text_findings(
             'MathTex(r"\\cos x + \\log y + \\max z")', 'Text("cosine")', 'Text("logarithm and login")',
-            'Text("maximum")', 'Text("cosmos")', 'Text("Cos")', 'Text("MAX")'), [])
+            'Text("maximum")', 'Text("cosmos")', 'Text("minimax")', 'Text("Cos")', 'Text("MAX")'), [])
 
     def test_a_longer_command_sets_no_shorter_name(self):
         # \cosh, \arcsin and \limsup are their own commands, so they set no cos, sin, lim or sup.
         self.assertEqual(self.text_findings('MathTex(r"\\cosh t + \\arcsin u + \\limsup v")', 'Text("cos")',
-                                            'Text("sin")', 'Text("lim sup")'), [])
+                                            'Text("sin")', 'Text("lim")', 'Text("sup")'), [])
+
+    def test_limsup_and_liminf_mark_the_two_words_they_set_in_text(self):
+        # LaTeX sets \limsup as lim sup and \liminf as lim inf: those words with space between them, or run
+        # together as the command spells them, are the function, while lim or inf alone, words with a comma
+        # between them and letters inside longer words are not.
+        calls = ['Text("the lim sup row")', 'Text("lim  inf")', 'Text("limsup")',
+                 'question_caption(box, "why lim inf?")']
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'MathTex(r"\\limsup_k u_k \\ge \\liminf_k u_k")', *calls, 'Text("lim")', 'Text("inf")', 'Text("lim, sup")',
+            'Text("sublim sup")', 'Text("lim supper")')), {})
+        self.assertEqual([(f["line"], f["name"]) for f in findings], list(enumerate(calls, 2)))
+        self.assertTrue(findings[0]["fix"].startswith("the name lim sup is the function \\limsup set as math"),
+                        findings[0]["fix"])
+        self.assertTrue(findings[1]["fix"].startswith("the name lim inf is the function \\liminf set as math"),
+                        findings[1]["fix"])
+        # A file setting \lim and \sup too still reads lim sup as the one name.
+        findings = check_scenes.lint_source('MathTex(r"\\lim u + \\sup v + \\limsup w")\nText("lim sup")\n', {})
+        self.assertEqual([f["fix"].partition(" set as math")[0] for f in findings],
+                         ["the name lim sup is the function \\limsup"])
+
+    def test_a_one_letter_operatorname_keeps_a_and_i_as_words(self):
+        # G24: a, A and I are words, so \operatorname{I} or \operatorname{a} makes no finding of Text("I think") or
+        # Text("pick a card"); \operatorname{E}, the expectation, is the function E.
+        self.assertEqual(self.text_findings(
+            'MathTex(r"\\operatorname{I}(x) + \\operatorname{A} + \\operatorname{a} + \\operatorname{E}[x]")',
+            'Text("I think")', 'Text("A to Z")', 'Text("pick a card")', 'Text("the E column")'),
+            [(5, 'Text("the E column")')])
 
     def test_a_name_the_file_never_sets_as_a_math_operator_never_marks_a_text_call(self):
         # Letters in math (MathTex("max") sets italic m, a, x), a text-mode command's words (\text{max}),
@@ -2365,24 +2392,98 @@ class TestCheckScenes(ExampleLessonCase):
              (19, 'marked("the <b>cos</b> row")'), (22, 'ask(box, "why cos?")')])
 
     def test_a_wrapper_carries_the_name_only_where_its_parameter_reaches_text_unchanged(self):
-        # A rebound parameter, one a nested function's own parameter hides, a name defined again without Text
-        # and a position after a starred argument, which the tree cannot count, carry no name.
+        # A rebound parameter, one a nested function's own parameter hides, a name defined again without Text,
+        # whichever definition comes last, and a position after a starred argument, which the tree cannot count,
+        # carry no name.
         self.assertEqual(self.text_findings(
             'MathTex(r"\\cos x")',
             'def renamed(s):\n    s = "angle"\n    return Text(s)',
             'def outer(s):\n    def inner(s):\n        return Text(s)\n    return inner("angle")',
             'def twice(s):\n    return Text(s)',
             'def twice(s):\n    return MathTex(s)',
+            'def again(s):\n    return MathTex(s)',
+            'def again(s):\n    return Text(s)',
             'def pair(a, s):\n    return Text(s)',
-            'renamed("cos")', 'outer("cos")', 'twice("cos")', 'pair(*names, "cos")'), [])
+            'renamed("cos")', 'outer("cos")', 'twice("cos")', 'again("cos")', 'pair(*names, "cos")'), [])
 
-    def test_a_wrappers_strings_are_read_for_function_names_only(self):
-        # The number and letter readings keep to the classes' and question_caption's own calls.
+    def test_a_wrapper_carries_every_text_reading_to_its_calls(self):
+        # GREEN iteration 4: T2's inner run set digits in Text through its lbl(s) helper, which the lint could not
+        # see; numbers, signs and formulas go in MathTex whether or not a string passes through a helper. A call
+        # keeps one finding: a number, a sign or a formatted value first, then a letter the file sets in math,
+        # then a function name.
+        calls = ['lbl("step 2")', 'lbl("≈ cos")', 'lbl(f"{n} names")', 'lbl("guess a %")', 'lbl("size n")',
+                 'lbl("cos")']
         findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
-            'MathTex(r"n + \\cos x")', 'def lbl(s):\n    return Text(s)', 'lbl("step 2")', 'lbl("size n")',
-            'lbl("≈ cos")')), {})
-        self.assertEqual([(f["line"], f["name"]) for f in findings], [(6, 'lbl("≈ cos")')])
-        self.assertTrue(findings[0]["fix"].startswith("the name cos is the function \\cos"), findings[0]["fix"])
+            'MathTex(r"n + \\cos x")', 'def lbl(s):\n    return Text(s)', *calls, 'lbl("sorted names")',
+            'lbl("I guess")', 'lbl(name)')), {})
+        self.assertEqual([(f["line"], f["name"]) for f in findings], list(enumerate(calls, 4)))
+        number_fix = f"lbl sets its s argument in Text, so {check_scenes.TEXT_FIX}"
+        self.assertEqual([f["fix"] for f in findings[:4]], [number_fix] * 4)
+        self.assertTrue(findings[4]["fix"].startswith("the letter n is the symbol n"), findings[4]["fix"])
+        self.assertTrue(findings[5]["fix"].startswith("the name cos is the function \\cos"), findings[5]["fix"])
+
+    def test_a_wrapper_carries_a_number_only_where_its_parameter_reaches_text_unchanged(self):
+        # The function name's rules hold for a number: a rebound parameter, one a nested function's own parameter
+        # hides, a name defined again without Text, a position after a starred argument, a method's parameter
+        # and a call through an attribute, which may reach another function of that name, carry nothing.
+        self.assertEqual(self.text_findings(
+            'def renamed(s):\n    s = "angle"\n    return Text(s)',
+            'def outer(s):\n    def inner(s):\n        return Text(s)\n    return inner("angle")',
+            'def again(s):\n    return MathTex(s)',
+            'def again(s):\n    return Text(s)',
+            'def pair(a, s):\n    return Text(s)',
+            'class Rows:\n    def lbl(self, s):\n        return Text(s)\n\n    def build(self):\n'
+            '        return self.lbl("7")',
+            'renamed("7")', 'outer("7")', 'again("7")', 'pair(*names, "7")', 'helpers.pair(box, "7")', 'lbl("7")',
+            'pair(box, "7")'),
+            [(26, 'pair(box, "7")')])
+
+    def test_a_wrapper_into_markuptext_judges_only_the_text_between_its_tags(self):
+        # Pango reads size="150%" in a span tag as a size, so a tag's attribute passed through a wrapper is not
+        # judged, while a digit or a name in the text it shows is.
+        self.assertEqual(self.text_findings(
+            'MathTex(r"\\cos x")', 'def marked(s):\n    return MarkupText(s)',
+            'marked(\'<span size="150%">big</span>\')', 'marked(\'<span font_family="cos">angle</span>\')',
+            'marked("<b>7</b> steps")', 'marked("the <b>cos</b> row")'),
+            [(6, 'marked("<b>7</b> steps")'), (7, 'marked("the <b>cos</b> row")')])
+
+    def test_a_keyword_only_wrapper_parameter_carries_its_string(self):
+        self.assertEqual(self.text_findings('def lbl(*, s):\n    return Text(s)', 'lbl(s="7")', 'lbl(s="sorted")'),
+                         [(3, 'lbl(s="7")')])
+
+    def test_a_wrapper_finding_names_the_wrapper_and_the_arguments_it_sets_in_text(self):
+        # Only the arguments holding what the finding names are named. A wrapper around question_caption gets the
+        # caption's fix, and one whose finding reaches Text and question_caption both gets the Text one.
+        findings = check_scenes.lint_source("".join(f"{line}\n" for line in (
+            'MathTex(r"n + \\cos x")', 'def lbl(s):\n    return Text(s)',
+            'def row(a, b):\n    return VGroup(Text(a), Text(b))',
+            'def ask(target, s):\n    return question_caption(target, s)',
+            'def both(a, s):\n    return VGroup(Text(a), question_caption(box, s))',
+            'lbl("size n")', 'row("step", "2")', 'row("x 1", "y 2")', 'ask(box, "why 2?")', 'ask(box, "why n?")',
+            'ask(box, "why cos?")', 'both("1", "2")', 'row("size", "n")', 'row("cos", "angle")')), {})
+        twin = "in one VGroup(...).arrange(RIGHT, buff=0.15), or, when the"
+        caption = "ask passes its s argument to question_caption, which sets the question in Text, so"
+        self.assertEqual([(f["line"], f["name"], f["fix"]) for f in findings], [
+            (10, 'lbl("size n")', "the letter n is the symbol n set as math elsewhere in the file, and lbl sets its s "
+             f"argument in Text, so set it in MathTex beside the words' Text, {twin} letter is a word or a label "
+             "(plan B, part b), reword it"),
+            (11, 'row("step", "2")', f"row sets its b argument in Text, so {check_scenes.TEXT_FIX}"),
+            (12, 'row("x 1", "y 2")', f"row sets its a and b arguments in Text, so {check_scenes.TEXT_FIX}"),
+            (13, 'ask(box, "why 2?")', f"{caption} spell the numbers and signs out in words, or move them into a "
+             "MathTex beside the caption, or, when the value is a word or a name, reword it or build the string "
+             "without formatting"),
+            (14, 'ask(box, "why n?")', f"the letter n is the symbol n set as math elsewhere in the file, and {caption} "
+             f"set it in a MathTex beside the caption, {twin} letter is a word or a label (plan B, part b), reword it"),
+            (15, 'ask(box, "why cos?")', "the name cos is the function \\cos set as math elsewhere in the file, and "
+             f"{caption} set it in a MathTex beside the caption, {twin} name is an English word, as in max speed, "
+             "reword it"),
+            (16, 'both("1", "2")', f"both sets its a and s arguments in Text, so {check_scenes.TEXT_FIX}"),
+            (17, 'row("size", "n")', "the letter n is the symbol n set as math elsewhere in the file, and row sets "
+             f"its b argument in Text, so set it in MathTex beside the words' Text, {twin} letter is a word or a label "
+             "(plan B, part b), reword it"),
+            (18, 'row("cos", "angle")', "the name cos is the function \\cos set as math elsewhere in the file, and row "
+             f"sets its a argument in Text, so set it in MathTex beside the words' Text, {twin} name is an English "
+             "word, as in max speed, reword it")])
 
     def test_a_call_with_a_number_or_a_symbol_letter_keeps_that_one_finding(self):
         findings = check_scenes.lint_source("".join(f"{line}\n" for line in (

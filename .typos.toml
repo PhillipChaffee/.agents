@@ -19,6 +19,9 @@ retruns = "retruns"
 # GNU grep's PCRE flags in the typescript folder's bidi-hygiene step
 # (grep -rPn); typos reads it as a misspelling of "On"
 Pn = "Pn"
+# LaTeX's \hom operator, one of the function names the manim-teaching-video
+# check_scenes.py lint reads in Text; typos reads it as a misspelling of "home"
+hom = "hom"
 
 # Identifiers quoted verbatim from the 3b1b/videos source in the hand-off
 # evidence maps (docs/superpowers/handoffs/); they report his spellings, they

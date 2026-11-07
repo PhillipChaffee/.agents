@@ -10,9 +10,12 @@ for rigorous coding, design, verification, and review.
 
 ## Contents
 
-- **56 active skills:** the 55 pstack skills below, plus `writing-skills` from
-  [Superpowers](https://github.com/obra/superpowers). Its companion plugin skills
-  and runtime guides remain external dependencies.
+- **62 active skills:** the 55 pstack skills below, the 6 proof-driven
+  development skills (`proof-driven-development`, `proving-with-hoare-logic`,
+  `proving-with-dependent-types`, `model-checking-protocols-and-code`,
+  `analyzing-with-abstract-interpretation`, `auditing-proof-specifications`),
+  plus `writing-skills` from [Superpowers](https://github.com/obra/superpowers).
+  Its companion plugin skills and runtime guides remain external dependencies.
 - **Seven agents:** the five research agents (`researcher-lite`, `researcher-mid`,
   `researcher-deep`, `research-planner`, `research-synthesizer`) plus pstack's
   `poteto-agent` and `comment-sicko`.
@@ -132,6 +135,12 @@ Their presence in a disabled archive does not activate them.
 | [`/create-formal-verification-skill`](skills/create-formal-verification-skill/SKILL.md) | Tests can't reach the case that breaks a race, retry, state machine, parser, or unsafe code. |
 | [`/maintain-formal-verification-skill`](skills/maintain-formal-verification-skill/SKILL.md) | Code your formal verification covers has changed since it was last checked. |
 | [`/statechart`](skills/statechart/SKILL.md) | Someone who owns the behavior needs to see it as a Mermaid statechart generated from a TLA+ model. |
+| [`/proof-driven-development`](skills/proof-driven-development/SKILL.md) | You want to know which mathematical proof technique, verifier tool, or proof skill fits your task. |
+| [`/proving-with-hoare-logic`](skills/proving-with-hoare-logic/SKILL.md) | You are proving code contracts, arithmetic bounds, or loop invariants with SMT solvers (Verus, Dafny, SPARK, Creusot, Frama-C WP). |
+| [`/proving-with-dependent-types`](skills/proving-with-dependent-types/SKILL.md) | You are proving deep theorems, compiler passes, crypto, policy engines, or state impossibility in Lean 4, Rocq, Isabelle/HOL, or F\*. |
+| [`/model-checking-protocols-and-code`](skills/model-checking-protocols-and-code/SKILL.md) | You are checking distributed/concurrent protocols in TLA+, P, or Alloy, or bounded bit-precise safety in Kani or CBMC. |
+| [`/analyzing-with-abstract-interpretation`](skills/analyzing-with-abstract-interpretation/SKILL.md) | You are proving whole-program absence of runtime errors over abstract domains in Frama-C EVA or Astrée. |
+| [`/auditing-proof-specifications`](skills/auditing-proof-specifications/SKILL.md) | You are auditing a formal proof or AI verification PR for spec gaming, escape hatches, and the 4 remaining proof gaps. |
 | [`/unslop`](skills/unslop/SKILL.md) | You're cleaning up writing. Removes AI tells. |
 | [`/bro`](skills/bro/SKILL.md) | You want the last message restated in plain human language. |
 | [`/technical-writing`](skills/technical-writing/SKILL.md) | Layered doc standard for docs, RFCs, readmes, PR descriptions, commit messages. |

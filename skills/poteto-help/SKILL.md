@@ -90,6 +90,12 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Formally verify a race, invariant, or other property that tests rarely reach | [`/create-formal-verification-skill`](../create-formal-verification-skill/SKILL.md) |
 | Bring a formal verification back in line after the code it covers changed, and learn whether a failure is drift or a bug | [`/maintain-formal-verification-skill`](../maintain-formal-verification-skill/SKILL.md) |
 | Show a PM or designer what the user sees as a chart checked by a model, with each bug drawn as a numbered path, turn an agreed chart into a TLA+ skeleton, or audit the code against its TLA+ spec | [`/statechart`](../statechart/SKILL.md) |
+| Decide which mathematical proof technique, verifier tool, or proof-driven development skill fits a system or bug class | [`/proof-driven-development`](../proof-driven-development/SKILL.md) |
+| Prove code contracts, arithmetic bounds, separation framing, or inductive loop invariants with an SMT-backed verifier (Verus, Dafny, SPARK, Creusot, Frama-C WP) | [`/proving-with-hoare-logic`](../proving-with-hoare-logic/SKILL.md) |
+| Prove deep theorems, compiler passes, crypto, authorization lattices, or uninhabited-type impossibility (`S -> False`) in Lean 4, Rocq, Isabelle/HOL, or F\* | [`/proving-with-dependent-types`](../proving-with-dependent-types/SKILL.md) |
+| Model-check concurrent or distributed protocols in TLA+, P, or Alloy, or prove bit-precise panic/overflow absence with Kani or CBMC | [`/model-checking-protocols-and-code`](../model-checking-protocols-and-code/SKILL.md) |
+| Prove whole-program absence of runtime errors over abstract domains in Frama-C EVA or Astrée and triage alarms without suppressions | [`/analyzing-with-abstract-interpretation`](../analyzing-with-abstract-interpretation/SKILL.md) |
+| Audit a formal proof or AI verification PR for specification gaming, escape hatches, and the 4 remaining proof gaps | [`/auditing-proof-specifications`](../auditing-proof-specifications/SKILL.md) |
 | Vet a performance number before reporting or acting on it | [`/benchmark-checklist`](../benchmark-checklist/SKILL.md) |
 | Run a large or cross-cutting change, or one to review after stepping away | [`/figure-it-out`](../figure-it-out/SKILL.md) |
 | Keep a decision log during a run, and review it afterward | [`/show-me-your-work`](../show-me-your-work/SKILL.md) |

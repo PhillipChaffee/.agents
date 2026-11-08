@@ -5,7 +5,10 @@
 `skills/writing-skills/`, `skills/writing-plans/`, and
 `skills/subagent-driven-development/` are copied without content changes from
 [obra/superpowers](https://github.com/obra/superpowers/tree/22f0b463e7a5e579904dd6211a520321035526f7/skills),
-commit `22f0b463e7a5e579904dd6211a520321035526f7`.
+commit `22f0b463e7a5e579904dd6211a520321035526f7`. `hooks/run-hook.cmd`,
+`hooks/session-start`, `.opencode/plugins/dot-agents.js`, and
+`.pi/extensions/dot-agents.ts` are adapted from `obra/superpowers` commit
+`22f0b463e7a5e579904dd6211a520321035526f7`.
 
 ```text
 MIT License

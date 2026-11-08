@@ -2,7 +2,7 @@
 
 [![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **73 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
+**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex, Pi): **74 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **4 operational rules**.
 
 ---
 
@@ -18,7 +18,7 @@ flowchart LR
 
     subgraph Engine["2. Kit Core (~/.agents)"]
         PB["23 Playbooks<br/>(Step-by-Step Loops)"]
-        SK["49 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
+        SK["50 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
         PR["24 Principle Skills<br/>(Core, Arch, Verify, Meta)"]
         AG["7 Specialist Sub-Agents<br/>(Delegates & Research Tiers)"]
     end
@@ -49,13 +49,24 @@ flowchart LR
 
 - **First-time walkthrough:** [The pstack guide (`docs/pstack-guide/README.md`)](docs/pstack-guide/README.md)
 
+### Native Plugin Installation (Superpowers-Style)
+
+| Harness | Installation Command / Configuration |
+| --- | --- |
+| **Claude Code** | `/plugin marketplace add PhillipChaffee/.agents` then `/plugin install dot-agents@dot-agents-dev` |
+| **Cursor** | `/add-plugin` from the repository (or `.cursor-plugin/plugin.json`) |
+| **Codex CLI / App** | `/plugins` via `.agents/plugins/marketplace.json` (or `~/.agents/skills`) |
+| **OpenCode (V1 & V2)** | `"plugins": ["dot-agents@git+https://github.com/PhillipChaffee/.agents.git"]` in `opencode.json` |
+| **Pi** | `pi install git:github.com/PhillipChaffee/.agents` (or `pi -e /path/to/.agents`) |
+| **Raw `.agents` Protocol Home** | `./scripts/install.sh --target agents` |
+
 ---
 
 ## Kit Inventory at a Glance
 
 | Category | Count | Source Path | Installed Target (`~/.agents/`) | Purpose |
 | --- | --- | --- | --- | --- |
-| **pstack Situational Skills** | 34 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Entry mode, architecture, debugging, TDD, TypeScript practices, bot UIs, multi-model review, statecharts, and shipping |
+| **pstack Situational Skills** | 35 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Entry mode, session bootstrap, architecture, debugging, TDD, TypeScript practices, bot UIs, multi-model review, statecharts, and shipping |
 | **PR Review & Merge-Ready Skills** | 3 | `skills/{autopilot,make-pr-easy-to-review,thermo-nuclear-code-quality-review}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Budget-disciplined PR autopilot, history/description review prep, and strict maintainability audit |
 | **Research & Synthesis Skills** | 2 | `skills/{research,research-summary}/SKILL.md` | `skills/{research,research-summary}/{SKILL.md,skill.md}` | Tiered codebase/web/MCP research orchestrator (`docs/research/<topic>.md`) and structured research summaries |
 | **Proof-Driven Development Skills** | 6 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Orchestrator + 5 formal verification flows (Hoare/SMT, Dependent Types, Model Checking, Abstract Interpretation, Spec Auditing) |
@@ -63,7 +74,7 @@ flowchart LR
 | **Superpowers & Authoring Workflows** | 4 | `skills/{writing-skills,writing-rules,writing-plans,subagent-driven-development}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Implementation plan authoring, sub-agent-driven plan execution, and TDD skill and rule authoring ([Superpowers](https://github.com/obra/superpowers)) |
 | **Execution Playbooks** | 23 | `skills/poteto-mode/playbooks/*.md` | `skills/poteto-mode/playbooks/*.md` | Structured workflows loaded automatically by `/poteto-mode` |
 | **Sub-Agents** | 7 | `agents/<name>/agent.md` | `agents/<name>/agent.md` | 5 tiered research agents + `poteto-agent` (code delegate) + `comment-sicko` (comment stripper) |
-| **Rules** | 3 | `rules/*.md` | `rules/*.md` | Always-on rules for doc lookup, new-repo bootstrapping, and polling bounds |
+| **Rules** | 4 | `rules/*.md` | `rules/*.md` | Always-on rules for workflow routing, doc lookup, new-repo bootstrapping, and polling bounds |
 | **Distilled Root Instructions** | 1 | `agents.kit.md` | `agents.md` | Auto-loaded root instruction file for protocol consumers |
 | **Archived Skills (Disabled)** | 37 | `skills-disabled/` | *Not installed* | Preserved Matt Pocock skill archive (source reference only; never activated) |
 
@@ -162,10 +173,11 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>40 Situational, PR, Research, Planning & Authoring Skills</strong> (non-formal-verification)</summary>
+<summary><strong>41 Situational, PR, Research, Planning & Authoring Skills</strong> (non-formal-verification)</summary>
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
+| **Entry & Routing** | [`/using-poteto`](skills/using-poteto/SKILL.md) | Session-start bootstrap that routes tasks to `/poteto-mode`, `/research`, `/proof-driven-development`, or `/poteto-help` before acting |
 | **Entry & Routing** | [`/poteto-mode`](skills/poteto-mode/SKILL.md) | Default entry point for any non-trivial engineering task |
 | **Entry & Routing** | [`/poteto-help`](skills/poteto-help/SKILL.md) | Unsure which skill, playbook, or principle fits your task |
 | **Entry & Routing** | [`/setup-pstack`](skills/setup-pstack/SKILL.md) | Configuring per-role models and reasoning budgets |
@@ -242,7 +254,7 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>7 Sub-Agents & 3 Rules</strong></summary>
+<summary><strong>7 Sub-Agents & 4 Rules</strong></summary>
 
 ### Sub-Agents (`agents/`)
 
@@ -261,6 +273,7 @@ flowchart LR
 | File | Scope | Rule Summary |
 | --- | --- | --- |
 | [`agents.kit.md`](agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution) |
+| [`rules/workflow-routing.md`](rules/workflow-routing.md) | Always applied | Route engineering, research, and formal-proof tasks to `/poteto-mode`, `/research`, or `/proof-driven-development` before acting |
 | [`rules/look-it-up.md`](rules/look-it-up.md) | Always applied | Never answer factual tool/API questions from memory; check official docs and primary sources first |
 | [`rules/new-repo-setup.md`](rules/new-repo-setup.md) | New repo creation | Bootstrap greenfield repos from the strictest-setups reference repo ($\ge 95\%$ coverage + full hygiene gates) |
 | [`rules/sleeps-and-polling.md`](rules/sleeps-and-polling.md) | CI & background waits | Cap single-call sleeps at $\le 30\text{s}$ and return control between polls |

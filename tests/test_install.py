@@ -65,7 +65,7 @@ class InstallTests(unittest.TestCase):
                     "minimal-changes", "opencode-config-profiles", "subagents", "writing-voice",
                 )
             ]
-            retired += ["skills/code-review", "skills/research"]
+            retired += ["skills/code-review"]
             for missing in retired:
                 self.assertFalse((ROOT / missing).exists(), missing)
             for missing in ["skills-disabled", "scripts", *retired]:

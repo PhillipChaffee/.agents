@@ -71,6 +71,8 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Get a prompt rewritten deeper, not bigger, before sending it: what a top professional would add, their raw material and methods, and an outside check. It returns the prompt and doesn't do the task | [`/sharpen`](../sharpen/SKILL.md) |
 | Know how code works now, or where new code should live | [`/how`](../how/SKILL.md) |
 | Know why code is shaped this way, or where a number came from | [`/why`](../why/SKILL.md) |
+| Research, investigate, or compare options across the codebase, web, or MCP tools using tiered delegation (`docs/research/<topic>.md`) | [`/research`](../research/SKILL.md) |
+| Produce a concise, cited research summary with a head-to-head comparison table | [`/research-summary`](../research-summary/SKILL.md) |
 | Understand a change or subsystem, explained plainly | [`/teach`](../teach/SKILL.md) |
 | Catch up on their own recent work on a topic | [`/recall`](../recall/SKILL.md) |
 | Catch up on what changed in this chat since their last message, in plain words and small visuals, with every item waiting on them listed and decidable from the reply alone | [`/ketchup`](../ketchup/SKILL.md) |

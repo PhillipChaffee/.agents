@@ -1,3 +1,10 @@
+---
+alwaysApply: true
+description: >-
+  Bootstrap every new repository from the strictest-setups reference repo with
+  canonical lint, type-check, docstring, formatter, coverage, and hygiene gates.
+---
+
 # New Repository Setup
 
 Every new repository starts from the strictest-setups reference repo at

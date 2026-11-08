@@ -65,11 +65,11 @@ SOFTWARE.
 
 ## pstack
 
-The 55 pstack skills, the `poteto-agent` and `comment-sicko` agents, and
+The 58 pstack skills, the `poteto-agent` and `comment-sicko` agents, and
 `docs/pstack-guide/` are ported from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan,
-imported at `cursor/plugins` commit
-`99b609a72323b70204eab407c622f436e858e112` (pstack 0.15.32).
+synced at `cursor/plugins` commit
+`c742dd61706fbacc1b95f1a20b7b988cf096ce6c` (pstack 0.15.36).
 The port includes harness, model, and forge adapters, plus cleanup and output-path
 safety fixes. Its changes are MIT-licensed with the rest of this kit.
 

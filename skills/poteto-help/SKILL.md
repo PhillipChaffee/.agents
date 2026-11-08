@@ -76,7 +76,7 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Understand a change or subsystem, explained plainly | [`/teach`](../teach/SKILL.md) |
 | Catch up on their own recent work on a topic | [`/recall`](../recall/SKILL.md) |
 | Catch up on what changed in this chat since their last message, in plain words and small visuals, with every item waiting on them listed and decidable from the reply alone | [`/ketchup`](../ketchup/SKILL.md) |
-| Catch up like `/ketchup`, in a short silent video of slides, with the waiting calls as text under it | [`/ketchup-video`](../ketchup-video/SKILL.md) |
+| Catch up like `/ketchup`, in a short subtitled video of slides, with the waiting calls as text under it | [`/ketchup-video`](../ketchup-video/SKILL.md) |
 | Know what a small diff could break outside itself | [`/blast-radius`](../blast-radius/SKILL.md) |
 | Settle types and module shape before code that crosses a function boundary | [`/architect`](../architect/SKILL.md) |
 | Write a bite-sized TDD implementation plan from a spec or requirements before touching code | [`/writing-plans`](../writing-plans/SKILL.md) |
@@ -87,7 +87,9 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Run an ambitious maintainability and code-judo audit (1k-line rule, spaghetti branching, abstraction quality) | [`/thermo-nuclear-code-quality-review`](../thermo-nuclear-code-quality-review/SKILL.md) |
 | Prepare a PR for review by cleaning noisy history, improving the PR description, and adding reviewer guidance | [`/make-pr-easy-to-review`](../make-pr-easy-to-review/SKILL.md) |
 | Drive a PR to merge-ready (conflicts, triaged review/bot comments, in-scope CI) under a strict diff size budget | [`/autopilot`](../autopilot/SKILL.md) |
-| Fix a bug test-first when a cheap local test exists | `/tdd` (installed separately with the main flow) |
+| Fix a bug test-first when a cheap local test exists | [`/tdd`](../tdd/SKILL.md) |
+| Apply TypeScript type-system and boundary best practices when reading or editing `.ts`/`.tsx` files | [`/typescript-best-practices`](../typescript-best-practices/SKILL.md) |
+| Build a custom UI that wakes a bot over a webhook and exposes the page on Tailscale | [`/make-bot-ui`](../make-bot-ui/SKILL.md) |
 | Strip comments before review, using a reviewer that didn't write them | [`/no-comments`](../no-comments/SKILL.md) |
 | Clean AI tells out of prose | [`/unslop`](../unslop/SKILL.md) |
 | Write docs, an RFC, a README, a PR description, or a commit message to a standard | [`/technical-writing`](../technical-writing/SKILL.md) |
@@ -96,7 +98,7 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Bring a verification skill and its feature map back in line with the app | [`/maintain-verification-skill`](../maintain-verification-skill/SKILL.md) |
 | Formally verify a race, invariant, or other property that tests rarely reach | [`/create-formal-verification-skill`](../create-formal-verification-skill/SKILL.md) |
 | Bring a formal verification back in line after the code it covers changed, and learn whether a failure is drift or a bug | [`/maintain-formal-verification-skill`](../maintain-formal-verification-skill/SKILL.md) |
-| Show a PM or designer what the user sees as a chart checked by a model, with each bug drawn as a numbered path, turn an agreed chart into a TLA+ skeleton, or audit the code against its TLA+ spec | [`/statechart`](../statechart/SKILL.md) |
+| Show a PM or designer what the user sees as a chart checked by a TLA+ model, with the shortest path to each state that breaks a rule | [`/statechart`](../statechart/SKILL.md) |
 | Decide which mathematical proof technique, verifier tool, or proof-driven development skill fits a system or bug class | [`/proof-driven-development`](../proof-driven-development/SKILL.md) |
 | Prove code contracts, arithmetic bounds, separation framing, or inductive loop invariants with an SMT-backed verifier (Verus, Dafny, SPARK, Creusot, Frama-C WP) | [`/proving-with-hoare-logic`](../proving-with-hoare-logic/SKILL.md) |
 | Prove deep theorems, compiler passes, crypto, authorization lattices, or uninhabited-type impossibility (`S -> False`) in Lean 4, Rocq, Isabelle/HOL, or F\* | [`/proving-with-dependent-types`](../proving-with-dependent-types/SKILL.md) |
@@ -137,7 +139,7 @@ Playbooks are step lists inside `/poteto-mode`, not skills, so they have no slas
 - "land the stack" runs Shipping.
 - "take over this branch" runs Session pickup.
 - "pause safely" runs Pause safely.
-- "full autopilot on this queue" runs Autopilot-full. "stack them, don't ship" runs Autopilot-stack.
+- "full autopilot on this queue" runs Autopilot-full. "autopilot, don't merge" runs Autopilot-stack.
 - "run the eval playbook" runs Eval.
 
 The Playbooks section of [`poteto-mode`](../poteto-mode/SKILL.md) lists every playbook and when it applies. [Guide page 6](../../docs/pstack-guide/06-verify-and-ship.md) covers opening, babysitting, and landing a PR.

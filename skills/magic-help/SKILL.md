@@ -1,0 +1,178 @@
+---
+description: Guides users through magic setup, /magic-mode, and picking the skill, playbook, or principle for a task. Type /magic-help with a question.
+enabled: true
+id: magic-help
+name: magic-help
+---
+
+# Magic help
+
+Answer the user's question about magic, hand them a prompt they can send, and link the file the answer came from. For a help question, don't start the work. The user asked how, and a magic run spends real tokens, so let them send the prompt.
+
+A message that asks for work, such as "use magic to fix this bug", is not a help question. Read [`magic-mode`](../magic-mode/SKILL.md), do the work under it, and mention once that keeping the skill attached for the whole session keeps it on (the [harness adapter](../magic-mode/references/harness-adapter.md) names how).
+
+This file maps questions to the skills and guide pages that hold the answers. Those files own the details. Read the file you route to before you quote it, and trust it when it disagrees with this map. The links here point into the installed kit, which the user may not be able to open, so give the user the file's public copy: `https://github.com/PhillipChaffee/magic/blob/main/` followed by its path.
+
+## Find out what they need
+
+Infer the need from the message and the conversation. A named situation, such as "which skill reviews a PR?", goes straight to its section. If the need is still unclear, ask one multiple-choice question with these options, then answer only the section they pick:
+
+- Get set up
+- Start a task with `/magic-mode`
+- Pick a skill for a situation
+- Fix a run that went wrong
+- Make magic my own
+
+Check the state that changes the answer, and mention it only when it does:
+
+- No `magic-models` role file (see [`model-roles.md`](../magic-mode/references/model-roles.md)) means `/setup-magic` hasn't run for this user, so every role uses its default model.
+- No `verify-*` skill or other app harness in the project means agents have no scripted way to drive the app. Mention `/create-verification-skill` when the question is about proving a change works.
+- No formal verification skill in the project means no property is checked past what tests reach. Mention `/create-formal-verification-skill` when the question is about a race, an invariant, or another case tests rarely hit. When one exists and the code it covers changed after the commit it records as last in sync, mention `/maintain-formal-verification-skill` if the question touches that code.
+
+When the model rule is missing and it matters, ask whether the user wants to pick a model for each role and a reasoning budget now. It matters when the user is new, the question is about setup or cost, or the answer depends on which models run. Ask at most once per chat. If the need is also unclear, ask both questions together. Offer two choices:
+
+- Now: give them `/setup-magic` to type, and answer their question too.
+- Later: answer their question, and add one line saying every role keeps its default model until they run `/setup-magic`.
+
+## Get set up
+
+1. Clone `https://github.com/PhillipChaffee/magic.git` and run `./scripts/install.sh --target agents`, per its [README](../../README.md).
+2. Run [`/setup-magic`](../setup-magic/SKILL.md). It asks for a reasoning budget, maps a model to each role, and writes a rule. The rule applies to new chats. Then it offers once each to generate a verification skill and a formal verification skill for the project, unless the project already has one.
+3. Start a real task with `/magic-mode`, a goal, and a check that can pass or fail.
+
+Installing changes nothing until the user invokes a skill. Only `/setup-magic` loads from the user's words. The [README](../../README.md) and [guide page 1](../../docs/magic-guide/01-setup.md) have the details. Offer to word their first prompt with them, per [`references/prompting.md`](references/prompting.md).
+
+If cost is the worry, say where the tokens go and how to spend fewer. magic spends extra tokens on subagents and review panels. Rerun `/setup-magic` and pick a smaller budget or cheaper models. A role set to `auto` or `inherit-parent` runs on the chat's model, which saves tokens when the chat runs on a cheaper model. A shorter panel list runs fewer subagents, one for each entry. Save `/magic-mode` for work that needs rigor.
+
+magic ships inside this kit and runs on any harness that loads it. The [harness adapter](../magic-mode/references/harness-adapter.md) maps the neutral names, and a step that needs a feature the harness lacks, such as the review bot or a scheduled automation, is skipped with a one-line note.
+
+Other tools can read the skills, because they use the Agent Skills format. But most workflow skills, including `/magic-mode`, `/how`, `/why`, and `/teach`, spawn subagents with per-role models, and keeping a skill attached for the whole session and `/loop` are harness features, so those parts may not work there.
+
+## Start a task with `/magic-mode`
+
+`/magic-mode` matches the task to a playbook, copies the playbook's steps into the todo list, and runs the other skills as the steps need them. A step it skips stays in the list as `skip: <reason>`. A good prompt states the goal and how to tell it's done. It doesn't list skills, because a hand-written sequence tends to drop or reorder steps the playbook would keep. Read [`references/prompting.md`](references/prompting.md) before you help word one. [Guide page 2](../../docs/magic-guide/02-magic-mode.md) has examples.
+
+Whether `/magic-mode` stays on depends on how the user starts it:
+
+- Enter on `/magic-mode` attaches the skill to one message. It fades as the chat moves on.
+- Keeping the skill attached for the whole session (the harness adapter names how) keeps it on. It stays in context every turn until the user exits the mode, and it stays out of casual turns.
+- Elsewhere, start each new task with `/magic-mode`.
+
+Link the [harness adapter](../magic-mode/references/harness-adapter.md) when this comes up. Mid-chat, "new task" makes the mode match a fresh playbook. `/magic-mode` already uses `magic-agent` for the subagents its playbook steps spawn. To get the same style from a subagent of your own, spawn it as a `magic-agent` subagent (defined in [`agents/magic-agent/agent.md`](../../agents/magic-agent/agent.md); when the harness has no named agent types, a general-purpose subagent with that definition inlined).
+
+## Pick a skill
+
+The default answer is `/magic-mode`, which runs most of the others when its steps need them. Name a skill directly when the user wants more or less of something than the playbook gives. Read the skill before you recommend it, and give one example prompt.
+
+| The user wants to | Skill |
+| --- | --- |
+| Do any non-trivial task with rigor | [`/magic-mode`](../magic-mode/SKILL.md) |
+| Check that the agent understood their goal and the problem before it starts | [`/in-your-own-words`](../in-your-own-words/SKILL.md) |
+| Get a prompt rewritten deeper, not bigger, before sending it: what a top professional would add, their raw material and methods, and an outside check. It returns the prompt and doesn't do the task | [`/sharpen`](../sharpen/SKILL.md) |
+| Know how code works now, or where new code should live | [`/how`](../how/SKILL.md) |
+| Know why code is shaped this way, or where a number came from | [`/why`](../why/SKILL.md) |
+| Research, investigate, or compare options across the codebase, web, or MCP tools using tiered delegation (`docs/research/<topic>.md`) | [`/research`](../research/SKILL.md) |
+| Produce a concise, cited research summary with a head-to-head comparison table | [`/research-summary`](../research-summary/SKILL.md) |
+| Understand a change or subsystem, explained plainly | [`/teach`](../teach/SKILL.md) |
+| Catch up on their own recent work on a topic | [`/recall`](../recall/SKILL.md) |
+| Catch up on what changed in this chat since their last message, in plain words and small visuals, with every item waiting on them listed and decidable from the reply alone | [`/ketchup`](../ketchup/SKILL.md) |
+| Catch up like `/ketchup`, in a short subtitled video of slides, with the waiting calls as text under it | [`/ketchup-video`](../ketchup-video/SKILL.md) |
+| Know what a small diff could break outside itself | [`/blast-radius`](../blast-radius/SKILL.md) |
+| Settle types and module shape before code that crosses a function boundary | [`/architect`](../architect/SKILL.md) |
+| Write a bite-sized TDD implementation plan from a spec or requirements before touching code | [`/writing-plans`](../writing-plans/SKILL.md) |
+| Execute an implementation plan with a fresh subagent and two-stage review gate per task | [`/subagent-driven-development`](../subagent-driven-development/SKILL.md) |
+| Get several attempts at one brief, merged into the best one | [`/arena`](../arena/SKILL.md) |
+| Run parallel checks over slices, or race workers, as isolated-worktree subagents | [`/swarm`](../swarm/SKILL.md) |
+| Have different models review a diff and try to break it | [`/interrogate`](../interrogate/SKILL.md) |
+| Run an ambitious maintainability and code-judo audit (1k-line rule, spaghetti branching, abstraction quality) | [`/thermo-nuclear-code-quality-review`](../thermo-nuclear-code-quality-review/SKILL.md) |
+| Prepare a PR for review by cleaning noisy history, improving the PR description, and adding reviewer guidance | [`/make-pr-easy-to-review`](../make-pr-easy-to-review/SKILL.md) |
+| Drive a PR to merge-ready (conflicts, triaged review/bot comments, in-scope CI) under a strict diff size budget | [`/autopilot`](../autopilot/SKILL.md) |
+| Fix a bug test-first when a cheap local test exists | [`/tdd`](../tdd/SKILL.md) |
+| Apply TypeScript type-system and boundary best practices when reading or editing `.ts`/`.tsx` files | [`/typescript-best-practices`](../typescript-best-practices/SKILL.md) |
+| Build a custom UI that wakes a bot over a webhook and exposes the page on Tailscale | [`/make-bot-ui`](../make-bot-ui/SKILL.md) |
+| Strip comments before review, using a reviewer that didn't write them | [`/no-comments`](../no-comments/SKILL.md) |
+| Clean AI tells out of prose | [`/unslop`](../unslop/SKILL.md) |
+| Write docs, an RFC, a README, a PR description, or a commit message to a standard | [`/technical-writing`](../technical-writing/SKILL.md) |
+| Hear the last reply again in plain words | [`/bro`](../bro/SKILL.md) |
+| Give agents a scripted way to drive the app and prove behavior | [`/create-verification-skill`](../create-verification-skill/SKILL.md) |
+| Bring a verification skill and its feature map back in line with the app | [`/maintain-verification-skill`](../maintain-verification-skill/SKILL.md) |
+| Formally verify a race, invariant, or other property that tests rarely reach | [`/create-formal-verification-skill`](../create-formal-verification-skill/SKILL.md) |
+| Bring a formal verification back in line after the code it covers changed, and learn whether a failure is drift or a bug | [`/maintain-formal-verification-skill`](../maintain-formal-verification-skill/SKILL.md) |
+| Show a PM or designer what the user sees as a chart checked by a TLA+ model, with the shortest path to each state that breaks a rule | [`/statechart`](../statechart/SKILL.md) |
+| Decide which mathematical proof technique, verifier tool, or proof-driven development skill fits a system or bug class | [`/proof-driven-development`](../proof-driven-development/SKILL.md) |
+| Prove code contracts, arithmetic bounds, separation framing, or inductive loop invariants with an SMT-backed verifier (Verus, Dafny, SPARK, Creusot, Frama-C WP) | [`/proving-with-hoare-logic`](../proving-with-hoare-logic/SKILL.md) |
+| Prove deep theorems, compiler passes, crypto, authorization lattices, or uninhabited-type impossibility (`S -> False`) in Lean 4, Rocq, Isabelle/HOL, or F\* | [`/proving-with-dependent-types`](../proving-with-dependent-types/SKILL.md) |
+| Model-check concurrent or distributed protocols in TLA+, P, or Alloy, or prove bit-precise panic/overflow absence with Kani or CBMC | [`/model-checking-protocols-and-code`](../model-checking-protocols-and-code/SKILL.md) |
+| Prove whole-program absence of runtime errors over abstract domains in Frama-C EVA or Astrée and triage alarms without suppressions | [`/analyzing-with-abstract-interpretation`](../analyzing-with-abstract-interpretation/SKILL.md) |
+| Audit a formal proof or AI verification PR for specification gaming, escape hatches, and the 4 remaining proof gaps | [`/auditing-proof-specifications`](../auditing-proof-specifications/SKILL.md) |
+| Vet a performance number before reporting or acting on it | [`/benchmark-checklist`](../benchmark-checklist/SKILL.md) |
+| Run a large or cross-cutting change, or one to review after stepping away | [`/figure-it-out`](../figure-it-out/SKILL.md) |
+| Keep a decision log during a run, and review it afterward | [`/show-me-your-work`](../show-me-your-work/SKILL.md) |
+| Pick a model for each role and a reasoning budget | [`/setup-magic`](../setup-magic/SKILL.md) |
+| Turn their own working habits into a personal mode skill | [`/automate-me`](../automate-me/SKILL.md) |
+| Author, triage, or test an agent rule (`rules/` or `agents.kit.md`) with TDD pressure scenarios | [`/writing-rules`](../writing-rules/SKILL.md) |
+| Turn what a finished task taught into skill edits | [`/reflect`](../reflect/SKILL.md) |
+| Stop agents from repeating the same mistakes in this repo | [`/correct`](../correct/SKILL.md) |
+| Find their way around magic | `/magic-help` |
+
+If a skill directory next to this one is missing from the table, read its frontmatter and route by its description. The `principle-*` directories are covered under principles below.
+
+Close calls:
+
+- `/how` explains what the code does. `/why` explains the reasons. `/teach` runs one or both and explains the result plainly.
+- `/arena` gives every worker the same brief and merges the best parts. `/swarm` splits work into slices or a race and returns one report.
+- `/architect` implements right after it settles the design. Add "with checkpoint" to review the design before it writes code.
+- `/interrogate` reviews the diff. `/blast-radius` looks for breakage outside the diff and proves the one fact that makes the change safe.
+- `/recall` rebuilds context across recent chats. `/ketchup` covers only this chat since the user's last message. Resuming one specific chat or branch is the Session pickup playbook.
+- `/figure-it-out` designs one rigorous run. The Orchestrate playbook runs a program that spans days and many PRs. The Autonomous run playbook drives one task to a finish condition.
+
+Not standalone skills:
+
+- The slop pass over the diff (delete dead code, defensive noise, and narration, per the **laziness-protocol** principle and the **no-comments** skill) is a `/magic-mode` step, not a skill. Driving the app is the project's verification skill (`verify-<app>`, generated by the **create-verification-skill** skill) or, when the project has none, the harness's browser or CLI driving tools.
+- The loop command is a harness built-in, and `/create-skill` is installed separately with the main flow.
+- magic has no `orchestrate` skill. Orchestrate is a `/magic-mode` playbook.
+
+## Playbooks and principles
+
+Playbooks are step lists inside `/magic-mode`, not skills, so they have no slash command. Inside `/magic-mode`, describing the task picks one, and these phrases name one directly:
+
+- "babysit this pr" or "check on pr 123" runs Babysit. It drives the PR to merge-ready and stops there. It doesn't merge unless the user asks to merge, land, or ship.
+- "land the stack" runs Shipping.
+- "take over this branch" runs Session pickup.
+- "pause safely" runs Pause safely.
+- "full autopilot on this queue" runs Autopilot-full. "autopilot, don't merge" runs Autopilot-stack.
+- "run the eval playbook" runs Eval.
+
+The Playbooks section of [`magic-mode`](../magic-mode/SKILL.md) lists every playbook and when it applies. [Guide page 6](../../docs/magic-guide/06-verify-and-ship.md) covers opening, babysitting, and landing a PR.
+
+For implementation plans, the kit includes [`/writing-plans`](../writing-plans/SKILL.md) and [`/subagent-driven-development`](../subagent-driven-development/SKILL.md) from Superpowers, and the harness's plan mode works alongside them. For work that spans phases or stacked PRs, asking `/magic-mode` for a plan runs the [Multi-phase plan playbook](../magic-mode/playbooks/multi-phase-plan.md), which writes the plan and doesn't implement it. For a design question, the Prototype playbook or `/architect` settles it in code first.
+
+Principles are one-rule skills that `/magic-mode` reads and cites in its replies. The user rarely invokes one. They steer with the names instead, as in "apply prove it works. show me the real output." Typing `/principle-<name>` still loads one on demand. [Guide page 8](../../docs/magic-guide/08-principles.md) lists them.
+
+## Fix a run that went wrong
+
+| Symptom | Fix |
+| --- | --- |
+| The mode stopped applying after a few turns | It was started with Enter. Keep it attached for the whole session (the harness adapter names how), or start each task with `/magic-mode`. |
+| A question got treated as the next step of the last task | Say "new task", or say the turn doesn't need the mode. |
+| A new model choice had no effect | The rule from `/setup-magic` applies to new chats. Start one. |
+| Runs cost more than expected | See the cost paragraph under Get set up. |
+| A skill didn't load on its own | Only `/setup-magic` loads from the user's words. The others load when the user types them or when `/magic-mode` runs them, and it doesn't run every skill. |
+| Parallel agents overwrote each other | Give each agent its own worktree, or run them as isolated-worktree subagents, which each get their own checkout. |
+| An overnight run moved but finished nothing | The loop command needs a check that can pass or fail, not a duration. See [guide page 7](../../docs/magic-guide/07-overnight.md). |
+| The reply claims success from a green build | Ask for the real command, flow, stored value, or profile. That's the prove-it-works principle. |
+
+For a run that drifts, [`references/prompting.md`](references/prompting.md) has one-line steers. [Guide page 10](../../docs/magic-guide/10-recipes-and-pitfalls.md) has more pitfalls and the recipes worth copying.
+
+## Make magic my own
+
+- [`/automate-me`](../automate-me/SKILL.md) drafts a personal mode skill from the user's own history, to use alongside `/magic-mode`.
+- [`/reflect`](../reflect/SKILL.md) after a session turns its lessons into skill edits the user approves.
+- `/magic-mode write a skill for <workflow>` runs the authoring playbook. The eval playbook tests a skill change blind.
+- Fix a misbehaving skill in its own PR, not inside the feature work where it went wrong.
+
+[Guide page 9](../../docs/magic-guide/09-make-it-yours.md) covers each of these.
+
+## Reply
+
+Lead with a 1-2 sentence answer, use a Markdown table or bullets when comparing options, give at most one example prompt in a code block (adapted from [`references/recipes.md`](references/recipes.md) when one fits) with the link to that file, and end with a 1-2 sentence `## TL;DR` section at the bottom when the reply has multiple sections. Keep it short unless the user asked for the whole map.

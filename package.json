@@ -1,0 +1,25 @@
+{
+  "name": "magic",
+  "version": "0.2.0",
+  "description": "Skills, subagent definitions, operational rules, and multi-harness bootstrap for coding agents",
+  "type": "module",
+  "main": ".opencode/plugins/magic.js",
+  "repository": "https://github.com/PhillipChaffee/magic",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "magic",
+    "skills",
+    "subagents",
+    "rules",
+    "workflow"
+  ],
+  "pi": {
+    "extensions": [
+      "./.pi/extensions/magic.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

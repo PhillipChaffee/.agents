@@ -6,7 +6,7 @@ import test from "node:test";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
 const OUTPUT_FORMAT_FILES = [
-	"skills/poteto-mode/SKILL.md",
+	"skills/magic-mode/SKILL.md",
 	"skills/how/SKILL.md",
 	"skills/how/references/explainer-prompt.md",
 	"skills/why/SKILL.md",
@@ -20,7 +20,7 @@ const OUTPUT_FORMAT_FILES = [
 	"skills/benchmark-checklist/SKILL.md",
 	"skills/arena/SKILL.md",
 	"skills/swarm/SKILL.md",
-	"skills/poteto-help/SKILL.md",
+	"skills/magic-help/SKILL.md",
 	"skills/autopilot/SKILL.md",
 	"skills/correct/SKILL.md",
 	"skills/reflect/SKILL.md",

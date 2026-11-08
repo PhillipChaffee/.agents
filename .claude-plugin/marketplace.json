@@ -1,0 +1,18 @@
+{
+  "name": "magic-dev",
+  "description": "Development marketplace for the magic AI coding kit",
+  "owner": {
+    "name": "Phillip Chaffee"
+  },
+  "plugins": [
+    {
+      "name": "magic",
+      "description": "Vendor-neutral AI coding kit for Claude Code, Cursor, Codex, OpenCode, and Pi: execution playbooks, formal verification, engineering principles, specialist sub-agents, and operational rules",
+      "version": "0.2.0",
+      "source": "./",
+      "author": {
+        "name": "Phillip Chaffee"
+      }
+    }
+  ]
+}

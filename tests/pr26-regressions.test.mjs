@@ -7,12 +7,12 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const audit = path.join(root, "skills/poteto-mode/scripts/worktree-audit.sh");
+const audit = path.join(root, "skills/magic-mode/scripts/worktree-audit.sh");
 const statechart = path.join(root, "skills/statechart/scripts/statechart.mjs");
 const realGit = spawnSync("which", ["git"], { encoding: "utf8" }).stdout.trim();
 
 test("cleanup guide requires fresh inspection and non-forced removal", () => {
-  const guide = fs.readFileSync(path.join(root, "skills/poteto-mode/playbooks/worktree-cleanup.md"), "utf8");
+  const guide = fs.readFileSync(path.join(root, "skills/magic-mode/playbooks/worktree-cleanup.md"), "utf8");
   assert.match(guide, /--untracked-files=all --ignored --ignore-submodules=none/);
   assert.match(guide, /successful exit and empty output/);
   assert.doesNotMatch(guide, /worktree remove --force|rm -rf|untracked throwaway/);

@@ -65,7 +65,7 @@ digraph autopilot_loop {
 }
 ```
 
-Refresh live PR state at the start of every pass (using the forge operations **view PR**, **list checks**, and **list review threads** in [`forge-operations.md`](../poteto-mode/references/forge-operations.md)); never act on stale state from an earlier pass. Work blockers in strict priority order:
+Refresh live PR state at the start of every pass (using the forge operations **view PR**, **list checks**, and **list review threads** in [`forge-operations.md`](../magic-mode/references/forge-operations.md)); never act on stale state from an earlier pass. Work blockers in strict priority order:
 
 1. **Merge conflicts.**
 2. **Active unresolved comments and review threads.**
@@ -92,7 +92,7 @@ Do not start CI work while an earlier blocker exists; conflict and comment fixes
 
 Before implementing any comment, review-bot, or CI fix:
 
-1. **Launch one dedicated triage subagent:** Spawn **one** general-purpose triage subagent on the `judgment and prose` (`deep`) model tier (Claude Opus 5.5 xhigh when available; see [`model-roles.md`](../poteto-mode/references/model-roles.md)).
+1. **Launch one dedicated triage subagent:** Spawn **one** general-purpose triage subagent on the `judgment and prose` (`deep`) model tier (Claude Opus 5.5 xhigh when available; see [`model-roles.md`](../magic-mode/references/model-roles.md)).
 2. **Pass the complete triage packet:**
    - Current PR diff paths
    - All candidate items (active unresolved comments, review-bot findings, failing CI checks)

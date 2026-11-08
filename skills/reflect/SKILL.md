@@ -21,7 +21,7 @@ List the ten newest transcripts, subagent transcripts included, in the layout th
 
 One message, three subagent spawns, each general-purpose and read-write. Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references, and read-only types drop MCP access in some harnesses, so a subagent that needs MCP tools is read-write with edits forbidden in the brief.
 
-Each reviewer and the synthesizer name a role line in the `pstack-models` role file (see `model-roles.md`) and a default. Set `model` to that line's value, or to the default if the role file or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the harness rejects the resolved model, fall back to the role's default tier and say so. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
+Each reviewer and the synthesizer name a role line in the `magic-models` role file (see `model-roles.md`) and a default. Set `model` to that line's value, or to the default if the role file or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the harness rejects the resolved model, fall back to the role's default tier and say so. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **magic-mode** skill.
 
 | Lens | Role line | Default `model` | Prompt template |
 | --- | --- | --- | --- |

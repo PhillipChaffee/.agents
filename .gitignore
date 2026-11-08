@@ -3,8 +3,11 @@ dists/
 opencode.json
 .kit-stamp
 __pycache__/
+node_modules/
+.opencode/node_modules/
+.superpowers/
 # Home-only helpers must not enter the public mirror.
 /scripts/*
 !/scripts/install.sh
 !/scripts/validate.sh
-!/scripts/pstack-verbatim.txt
+!/scripts/magic-verbatim.txt

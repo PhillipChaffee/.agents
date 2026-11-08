@@ -5,7 +5,10 @@
 `skills/writing-skills/`, `skills/writing-plans/`, and
 `skills/subagent-driven-development/` are copied without content changes from
 [obra/superpowers](https://github.com/obra/superpowers/tree/22f0b463e7a5e579904dd6211a520321035526f7/skills),
-commit `22f0b463e7a5e579904dd6211a520321035526f7`.
+commit `22f0b463e7a5e579904dd6211a520321035526f7`. `hooks/run-hook.cmd`,
+`hooks/session-start`, `lib/bootstrap-core.js`, `.opencode/plugins/magic.js`,
+and `.pi/extensions/magic.ts` are adapted from `obra/superpowers` commit
+`22f0b463e7a5e579904dd6211a520321035526f7`.
 
 ```text
 MIT License
@@ -65,8 +68,8 @@ SOFTWARE.
 
 ## pstack
 
-The 58 pstack skills, the `poteto-agent` and `comment-sicko` agents, and
-`docs/pstack-guide/` are ported from
+The 58 pstack skills, the `magic-agent` and `comment-sicko` agents, and
+`docs/magic-guide/` are ported from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan,
 synced at `cursor/plugins` commit
 `c742dd61706fbacc1b95f1a20b7b988cf096ce6c` (pstack 0.15.36).

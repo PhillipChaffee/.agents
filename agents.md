@@ -15,6 +15,5 @@ this file contains repository-only guidance.
 
 ## Repository tooling
 
-- Issues: GitHub Issues through `gh`; see [issue tracker](docs/agents/issue-tracker.md).
-- Triage: see [triage labels](docs/agents/triage-labels.md).
-- Domain docs: `CONTEXT.md` and `docs/adr/`; see [domain](docs/agents/domain.md).
+- Issues: GitHub Issues through `gh`.
+- Domain docs: `CONTEXT.md` and `docs/adr/`.

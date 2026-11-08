@@ -1,0 +1,20 @@
+{
+  "name": "magic-dev",
+  "interface": {
+    "displayName": "magic Dev"
+  },
+  "plugins": [
+    {
+      "name": "magic",
+      "source": {
+        "source": "url",
+        "url": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

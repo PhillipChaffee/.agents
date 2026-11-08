@@ -29,13 +29,13 @@ jobs:
           test -f "$SBX/.agents/THIRD-PARTY-NOTICES.md"
           test -f "$SBX/.agents/rules/look-it-up.md"
           test -f "$SBX/.agents/agents.md"
-          test -f "$SBX/.agents/skills/poteto-mode/skill.md"
-          test -f "$SBX/.agents/skills/poteto-mode/playbooks/feature.md"
-          test -f "$SBX/.agents/skills/poteto-mode/references/model-roles.md"
+          test -f "$SBX/.agents/skills/magic-mode/skill.md"
+          test -f "$SBX/.agents/skills/magic-mode/playbooks/feature.md"
+          test -f "$SBX/.agents/skills/magic-mode/references/model-roles.md"
           test -x "$SBX/.agents/skills/show-me-your-work/scripts/log.sh"
           test -f "$SBX/.agents/skills/statechart/scripts/statechart.mjs"
           test -f "$SBX/.agents/skills/principle-prove-it-works/skill.md"
-          test -f "$SBX/.agents/agents/poteto-agent/agent.md"
+          test -f "$SBX/.agents/agents/magic-agent/agent.md"
           rm -rf "$SBX"
 
   # Hygiene job copied verbatim from PhillipChaffee/full-lint
@@ -56,6 +56,8 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install pinned hygiene tools
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Pinned hygiene tools: one download per tool, no installer actions.
           # Every download's sha256 digest is embedded in this file (computed
@@ -67,30 +69,37 @@ jobs:
           # transitive trees from the registry — recorded residual. yamllint is
           # the one license exception: GPL-3.0-or-later, deliberately excluded
           # from the permissive-only lockfile, installed by exact pin.
+          fetch_asset() {
+            curl --connect-timeout 10 --max-time 300 --retry 3 --retry-all-errors -sSfL \
+              -H "Accept: application/octet-stream" \
+              ${GH_TOKEN:+-H "Authorization: Bearer ${GH_TOKEN}"} \
+              "https://api.github.com/repos/$2" -o "$3" ||
+              curl --connect-timeout 10 --max-time 300 --retry 3 --retry-all-errors -sSfL "$1" -o "$3"
+          }
           TYPOS_VERSION=1.50.1
-          curl --connect-timeout 10 --max-time 300 -sSfL "https://github.com/crate-ci/typos/releases/download/v${TYPOS_VERSION}/typos-v${TYPOS_VERSION}-x86_64-unknown-linux-musl.tar.gz" -o /tmp/typos.tar.gz
+          fetch_asset "https://github.com/crate-ci/typos/releases/download/v${TYPOS_VERSION}/typos-v${TYPOS_VERSION}-x86_64-unknown-linux-musl.tar.gz" "crate-ci/typos/releases/assets/539858793" /tmp/typos.tar.gz
           echo "edf0545109aee6a22751d04ddecb97c45be47d3aa0409564fb895eeeace91b1e  /tmp/typos.tar.gz" | sha256sum --check --status
           mkdir /tmp/typosx && tar xz -C /tmp/typosx -f /tmp/typos.tar.gz
           sudo mv /tmp/typosx/typos /usr/local/bin/
           npm install -g --ignore-scripts markdownlint-cli2@0.23.2
           LYCHEE_VERSION=0.24.2
-          curl --connect-timeout 10 --max-time 300 -sSfL "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" -o /tmp/lychee.tar.gz
+          fetch_asset "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" "lycheeverse/lychee/releases/assets/409959156" /tmp/lychee.tar.gz
           echo "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a  /tmp/lychee.tar.gz" | sha256sum --check --status
           mkdir /tmp/lycheex && tar xz -C /tmp/lycheex -f /tmp/lychee.tar.gz
           sudo mv /tmp/lycheex/lychee-x86_64-unknown-linux-gnu/lychee /usr/local/bin/
           GITLEAKS_VERSION=8.30.1
-          curl --connect-timeout 10 --max-time 300 -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          fetch_asset "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" "gitleaks/gitleaks/releases/assets/378332058" /tmp/gitleaks.tar.gz
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/gitleaks.tar.gz" | sha256sum --check --status
           mkdir /tmp/gitleaksx && tar xz -C /tmp/gitleaksx -f /tmp/gitleaks.tar.gz
           sudo mv /tmp/gitleaksx/gitleaks /usr/local/bin/
           npm install -g --ignore-scripts jscpd@5.2.0
           SHELLCHECK_VERSION=0.11.0
-          curl --connect-timeout 10 --max-time 300 -sSfL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" -o /tmp/shellcheck.tar.xz
+          fetch_asset "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" "koalaman/shellcheck/releases/assets/279056942" /tmp/shellcheck.tar.xz
           echo "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198  /tmp/shellcheck.tar.xz" | sha256sum --check --status
           mkdir /tmp/shellcheckx && tar xJ -C /tmp/shellcheckx -f /tmp/shellcheck.tar.xz
           sudo mv /tmp/shellcheckx/shellcheck-v${SHELLCHECK_VERSION}/shellcheck /usr/local/bin/
           SHFMT_VERSION=3.14.0
-          curl --connect-timeout 10 --max-time 300 -sSfL "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64" -o /tmp/shfmt
+          fetch_asset "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64" "mvdan/sh/releases/assets/534119985" /tmp/shfmt
           echo "fe42021c7272ef2d67ea36cbc3031683c625d0badec733ef3a57b567246a0b66  /tmp/shfmt" | sha256sum --check --status
           sudo mv /tmp/shfmt /usr/local/bin/
           sudo chmod +x /usr/local/bin/shfmt
@@ -98,7 +107,7 @@ jobs:
           # excluded from the permissive-only lockfile, installed by exact pin.
           python3 -m pip install --quiet yamllint==1.38.0
           ACTIONLINT_VERSION=1.7.12
-          curl --connect-timeout 10 --max-time 300 -sSfL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o /tmp/actionlint.tar.gz
+          fetch_asset "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" "rhysd/actionlint/releases/assets/384924896" /tmp/actionlint.tar.gz
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  /tmp/actionlint.tar.gz" | sha256sum --check --status
           mkdir /tmp/actionlintx && tar xz -C /tmp/actionlintx -f /tmp/actionlint.tar.gz
           sudo mv /tmp/actionlintx/actionlint /usr/local/bin/
@@ -107,6 +116,8 @@ jobs:
       - name: Markdown lint (markdownlint-cli2 v0.23.2)
         run: markdownlint-cli2 "**/*.md"
       - name: Link check (lychee v0.24.2)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: lychee --no-progress .
       - name: Secret scan (gitleaks v8.30.1)
         run: gitleaks detect --source . --redact

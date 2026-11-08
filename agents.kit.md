@@ -1,3 +1,4 @@
-# Search tool
-
-Use `rg` (ripgrep) instead of `grep`, `find`, and other search tools.
+- All entries in this file should be a single bullet point with an optional link to more context.
+- Use `rg` (ripgrep) instead of `grep`, `find`, and other search tools.
+- Tests should always be in their own files. Not in the same file as the code they test.
+- All commit attribution should be in the github users name and email, never the coding agent.

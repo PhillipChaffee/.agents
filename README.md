@@ -83,114 +83,25 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 
 ---
 
-## Architecture & Workflow
+## The Basic Workflow
 
-```mermaid
-flowchart LR
-    subgraph Input["1. Prompt Entry Points"]
-        UP["/using-poteto<br/>(Session Bootstrap)"]
-        PM["/poteto-mode<br/>(Rigorous Execution)"]
-        PDD["/proof-driven-development<br/>(Formal Proof Router)"]
-        PH["/poteto-help<br/>(Skill & Playbook Advisor)"]
-    end
+It starts from the moment you fire up your coding agent. Instead of jumping straight into guessing or writing ad-hoc code, `magic` intercepts the task before the first tool call and routes it to the right entry-point workflow—whether you are investigating a system, designing a feature, hunting a bug, or proving an invariant.
 
-    subgraph Engine["2. Kit Core (magic)"]
-        PB["23 Playbooks<br/>(Step-by-Step Loops)"]
-        SK["50 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
-        PR["24 Principle Skills<br/>(Core, Arch, Verify, Meta)"]
-        AG["7 Specialist Sub-Agents<br/>(Delegates & Research Tiers)"]
-    end
+When a task needs context or comparison first, it dispatches tiered read-only research sub-agents so raw exploration never pollutes your main conversation. Before cross-boundary code is written, it settles the types and data shapes, then puts together a bite-sized TDD implementation plan with exact file paths, signatures, and verification commands.
 
-    subgraph Adapters["3. Zero-Lock-In Adapters"]
-        HarnessAdapter["Harness Adapter<br/>(Claude / Cursor / Codex / OpenCode / Pi)"]
-        ModelRoles["Model Roles<br/>(fast / main / deep + Overrides)"]
-        ForgeOps["Forge Operations<br/>(GitHub / GitLab / Linear)"]
-    end
+Once execution begins, your agent loads one of 23 step-by-step playbooks into its todo list—or runs a full subagent-driven development loop where a fresh implementer sub-agent builds each task and a fresh reviewer checks spec compliance and code quality before the next task starts. Along the way, it enforces 24 engineering principles, strips narration comments, pits adversarial models against the diff, and—when tests aren't enough—routes subtle concurrency or state-machine invariants through formal verification.
 
-    UP --> PM & PDD & SK
-    PM --> PB
-    PDD --> SK
-    PH -.->|"recommends"| PM & PDD & SK
-    PB --> SK & PR & AG
-    SK --> HarnessAdapter & ModelRoles & ForgeOps
-```
+Because the bootstrap and routing rules load automatically at session start across Claude Code, Cursor, Codex, OpenCode, and Pi, you don't need to do anything special. Your coding agent just has `magic`.
 
----
+1. **[`using-poteto`](skills/using-poteto/SKILL.md) & [`workflow-routing`](rules/workflow-routing.md)** — Activates at session start. Checks every request before any tool call or clarifying question and routes it to the matching entry-point skill.
+2. **[`research`](skills/research/SKILL.md), [`how`](skills/how/SKILL.md) & [`why`](skills/why/SKILL.md)** — Activates when exploring code, history, or options. Triages complexity (Tier 1 direct, Tier 2 parallel, Tier 3 collector $\to$ planner $\to$ researcher $\to$ synthesizer pipeline) and writes a cited summary to `docs/research/<topic>.md`.
+3. **[`architect`](skills/architect/SKILL.md) & [`writing-plans`](skills/writing-plans/SKILL.md)** — Activates before building across boundaries. Settles module interfaces and data structures first, then breaks the spec into bite-sized TDD tasks with exact file paths, code signatures, and verification steps.
+4. **[`poteto-mode`](skills/poteto-mode/SKILL.md) & [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md)** — Activates during implementation. Matches one of the 23 playbooks (`feature`, `bug-fix`, `refactoring`, `perf-issue`, `hillclimb`, `orchestrate`, etc.) or dispatches a fresh implementer sub-agent per task with a two-stage (spec + code quality) review gate after each.
+5. **[`tdd`](skills/tdd/SKILL.md) & [`proof-driven-development`](skills/proof-driven-development/SKILL.md)** — Activates to prove correctness. Enforces RED-GREEN-REFACTOR failing tests first, and routes high-stakes contracts, concurrency protocols, or state machines to formal verification ([Hoare logic](skills/proving-with-hoare-logic/SKILL.md), [dependent types](skills/proving-with-dependent-types/SKILL.md), [model checking](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), and [proof-spec auditing](skills/auditing-proof-specifications/SKILL.md)).
+6. **[`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md) & [`unslop`](skills/unslop/SKILL.md)** — Activates before review. Dispatches `comment-sicko` to strip narration comments, runs diverse models adversarially against the diff to break it, and cleans AI tells out of docs and PR descriptions.
+7. **[`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md) & [`shipping`](skills/poteto-mode/playbooks/shipping.md)** — Activates when finishing a branch. Structures small ordered commits and reviewer guidance, drives PR checks and review threads to merge-ready under a strict diff budget, and verifies against the real artifact before landing.
 
-## Kit Inventory at a Glance
-
-| Category | Count | Source Path | Installed Target (`~/.agents/`) | Purpose |
-| --- | --- | --- | --- | --- |
-| **pstack Situational Skills** | 35 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Entry mode, session bootstrap, architecture, debugging, TDD, TypeScript practices, bot UIs, multi-model review, statecharts, and shipping |
-| **PR Review & Merge-Ready Skills** | 3 | `skills/{autopilot,make-pr-easy-to-review,thermo-nuclear-code-quality-review}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Budget-disciplined PR autopilot, history/description review prep, and strict maintainability audit |
-| **Research & Synthesis Skills** | 2 | `skills/{research,research-summary}/SKILL.md` | `skills/{research,research-summary}/{SKILL.md,skill.md}` | Tiered codebase/web/MCP research orchestrator (`docs/research/<topic>.md`) and structured research summaries |
-| **Proof-Driven Development Skills** | 6 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Orchestrator + 5 formal verification flows (Hoare/SMT, Dependent Types, Model Checking, Abstract Interpretation, Spec Auditing) |
-| **Engineering Principles** | 24 | `skills/principle-*/SKILL.md` | `skills/principle-*/{SKILL.md,skill.md}` | Single-rule design, architecture, verification, delegation, and meta invariants cited by `/poteto-mode` |
-| **Superpowers & Authoring Workflows** | 4 | `skills/{writing-skills,writing-rules,writing-plans,subagent-driven-development}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Implementation plan authoring, sub-agent-driven plan execution, and TDD skill and rule authoring ([Superpowers](https://github.com/obra/superpowers)) |
-| **Execution Playbooks** | 23 | `skills/poteto-mode/playbooks/*.md` | `skills/poteto-mode/playbooks/*.md` | Structured workflows loaded automatically by `/poteto-mode` |
-| **Sub-Agents** | 7 | `agents/<name>/agent.md` | `agents/<name>/agent.md` | 5 tiered research agents + `poteto-agent` (code delegate) + `comment-sicko` (comment stripper) |
-| **Rules** | 4 | `rules/*.md` | `rules/*.md` | Always-on rules for workflow routing, doc lookup, new-repo bootstrapping, and polling bounds |
-| **Distilled Root Instructions** | 1 | `agents.kit.md` | `agents.md` | Auto-loaded root instruction file for protocol consumers |
-| **Archived Skills (Disabled)** | 37 | `skills-disabled/` | *Not installed* | Preserved Matt Pocock skill archive (source reference only; never activated) |
-
----
-
-## Task Routing Map
-
-```mermaid
-flowchart TD
-    Start(["What do you need to do?"]) --> Q1{"Know which skill to run?"}
-    Q1 -->|"No / Unsure"| Help["/poteto-help"]
-    Q1 -->|"Yes"| Q2{"Task Type"}
-
-    Q2 -->|"Research, code, or history"| Understand["/research · /research-summary · /how · /why · /teach · /recall"]
-    Q2 -->|"Design or parallel bakeoff"| Design["/architect · /arena · /swarm · /blast-radius"]
-    Q2 -->|"Build, fix, refactor, or ship"| Execute["/poteto-mode · /writing-plans · /subagent-driven-development · /autopilot · /make-pr-easy-to-review"]
-    Q2 -->|"Mathematical proof or model check"| Prove["/proof-driven-development<br/>(routes across 5 proof flows)"]
-    Q2 -->|"Adversarial diff or perf review"| Review["/interrogate · /thermo-nuclear-code-quality-review · /benchmark-checklist · /no-comments"]
-    Q2 -->|"Author or fix agent behavior"| Meta["/writing-skills · /writing-rules · /reflect · /correct · /automate-me"]
-```
-
----
-
-## Portability Adapters (Zero Vendor Lock-In)
-
-| Adapter | What It Decouples | How It Works | Specification |
-| --- | --- | --- | --- |
-| **Harness Adapter** | IDE / CLI tool names, sub-agent fields, transcript paths, loop primitives | Maps neutral vocabulary in skills to Cursor, Claude Code, Codex, OpenCode, and Pi | [`harness-adapter.md`](skills/poteto-mode/references/harness-adapter.md) |
-| **Model Roles** | Hard-coded vendor model slugs (`claude-*`, `gpt-*`, `gemini-*`, `grok-*`) | Resolves named roles (`judgment and prose`, `swarm workers`, `arena runners`) to your local `fast` / `main` / `deep` tiers or `/setup-pstack` overrides | [`model-roles.md`](skills/poteto-mode/references/model-roles.md) |
-| **Forge Operations** | Hard-coded `gh`, `glab`, Graphite, or Origin CLI calls | Translates named forge actions (`open PR`, `list checks`, `resolve thread`) via the target repo's `docs/agents/issue-tracker.md` | [`forge-operations.md`](skills/poteto-mode/references/forge-operations.md) |
-
-- **External companion skills (install separately if used):** `/create-skill`.
-- **Intentionally excluded from upstream pstack:** the `benny` automation pack (Cursor Automations only) and GitHub-only binaries (`watch-pr` — replaced by the forge-agnostic `babysit` playbook).
-
----
-
-## Proof-Driven Development & Formal Verification
-
-```mermaid
-flowchart LR
-    Task["Target System / Bug Class"] --> Router["/proof-driven-development"]
-    Router -->|"Code contracts, loops, bounds"| Hoare["/proving-with-hoare-logic<br/>(Verus, Dafny, SPARK, Creusot)"]
-    Router -->|"Deep theorems, ASTs, crypto"| Dep["/proving-with-dependent-types<br/>(Lean 4, Rocq, Isabelle, F*)"]
-    Router -->|"Concurrency, protocols, bit-safety"| MC["/model-checking-protocols-and-code<br/>(TLA+, P, Alloy, Kani, CBMC)"]
-    Router -->|"Whole-program C runtime safety"| AI["/analyzing-with-abstract-interpretation<br/>(Frama-C EVA, Astrée)"]
-    Hoare & Dep & MC & AI --> Audit["/auditing-proof-specifications<br/>(4-Gap Audit + check-proof-cheats.mjs)"]
-    MC --> Chart["/statechart<br/>(TLA+ <-> Mermaid)"]
-    Audit --> Lock["/create-formal-verification-skill<br/>& /maintain-formal-verification-skill"]
-```
-
-| Skill | Mathematical Mechanism | Representative Tools | Use It When |
-| --- | --- | --- | --- |
-| [`/proof-driven-development`](skills/proof-driven-development/SKILL.md) | Orchestrator & 4-Gap Router | All formal verifiers | Choosing a proof technique, tool, or multi-skill verification pipeline |
-| [`/proving-with-hoare-logic`](skills/proving-with-hoare-logic/SKILL.md) | Hoare triples $\{P\}\;C\;\{Q\}$, 4-step loop induction, separation logic ($P * Q$), SMT | Verus, Dafny, SPARK, Creusot, Frama-C WP | Proving imperative functions, bounds, and data-structure invariants for all input sizes $N$ |
-| [`/proving-with-dependent-types`](skills/proving-with-dependent-types/SKILL.md) | Curry-Howard propositions-as-types, uninhabited types (`S -> False`), tactics | Lean 4, Rocq, Isabelle/HOL, F\*, Aeneas, KaRaMeL | Proving compiler passes, crypto, policy lattices (`forbid` overrides `permit`), or state impossibility |
-| [`/model-checking-protocols-and-code`](skills/model-checking-protocols-and-code/SKILL.md) | Temporal logic ($\Box\text{Safety}$, $\Diamond\text{Liveness}$) & bit-precise symbolic execution | TLA+, P, Alloy, Kani, CBMC, ESBMC | Finding multi-step concurrency/retry/crash races or proving bit-exact panic/overflow freedom |
-| [`/analyzing-with-abstract-interpretation`](skills/analyzing-with-abstract-interpretation/SKILL.md) | Galois-connected abstract domains (intervals, octagons) & widening ($\nabla$) | Frama-C EVA, Astrée, Goblint | Proving whole-program absence of division-by-zero, overflow, and out-of-bounds errors in C/firmware |
-| [`/auditing-proof-specifications`](skills/auditing-proof-specifications/SKILL.md) | Two-sided completeness audit, escape-hatch scanner (`check-proof-cheats.mjs`), conformance check | `check-proof-cheats.mjs`, `#print axioms`, differential fuzzing | Auditing human or AI-generated proofs for `sorry`/`admit`/`assume`/`external_body`, vacuity, and the 4 remaining gaps |
-| [`/statechart`](skills/statechart/SKILL.md) | TLA+ / TLC trace-to-statechart projection | TLC + `statechart.mjs` | Rendering TLA+ state machines and invariant counterexamples as readable Mermaid diagrams |
-| [`/create-formal-verification-skill`](skills/create-formal-verification-skill/SKILL.md) | Repo-local verification harness packaging | Any repo verifier | Locking a proven check into a repository with covered files, bounds, and a sync commit |
-| [`/maintain-formal-verification-skill`](skills/maintain-formal-verification-skill/SKILL.md) | Commit-diff drift detection & counterexample replay | Project `verify-*` skills | Bringing a formal verification skill back in sync after merges or refactors |
+**The agent checks for relevant skills before any task.** Mandatory workflows, not suggestions.
 
 ---
 

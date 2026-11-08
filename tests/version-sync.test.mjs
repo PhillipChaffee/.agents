@@ -103,12 +103,13 @@ test("README.md and .gitignore document magic quote, badge placement, section or
 	const installIdx = readme.indexOf("## Installation");
 	const howToUseIdx = readme.indexOf("## How to Use It");
 	const ackIdx = readme.indexOf("## Acknowledgments");
-	const archIdx = readme.indexOf("## Architecture & Workflow");
+	const workflowIdx = readme.indexOf("## The Basic Workflow");
+	const catalogIdx = readme.indexOf("## Catalog Reference");
 	assert.ok(headingIdx === 0 && bannerIdx > headingIdx && bannerIdx < quoteIdx, "Banner must appear right under # magic");
 	assert.ok(quoteIdx < firstHrIdx && firstHrIdx < badgeIdx && badgeIdx < installIdx, "Badges must appear underneath the --- line break right above ## Installation");
 	assert.ok(installIdx < howToUseIdx, "## Installation must appear before ## How to Use It");
 	assert.ok(howToUseIdx < ackIdx, "## How to Use It must appear before ## Acknowledgments");
-	assert.ok(ackIdx < archIdx, "## Acknowledgments must appear before remaining sections");
+	assert.ok(ackIdx < workflowIdx && workflowIdx < catalogIdx, "## Acknowledgments must be followed by ## The Basic Workflow and ## Catalog Reference");
 
 	const gitignoreLines = fs
 		.readFileSync(path.join(repoDir, ".gitignore"), "utf8")

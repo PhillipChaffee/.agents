@@ -82,6 +82,9 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Get several attempts at one brief, merged into the best one | [`/arena`](../arena/SKILL.md) |
 | Run parallel checks over slices, or race workers, as isolated-worktree subagents | [`/swarm`](../swarm/SKILL.md) |
 | Have different models review a diff and try to break it | [`/interrogate`](../interrogate/SKILL.md) |
+| Run an ambitious maintainability and code-judo audit (1k-line rule, spaghetti branching, abstraction quality) | [`/thermo-nuclear-code-quality-review`](../thermo-nuclear-code-quality-review/SKILL.md) |
+| Prepare a PR for review by cleaning noisy history, improving the PR description, and adding reviewer guidance | [`/make-pr-easy-to-review`](../make-pr-easy-to-review/SKILL.md) |
+| Drive a PR to merge-ready (conflicts, triaged review/bot comments, in-scope CI) under a strict diff size budget | [`/autopilot`](../autopilot/SKILL.md) |
 | Fix a bug test-first when a cheap local test exists | `/tdd` (installed separately with the main flow) |
 | Strip comments before review, using a reviewer that didn't write them | [`/no-comments`](../no-comments/SKILL.md) |
 | Clean AI tells out of prose | [`/unslop`](../unslop/SKILL.md) |

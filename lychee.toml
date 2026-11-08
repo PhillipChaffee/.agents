@@ -7,4 +7,4 @@
 max_retries = 2
 timeout = 20
 # Upstream skill documents contain plugin-local and illustrative links.
-exclude_path = ["./coverage", "./skills/writing-skills", "./skills-disabled"]
+exclude_path = ["./coverage", "./skills/writing-skills", "./skills/writing-plans", "./skills/subagent-driven-development", "./skills-disabled"]

@@ -1,10 +1,11 @@
 # Third-party notices
 
-## Superpowers — writing-skills
+## Superpowers — writing-skills, writing-plans, and subagent-driven-development
 
-`skills/writing-skills/` is copied without content changes from
-[obra/superpowers](https://github.com/obra/superpowers/tree/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-skills),
-commit `2ce8aa15d05bd57213e6f746f953aafb7ded7a8b`.
+`skills/writing-skills/`, `skills/writing-plans/`, and
+`skills/subagent-driven-development/` are copied without content changes from
+[obra/superpowers](https://github.com/obra/superpowers/tree/22f0b463e7a5e579904dd6211a520321035526f7/skills),
+commit `22f0b463e7a5e579904dd6211a520321035526f7`.
 
 ```text
 MIT License

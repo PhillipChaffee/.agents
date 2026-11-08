@@ -79,6 +79,8 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Catch up like `/ketchup`, in a short silent video of slides, with the waiting calls as text under it | [`/ketchup-video`](../ketchup-video/SKILL.md) |
 | Know what a small diff could break outside itself | [`/blast-radius`](../blast-radius/SKILL.md) |
 | Settle types and module shape before code that crosses a function boundary | [`/architect`](../architect/SKILL.md) |
+| Write a bite-sized TDD implementation plan from a spec or requirements before touching code | [`/writing-plans`](../writing-plans/SKILL.md) |
+| Execute an implementation plan with a fresh subagent and two-stage review gate per task | [`/subagent-driven-development`](../subagent-driven-development/SKILL.md) |
 | Get several attempts at one brief, merged into the best one | [`/arena`](../arena/SKILL.md) |
 | Run parallel checks over slices, or race workers, as isolated-worktree subagents | [`/swarm`](../swarm/SKILL.md) |
 | Have different models review a diff and try to break it | [`/interrogate`](../interrogate/SKILL.md) |
@@ -140,7 +142,7 @@ Playbooks are step lists inside `/poteto-mode`, not skills, so they have no slas
 
 The Playbooks section of [`poteto-mode`](../poteto-mode/SKILL.md) lists every playbook and when it applies. [Guide page 6](../../docs/pstack-guide/06-verify-and-ship.md) covers opening, babysitting, and landing a PR.
 
-pstack has no planning skill. The harness's plan mode, where it has one, works alongside it. For work that spans phases or stacked PRs, asking `/poteto-mode` for a plan runs the [Multi-phase plan playbook](../poteto-mode/playbooks/multi-phase-plan.md), which writes the plan and doesn't implement it. For a design question, the Prototype playbook or `/architect` settles it in code first.
+pstack has no planning skill of its own; the kit includes [`/writing-plans`](../writing-plans/SKILL.md) and [`/subagent-driven-development`](../subagent-driven-development/SKILL.md) from Superpowers, and the harness's plan mode works alongside them. For work that spans phases or stacked PRs, asking `/poteto-mode` for a plan runs the [Multi-phase plan playbook](../poteto-mode/playbooks/multi-phase-plan.md), which writes the plan and doesn't implement it. For a design question, the Prototype playbook or `/architect` settles it in code first.
 
 Principles are one-rule skills that `/poteto-mode` reads and cites in its replies. The user rarely invokes one. They steer with the names instead, as in "apply prove it works. show me the real output." Typing `/principle-<name>` still loads one on demand. [Guide page 8](../../docs/pstack-guide/08-principles.md) lists them.
 

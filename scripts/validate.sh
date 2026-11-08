@@ -165,7 +165,7 @@ for md in md_files:
     text = md.read_text()
     rel = str(md)
     # Byte-preserved upstream examples use plugin-local links and illustrative commands.
-    if rel.startswith("skills/writing-skills/"):
+    if rel.startswith(("skills/writing-skills/", "skills/writing-plans/", "skills/subagent-driven-development/")):
         continue
     # 3. Agent references resolve
     for ref in set(AGENT_REF.findall(text)):

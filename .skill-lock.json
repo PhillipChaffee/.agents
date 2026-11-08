@@ -377,6 +377,26 @@
       "skillFolderHash": "660ede63b84ce5d07ef28cccc2973165e2ca06e2",
       "installedAt": "2026-10-26T01:59:54.909Z",
       "updatedAt": "2026-10-26T01:59:54.909Z"
+    },
+    "writing-plans": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "ref": "main",
+      "skillPath": "skills/writing-plans/SKILL.md",
+      "skillFolderHash": "cc97fa00eb2ccd4f283e34eb2ba06a48e1e679f7",
+      "installedAt": "2026-11-08T03:45:00.000Z",
+      "updatedAt": "2026-11-08T03:45:00.000Z"
+    },
+    "subagent-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "ref": "main",
+      "skillPath": "skills/subagent-driven-development/SKILL.md",
+      "skillFolderHash": "c04a61186680d4cfc6784136d0421cd4abcfb40c",
+      "installedAt": "2026-11-08T03:45:00.000Z",
+      "updatedAt": "2026-11-08T03:45:00.000Z"
     }
   },
   "dismissed": {

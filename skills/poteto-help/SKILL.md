@@ -11,7 +11,7 @@ Answer the user's question about pstack, hand them a prompt they can send, and l
 
 A message that asks for work, such as "use pstack to fix this bug", is not a help question. Read [`poteto-mode`](../poteto-mode/SKILL.md), do the work under it, and mention once that keeping the skill attached for the whole session keeps it on (the [harness adapter](../poteto-mode/references/harness-adapter.md) names how).
 
-This file maps questions to the skills and guide pages that hold the answers. Those files own the details. Read the file you route to before you quote it, and trust it when it disagrees with this map. The links here point into the installed kit, which the user may not be able to open, so give the user the file's public copy: `https://github.com/PhillipChaffee/.agents/blob/main/` followed by its path.
+This file maps questions to the skills and guide pages that hold the answers. Those files own the details. Read the file you route to before you quote it, and trust it when it disagrees with this map. The links here point into the installed kit, which the user may not be able to open, so give the user the file's public copy: `https://github.com/PhillipChaffee/magic/blob/main/` followed by its path.
 
 ## Find out what they need
 
@@ -36,7 +36,7 @@ When the model rule is missing and it matters, ask whether the user wants to pic
 
 ## Get set up
 
-1. Clone `https://github.com/PhillipChaffee/.agents.git` and run `./scripts/install.sh --target agents`, per its [README](../../README.md).
+1. Clone `https://github.com/PhillipChaffee/magic.git` and run `./scripts/install.sh --target agents`, per its [README](../../README.md).
 2. Run [`/setup-pstack`](../setup-pstack/SKILL.md). It asks for a reasoning budget, maps a model to each role, and writes a rule. The rule applies to new chats. Then it offers once each to generate a verification skill and a formal verification skill for the project, unless the project already has one.
 3. Start a real task with `/poteto-mode`, a goal, and a check that can pass or fail.
 

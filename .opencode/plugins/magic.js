@@ -8,13 +8,13 @@ import {
 } from "../../lib/bootstrap-core.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dotAgentsSkillsDir = path.resolve(__dirname, "../../skills");
+const magicSkillsDir = path.resolve(__dirname, "../../skills");
 
 export const V1_MAPPING = `**Tool Mapping for OpenCode:**
 When skills request actions, substitute OpenCode equivalents:
 - Create or update todos → \`todowrite\`
 - \`Subagent (general-purpose):\` → \`task\` with \`subagent_type: "general"\`
-- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`dot-agents:\` prefix skills use when they name each other (\`dot-agents:poteto-mode\` → \`skill\` with \`name: "poteto-mode"\`)
+- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`magic:\` prefix skills use when they name each other (\`magic:poteto-mode\` → \`skill\` with \`name: "poteto-mode"\`)
 - Read files → \`read\`
 - Create, edit, or delete files → \`apply_patch\`
 - Run shell commands → \`bash\`
@@ -27,7 +27,7 @@ export const V2_MAPPING = `**Tool Mapping for OpenCode:**
 When skills request actions, substitute OpenCode equivalents:
 - Create or update todos → OpenCode v2 has no todo tool; track the plan in a markdown file (or the harness's plan facility) instead
 - \`Subagent (general-purpose):\` → \`subagent\` with \`agent: "general"\` (give it \`description\` and \`prompt\`, optionally \`background\`; pass \`sessionID\` to continue a previous subagent)
-- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`dot-agents:\` prefix skills use when they name each other (\`dot-agents:poteto-mode\` → \`skill\` with \`id: "poteto-mode"\`)
+- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`magic:\` prefix skills use when they name each other (\`magic:poteto-mode\` → \`skill\` with \`id: "poteto-mode"\`)
 - Read files → \`read\`
 - Create, edit, or delete files → use \`patch\` with \`patchText\` when available; otherwise use \`write\` to create or overwrite files, \`edit\` for targeted changes, and \`shell\` for deletion
 - Run shell commands → \`shell\` (\`command\`, \`workdir\`, \`timeout\`, \`background\`)
@@ -76,26 +76,26 @@ const isChildSession = async (fetchSession, sessionID) => {
 		}
 		isChild = session.parentID !== undefined;
 	} catch (err) {
-		console.error("[dot-agents] session lookup failed, treating session as top-level:", err);
+		console.error("[magic] session lookup failed, treating session as top-level:", err);
 		return false;
 	}
 	_cacheChildSession(sessionID, isChild);
 	return isChild;
 };
 
-export const DotAgentsPlugin = async ({ client }) => {
+export const MagicPlugin = async ({ client }) => {
 	return {
 		config: async (config) => {
 			if (Array.isArray(config.skills)) return;
 			config.skills = config.skills || {};
 			config.skills.paths = config.skills.paths || [];
-			if (!config.skills.paths.includes(dotAgentsSkillsDir)) {
-				config.skills.paths.push(dotAgentsSkillsDir);
+			if (!config.skills.paths.includes(magicSkillsDir)) {
+				config.skills.paths.push(magicSkillsDir);
 			}
 		},
 
 		"experimental.chat.messages.transform": async (_input, output) => {
-			const bootstrap = loadBootstrapContent(dotAgentsSkillsDir, V1_MAPPING);
+			const bootstrap = loadBootstrapContent(magicSkillsDir, V1_MAPPING);
 			if (!bootstrap || !output.messages.length) return;
 			const firstUser = output.messages.find((m) => m.info.role === "user");
 			if (!firstUser || !firstUser.parts.length) return;
@@ -117,6 +117,8 @@ export const DotAgentsPlugin = async ({ client }) => {
 	};
 };
 
+export const DotAgentsPlugin = MagicPlugin;
+
 async function setup(ctx) {
 	if (
 		!ctx ||
@@ -130,10 +132,10 @@ async function setup(ctx) {
 
 	try {
 		const skills = [];
-		if (fs.existsSync(dotAgentsSkillsDir)) {
-			for (const entry of fs.readdirSync(dotAgentsSkillsDir, { withFileTypes: true })) {
+		if (fs.existsSync(magicSkillsDir)) {
+			for (const entry of fs.readdirSync(magicSkillsDir, { withFileTypes: true })) {
 				if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-				const skillPath = path.join(dotAgentsSkillsDir, entry.name, "SKILL.md");
+				const skillPath = path.join(magicSkillsDir, entry.name, "SKILL.md");
 				if (!fs.existsSync(skillPath)) continue;
 				const { frontmatter, content } = extractAndStripFrontmatter(
 					fs.readFileSync(skillPath, "utf8"),
@@ -152,17 +154,17 @@ async function setup(ctx) {
 				try {
 					draft.add(skill);
 				} catch (err) {
-					console.error(`[dot-agents] skill "${skill.id}" rejected by host, skipping:`, err);
+					console.error(`[magic] skill "${skill.id}" rejected by host, skipping:`, err);
 				}
 			}
 		});
 	} catch (err) {
-		console.error("[dot-agents] skill registration failed:", err);
+		console.error("[magic] skill registration failed:", err);
 	}
 
 	const injectBootstrap = async (event) => {
 		try {
-			const bootstrap = loadBootstrapContent(dotAgentsSkillsDir, V2_MAPPING);
+			const bootstrap = loadBootstrapContent(magicSkillsDir, V2_MAPPING);
 			if (!bootstrap || !event.messages || !event.messages.length) return;
 			const firstUser = event.messages.find((m) => m.role === "user");
 			if (firstUser && (!firstUser.content || !firstUser.content.length)) return;
@@ -187,7 +189,7 @@ async function setup(ctx) {
 				event.messages.push({ role: "user", content: [{ type: "text", text: bootstrap }] });
 			}
 		} catch (err) {
-			console.error("[dot-agents] session hook failed:", err);
+			console.error("[magic] session hook failed:", err);
 		}
 	};
 
@@ -195,13 +197,13 @@ async function setup(ctx) {
 		try {
 			await ctx.session.hook(hookName, injectBootstrap);
 		} catch (err) {
-			console.error(`[dot-agents] session hook registration failed (${hookName}):`, err);
+			console.error(`[magic] session hook registration failed (${hookName}):`, err);
 		}
 	}
 }
 
 export default {
-	id: "dot-agents",
-	server: DotAgentsPlugin,
+	id: "magic",
+	server: MagicPlugin,
 	setup,
 };

@@ -1,1 +1,1 @@
-export { default } from "./.opencode/plugins/dot-agents.js";
+export { default } from "./.opencode/plugins/magic.js";

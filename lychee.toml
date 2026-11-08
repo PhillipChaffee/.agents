@@ -6,5 +6,7 @@
 # resolve in CI contexts that lychee accepts.
 max_retries = 2
 timeout = 20
+# Pre-rename canonical URLs resolve once PhillipChaffee/.agents is renamed to PhillipChaffee/magic on GitHub.
+exclude = ["^https://github\\.com/PhillipChaffee/magic"]
 # Upstream skill documents contain plugin-local and illustrative links.
 exclude_path = ["./coverage", "./skills/writing-skills", "./skills/writing-plans", "./skills/subagent-driven-development", "./skills-disabled"]

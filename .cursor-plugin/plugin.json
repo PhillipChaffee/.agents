@@ -1,13 +1,13 @@
 {
-  "name": "dot-agents",
-  "displayName": "dot-agents",
+  "name": "magic",
+  "displayName": "magic",
   "description": "Vendor-neutral AI coding kit: execution playbooks, formal verification, engineering principles, specialist sub-agents, and operational rules",
   "version": "0.2.0",
   "author": {
     "name": "Phillip Chaffee"
   },
-  "homepage": "https://github.com/PhillipChaffee/.agents",
-  "repository": "https://github.com/PhillipChaffee/.agents",
+  "homepage": "https://github.com/PhillipChaffee/magic",
+  "repository": "https://github.com/PhillipChaffee/magic",
   "license": "MIT",
   "keywords": [
     "skills",

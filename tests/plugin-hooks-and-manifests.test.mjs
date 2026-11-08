@@ -29,8 +29,8 @@ function parseHookOutput(stdout, shape) {
 	} else {
 		assert.fail(`unknown shape: ${shape}`);
 	}
-	assert.match(context, /^<EXTREMELY_IMPORTANT>\nYou have dot-agents\./);
-	assert.match(context, /dot-agents:using-poteto/);
+	assert.match(context, /^<EXTREMELY_IMPORTANT>\nYou have magic\./);
+	assert.match(context, /magic:using-poteto/);
 	assert.match(context, /# Using Poteto/);
 	assert.doesNotMatch(context, /Error reading using-poteto skill/);
 	return context;
@@ -159,23 +159,23 @@ test("Claude Code, Cursor, and Codex plugin and marketplace manifests satisfy sc
 	const claudePlugin = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".claude-plugin/plugin.json"), "utf8"),
 	);
-	assert.equal(claudePlugin.name, "dot-agents");
+	assert.equal(claudePlugin.name, "magic");
 	assert.equal(claudePlugin.version, "0.2.0");
-	assert.equal(claudePlugin.repository, "https://github.com/PhillipChaffee/.agents");
+	assert.equal(claudePlugin.repository, "https://github.com/PhillipChaffee/magic");
 
 	const claudeMarketplace = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".claude-plugin/marketplace.json"), "utf8"),
 	);
-	assert.equal(claudeMarketplace.name, "dot-agents-dev");
-	assert.equal(claudeMarketplace.plugins?.[0]?.name, "dot-agents");
+	assert.equal(claudeMarketplace.name, "magic-dev");
+	assert.equal(claudeMarketplace.plugins?.[0]?.name, "magic");
 	assert.equal(claudeMarketplace.plugins?.[0]?.version, "0.2.0");
 	assert.equal(claudeMarketplace.plugins?.[0]?.source, "./");
 
 	const cursorPlugin = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".cursor-plugin/plugin.json"), "utf8"),
 	);
-	assert.equal(cursorPlugin.name, "dot-agents");
-	assert.equal(cursorPlugin.displayName, "dot-agents");
+	assert.equal(cursorPlugin.name, "magic");
+	assert.equal(cursorPlugin.displayName, "magic");
 	assert.equal(cursorPlugin.version, "0.2.0");
 	assert.equal(cursorPlugin.skills, "./skills/");
 	assert.equal(cursorPlugin.agents, "./agents/");
@@ -185,7 +185,7 @@ test("Claude Code, Cursor, and Codex plugin and marketplace manifests satisfy sc
 	const codexPlugin = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".codex-plugin/plugin.json"), "utf8"),
 	);
-	assert.equal(codexPlugin.name, "dot-agents");
+	assert.equal(codexPlugin.name, "magic");
 	assert.equal(codexPlugin.version, "0.2.0");
 	assert.equal(codexPlugin.skills, "./skills/");
 	assert.deepEqual(codexPlugin.hooks, {});
@@ -194,10 +194,10 @@ test("Claude Code, Cursor, and Codex plugin and marketplace manifests satisfy sc
 	const codexMarketplace = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".agents/plugins/marketplace.json"), "utf8"),
 	);
-	assert.equal(codexMarketplace.name, "dot-agents-dev");
+	assert.equal(codexMarketplace.name, "magic-dev");
 	assert.deepEqual(codexMarketplace.plugins, [
 		{
-			name: "dot-agents",
+			name: "magic",
 			source: { source: "url", url: "./" },
 			policy: { installation: "AVAILABLE", authentication: "ON_INSTALL" },
 			category: "Developer Tools",

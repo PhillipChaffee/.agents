@@ -1,5 +1,5 @@
 ---
-description: Use when starting any conversation or task - establishes how to find, route, and invoke dot-agents skills before any response or action
+description: Use when starting any conversation or task - establishes how to find, route, and invoke magic skills before any response or action
 enabled: true
 id: using-poteto
 name: using-poteto

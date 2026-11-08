@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart hook for dot-agents plugin
+# SessionStart hook for magic plugin
 
 set -euo pipefail
 
@@ -46,7 +46,7 @@ escape_for_json() {
 }
 
 escape_for_json "$using_poteto_content"
-session_context="<EXTREMELY_IMPORTANT>\nYou have dot-agents.\n\n**Below is the full content of your 'dot-agents:using-poteto' bootstrap skill. Follow it to route every task. For all other skills, use your platform's skill tool or read the skill's SKILL.md:**\n\n${using_poteto_escaped}\n</EXTREMELY_IMPORTANT>"
+session_context="<EXTREMELY_IMPORTANT>\nYou have magic.\n\n**Below is the full content of your 'magic:using-poteto' bootstrap skill. Follow it to route every task. For all other skills, use your platform's skill tool or read the skill's SKILL.md:**\n\n${using_poteto_escaped}\n</EXTREMELY_IMPORTANT>"
 
 # Output context injection as JSON.
 # Cursor hooks expect additional_context (snake_case).

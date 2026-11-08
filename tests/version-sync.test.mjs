@@ -44,12 +44,13 @@ test(".version-bump.json lists all 5 plugin/package manifests and locks them to 
 test("THIRD-PARTY-NOTICES.md documents obra/superpowers plugin and bootstrap files under MIT", () => {
 	const notices = fs.readFileSync(path.join(repoDir, "THIRD-PARTY-NOTICES.md"), "utf8");
 	assert.match(notices, /obra\/superpowers/);
-	assert.match(notices, /22f0b463e7a5e579904dd6211a520321035526f7/);
+	assert.match(notices, /22f0b463e7a5e579904dd6211a5e579904dd6211a520321035526f7|22f0b463e7a5e579904dd6211a520321035526f7/);
 	for (const requiredRef of [
 		"hooks/run-hook.cmd",
 		"hooks/session-start",
-		".opencode/plugins/dot-agents.js",
-		".pi/extensions/dot-agents.ts",
+		"lib/bootstrap-core.js",
+		".opencode/plugins/magic.js",
+		".pi/extensions/magic.ts",
 	]) {
 		assert.ok(
 			notices.includes(requiredRef),
@@ -58,24 +59,40 @@ test("THIRD-PARTY-NOTICES.md documents obra/superpowers plugin and bootstrap fil
 	}
 });
 
-test("README.md and .gitignore document 74 skills, 4 rules, multi-harness installation, and node_modules ignores", () => {
+test("README.md and .gitignore document magic quote, section order (Installation -> How to Use It -> Acknowledgments), 74 skills, 4 rules, and node_modules ignores", () => {
 	const readme = fs.readFileSync(path.join(repoDir, "README.md"), "utf8");
 	for (const expectedSnippet of [
+		"# magic",
+		"Any sufficiently advanced technology is indistinguishable from magic.",
+		"Arthur C. Clarke",
 		"**74 active skills**",
 		"**4 operational rules**",
+		"## Installation",
+		"## How to Use It",
+		"## Acknowledgments",
 		"Native Plugin Installation (Superpowers-Style)",
-		"/plugin marketplace add PhillipChaffee/.agents",
-		"/plugin install dot-agents@dot-agents-dev",
+		"/plugin marketplace add PhillipChaffee/magic",
+		"/plugin install magic@magic-dev",
 		".cursor-plugin/plugin.json",
 		".agents/plugins/marketplace.json",
-		"dot-agents@git+https://github.com/PhillipChaffee/.agents.git",
-		"pi install git:github.com/PhillipChaffee/.agents",
+		"magic@git+https://github.com/PhillipChaffee/magic.git",
+		"pi install git:github.com/PhillipChaffee/magic",
 		"./scripts/install.sh --target agents",
 		"skills/using-poteto/SKILL.md",
 		"rules/workflow-routing.md",
 	]) {
 		assert.ok(readme.includes(expectedSnippet), `README.md missing: ${expectedSnippet}`);
 	}
+
+	const quoteIdx = readme.indexOf("Any sufficiently advanced technology is indistinguishable from magic.");
+	const installIdx = readme.indexOf("## Installation");
+	const howToUseIdx = readme.indexOf("## How to Use It");
+	const ackIdx = readme.indexOf("## Acknowledgments");
+	const archIdx = readme.indexOf("## Architecture & Workflow");
+	assert.ok(quoteIdx > 0 && quoteIdx < installIdx, "Quote must appear before ## Installation");
+	assert.ok(installIdx < howToUseIdx, "## Installation must appear before ## How to Use It");
+	assert.ok(howToUseIdx < ackIdx, "## How to Use It must appear before ## Acknowledgments");
+	assert.ok(ackIdx < archIdx, "## Acknowledgments must appear before remaining sections");
 
 	const gitignoreLines = fs
 		.readFileSync(path.join(repoDir, ".gitignore"), "utf8")

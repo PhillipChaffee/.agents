@@ -7,7 +7,7 @@ In this page you install the kit, pick which models pstack uses, and run your fi
 In a terminal, run:
 
 ```text
-git clone https://github.com/PhillipChaffee/.agents.git && cd .agents && ./scripts/install.sh --target agents
+git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/install.sh --target agents
 ```
 
 The installer lists each file it installs.

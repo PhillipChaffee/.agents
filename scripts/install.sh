@@ -7,7 +7,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 REPO_ROOT=$(pwd)
-KIT_REPO="PhillipChaffee/.agents"
+KIT_REPO="PhillipChaffee/magic"
 KIT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo dev)
 
 FORCE=0

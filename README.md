@@ -1,8 +1,78 @@
-# .agents
+# magic
 
-[![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![validate](https://github.com/PhillipChaffee/magic/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/magic/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex, Pi): **74 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **4 operational rules**.
+**Vendor-neutral AI coding kit & plugin** for `.agents`-compatible harnesses (Claude Code, Cursor, Codex, OpenCode, Pi): **74 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **4 operational rules**.
+
+> *"Any sufficiently advanced technology is indistinguishable from magic."*
+> — **Arthur C. Clarke**, Clarke's Third Law (*Science*, January 19, 1968; *Profiles of the Future*, rev. ed. 1973)
+
+---
+
+## Installation
+
+Install `magic` natively through your harness's plugin or package manager, or sync it directly into `~/.agents`.
+
+### Native Plugin Installation (Superpowers-Style)
+
+| Harness | Installation Command / Configuration |
+| --- | --- |
+| **Claude Code** | `/plugin marketplace add PhillipChaffee/magic` then `/plugin install magic@magic-dev` |
+| **Cursor** | `/add-plugin` from the repository (or `.cursor-plugin/plugin.json`) |
+| **Codex CLI / App** | `/plugins` via `.agents/plugins/marketplace.json` (or `~/.agents/skills`) |
+| **OpenCode (V1 & V2)** | `"plugins": ["magic@git+https://github.com/PhillipChaffee/magic.git"]` in `opencode.json` (or `"plugin"` in V1) |
+| **Pi** | `pi install git:github.com/PhillipChaffee/magic` (or `pi -e /path/to/magic`) |
+| **Raw `.agents` Protocol Home** | `git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/install.sh --target agents` |
+
+### Installation & Sync CLI (`./scripts/install.sh`)
+
+For harnesses or local setups that consume `~/.agents` directly:
+
+```sh
+./scripts/install.sh --target agents [flags]
+```
+
+| Flag | Behavior | Touches Unmanaged Files in `~/.agents`? |
+| --- | --- | --- |
+| *(default)* | Copies managed skills (both `SKILL.md` and `skill.md`), assets, scripts, agents, rules, `agents.md`, and notices into `~/.agents`; records `.kit-stamp` | No (skips differing unstamped files) |
+| `--dry-run` | Prints every `ADD`, `UPDATE`, `SKIP`, or `PRUNE` action without writing to disk | No |
+| `--force` | Overwrites pre-existing unstamped files that differ from the kit source | Only colliding kit paths |
+| `--prune` | Removes previously stamped files whose source was deleted from the kit | No |
+| `--pull` | Reverse-syncs local edits on existing mapped files from `~/.agents` back into the repo working tree | No |
+| `--uninstall` | Removes all paths listed in `.kit-stamp` and deletes `.kit-stamp` | No |
+
+- **Security boundary:** Never commit API keys, tokens, or private MCP configs. `models.json` and `.kit-stamp` stay local to `~/.agents/`.
+
+---
+
+## How to Use It
+
+Once installed, `magic` is active automatically at the start of every session (`skills/using-poteto/SKILL.md` and `rules/workflow-routing.md`). Before taking action on a task, your agent checks the request against its entry-point skills—or you can invoke any skill directly with `/<skill-name>`.
+
+| Step / Workflow | Command / Prompt | What Happens |
+| --- | --- | --- |
+| **1. Configure Model Roles (Once)** | `/setup-pstack` | Picks a reasoning budget, maps your available models to specialist roles (`fast` / `main` / `deep`), and optionally creates project-local `verify-<app>` and formal verification skills. |
+| **2. Build, Fix, Refactor, or Ship** | `/poteto-mode <goal + how to verify>` | Matches one of the 23 execution playbooks, copies its steps into the todo list, dispatches `poteto-agent` sub-agents, applies the 24 engineering principles, and verifies against the real artifact. |
+| **3. Plan & Execute Multi-Step Work** | `/writing-plans` $\to$ `/subagent-driven-development` | Turns a spec into a bite-sized TDD plan, then dispatches a fresh implementer and a two-stage (spec + code quality) reviewer sub-agent per task. |
+| **4. Research Code, Web, or Tools** | `/research <question>` or `/research-summary <topic>` | Triages complexity (Tier 1 direct, Tier 2 parallel, Tier 3 collector $\to$ planner $\to$ researcher $\to$ synthesizer pipeline) and writes a cited report to `docs/research/<topic>.md`. |
+| **5. Prove Correctness Formally** | `/proof-driven-development <target>` | Routes across 5 formal verification flows (Hoare logic/SMT, dependent types, TLA+/Kani model checking, abstract interpretation, and proof-cheat auditing). |
+| **6. Review & Drive PRs to Merge** | `/interrogate`, `/autopilot`, `/make-pr-easy-to-review` | Runs multi-model adversarial review, cleans commit history and reviewer guidance, and drives PRs to green under a strict diff size budget. |
+| **7. Ask What to Run** | `/poteto-help <question>` | Recommends the right skill, playbook, or principle and gives you a ready-to-send prompt without spending execution tokens. |
+
+- **First-time walkthrough:** [The pstack guide (`docs/pstack-guide/README.md`)](docs/pstack-guide/README.md)
+
+---
+
+## Acknowledgments
+
+`magic` stands on the shoulders of several open-source agent frameworks whose ideas, skills, playbooks, and plugin infrastructure were borrowed, combined, and augmented here. Huge thanks to their creators and maintainers:
+
+- **[pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan (`@poteto`)** — The heart of the execution engine: `/poteto-mode`, all 23 execution playbooks, the 24 `principle-*` skills, the situational engineering skills (`/how`, `/why`, `/teach`, `/architect`, `/arena`, `/swarm`, `/interrogate`, `/blast-radius`, `/statechart`, `/ketchup`, `/ketchup-video`, `/unslop`, `/technical-writing`, `/no-comments`, `/setup-pstack`, `/poteto-help`), the `poteto-agent` and `comment-sicko` sub-agents, and `docs/pstack-guide/`. Augmented here with vendor-neutral harness, model-role, and forge adapters so the entire stack runs outside Cursor too.
+- **[Superpowers](https://github.com/obra/superpowers) by Jesse Vincent (`@obra`) and [Prime Radiant](https://primeradiant.com)** — The multi-harness plugin and zero-fork session-start bootstrap architecture (`hooks/run-hook.cmd`, `hooks/session-start`, `.opencode/plugins/magic.js`, `.pi/extensions/magic.ts`, and the Claude Code, Cursor, and Codex plugin manifests), plus the `/writing-skills`, `/writing-plans`, and `/subagent-driven-development` workflows.
+- **[cursor-team-kit](https://github.com/cursor/plugins) by Cursor** — The `/make-pr-easy-to-review` and `/thermo-nuclear-code-quality-review` PR review and maintainability audit skills.
+- **[mattpocock/skills](https://github.com/mattpocock/skills) by Matt Pocock** — The preserved skill archive in `skills-disabled/` and inspiration for spec-first grilling and vertical-slice planning workflows.
+
+Full upstream commit hashes, provenance notes, and MIT license notices are preserved in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ---
 
@@ -11,12 +81,13 @@
 ```mermaid
 flowchart LR
     subgraph Input["1. Prompt Entry Points"]
+        UP["/using-poteto<br/>(Session Bootstrap)"]
         PM["/poteto-mode<br/>(Rigorous Execution)"]
         PDD["/proof-driven-development<br/>(Formal Proof Router)"]
         PH["/poteto-help<br/>(Skill & Playbook Advisor)"]
     end
 
-    subgraph Engine["2. Kit Core (~/.agents)"]
+    subgraph Engine["2. Kit Core (magic)"]
         PB["23 Playbooks<br/>(Step-by-Step Loops)"]
         SK["50 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
         PR["24 Principle Skills<br/>(Core, Arch, Verify, Meta)"]
@@ -24,41 +95,18 @@ flowchart LR
     end
 
     subgraph Adapters["3. Zero-Lock-In Adapters"]
-        HarnessAdapter["Harness Adapter<br/>(Cursor / Claude Code / Protocol)"]
+        HarnessAdapter["Harness Adapter<br/>(Claude / Cursor / Codex / OpenCode / Pi)"]
         ModelRoles["Model Roles<br/>(fast / main / deep + Overrides)"]
         ForgeOps["Forge Operations<br/>(GitHub / GitLab / Linear)"]
     end
 
+    UP --> PM & PDD & SK
     PM --> PB
     PDD --> SK
     PH -.->|"recommends"| PM & PDD & SK
     PB --> SK & PR & AG
     SK --> HarnessAdapter & ModelRoles & ForgeOps
 ```
-
----
-
-## Quick Start
-
-| Step | Command / Action | Result |
-| --- | --- | --- |
-| **1. Install** | `git clone https://github.com/PhillipChaffee/.agents.git && cd .agents && ./scripts/install.sh --target agents` | Copies skills, agents, rules, `agents.md`, and notices into `~/.agents`; prompts once for local `fast` / `main` / `deep` model tiers (`~/.agents/models.json`). |
-| **2. Configure Roles** | `/setup-pstack` | Picks a reasoning budget, maps models to specialist roles, and optionally generates project-local app or formal verification skills. |
-| **3. Run a Task** | `/poteto-mode <goal + how to verify>` | Matches one of the 23 playbooks, loads steps into the todo list, dispatches sub-agents, and verifies against the real artifact. |
-| **4. Ask for Routing** | `/poteto-help <question>` | Recommends the right skill, playbook, or principle and gives a ready-to-send prompt without spending execution tokens. |
-
-- **First-time walkthrough:** [The pstack guide (`docs/pstack-guide/README.md`)](docs/pstack-guide/README.md)
-
-### Native Plugin Installation (Superpowers-Style)
-
-| Harness | Installation Command / Configuration |
-| --- | --- |
-| **Claude Code** | `/plugin marketplace add PhillipChaffee/.agents` then `/plugin install dot-agents@dot-agents-dev` |
-| **Cursor** | `/add-plugin` from the repository (or `.cursor-plugin/plugin.json`) |
-| **Codex CLI / App** | `/plugins` via `.agents/plugins/marketplace.json` (or `~/.agents/skills`) |
-| **OpenCode (V1 & V2)** | `"plugins": ["dot-agents@git+https://github.com/PhillipChaffee/.agents.git"]` in `opencode.json` |
-| **Pi** | `pi install git:github.com/PhillipChaffee/.agents` (or `pi -e /path/to/.agents`) |
-| **Raw `.agents` Protocol Home** | `./scripts/install.sh --target agents` |
 
 ---
 
@@ -102,7 +150,7 @@ flowchart TD
 
 | Adapter | What It Decouples | How It Works | Specification |
 | --- | --- | --- | --- |
-| **Harness Adapter** | IDE / CLI tool names, sub-agent fields, transcript paths, loop primitives | Maps neutral vocabulary in skills to Cursor, Claude Code, and `.agents` protocol consumers | [`harness-adapter.md`](skills/poteto-mode/references/harness-adapter.md) |
+| **Harness Adapter** | IDE / CLI tool names, sub-agent fields, transcript paths, loop primitives | Maps neutral vocabulary in skills to Cursor, Claude Code, Codex, OpenCode, and Pi | [`harness-adapter.md`](skills/poteto-mode/references/harness-adapter.md) |
 | **Model Roles** | Hard-coded vendor model slugs (`claude-*`, `gpt-*`, `gemini-*`, `grok-*`) | Resolves named roles (`judgment and prose`, `swarm workers`, `arena runners`) to your local `fast` / `main` / `deep` tiers or `/setup-pstack` overrides | [`model-roles.md`](skills/poteto-mode/references/model-roles.md) |
 | **Forge Operations** | Hard-coded `gh`, `glab`, Graphite, or Origin CLI calls | Translates named forge actions (`open PR`, `list checks`, `resolve thread`) via the target repo's `docs/agents/issue-tracker.md` | [`forge-operations.md`](skills/poteto-mode/references/forge-operations.md) |
 
@@ -272,33 +320,13 @@ flowchart LR
 
 | File | Scope | Rule Summary |
 | --- | --- | --- |
-| [`agents.kit.md`](agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution) |
+| [`agents.kit.md`](agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution, workflow routing pointer) |
 | [`rules/workflow-routing.md`](rules/workflow-routing.md) | Always applied | Route engineering, research, and formal-proof tasks to `/poteto-mode`, `/research`, or `/proof-driven-development` before acting |
 | [`rules/look-it-up.md`](rules/look-it-up.md) | Always applied | Never answer factual tool/API questions from memory; check official docs and primary sources first |
 | [`rules/new-repo-setup.md`](rules/new-repo-setup.md) | New repo creation | Bootstrap greenfield repos from the strictest-setups reference repo ($\ge 95\%$ coverage + full hygiene gates) |
 | [`rules/sleeps-and-polling.md`](rules/sleeps-and-polling.md) | CI & background waits | Cap single-call sleeps at $\le 30\text{s}$ and return control between polls |
 
 </details>
-
----
-
-## Installation & Sync CLI (`./scripts/install.sh`)
-
-```sh
-./scripts/install.sh --target agents [flags]
-```
-
-| Flag | Behavior | Touches Unmanaged Files in `~/.agents`? |
-| --- | --- | --- |
-| *(default)* | Copies managed skills (both `SKILL.md` and `skill.md`), assets, scripts, agents, rules, `agents.md`, and notices into `~/.agents`; records `.kit-stamp` | No (skips differing unstamped files) |
-| `--dry-run` | Prints every `ADD`, `UPDATE`, `SKIP`, or `PRUNE` action without writing to disk | No |
-| `--force` | Overwrites pre-existing unstamped files that differ from the kit source | Only colliding kit paths |
-| `--prune` | Removes previously stamped files whose source was deleted from the kit | No |
-| `--pull` | Reverse-syncs local edits on existing mapped files from `~/.agents` back into the repo working tree | No |
-| `--uninstall` | Removes all paths listed in `.kit-stamp` and deletes `.kit-stamp` | No |
-
-- **Security boundary:** Never commit API keys, tokens, or private MCP configs. `models.json` and `.kit-stamp` stay local to `~/.agents/`.
-- **Provenance & licenses:** Third-party imports retain their upstream bytes and MIT notices in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ---
 
@@ -314,5 +342,5 @@ node --test tests/*.test.mjs
 | --- | --- | --- |
 | **Kit Structure & Contract** | `./scripts/validate.sh` | Frontmatter keys, cross-skill/agent/rule links, and zero vendor model slugs, Cursor fields, or forge CLIs |
 | **Installer Sandbox Suite** | `python3 -m unittest discover -s tests` | Byte-identical install, executable bit preservation, `SKILL.md`/`skill.md` parity, `--dry-run`, `--prune`, `--uninstall` |
-| **CLI & Skill Safety Suite** | `node --test tests/*.test.mjs` | Worktree dirty/untracked/ignored hold gates, statechart path confinement, proof cheat scanner, and flowchart rendering |
+| **CLI & Skill Safety Suite** | `node --test tests/*.test.mjs` | Worktree dirty/untracked/ignored hold gates, statechart path confinement, proof cheat scanner, plugin manifests/hooks, and flowchart rendering |
 | **Repo Hygiene CI (`validate.yml`)** | `typos` · `markdownlint-cli2` · `lychee` · `gitleaks` · `jscpd` · `shellcheck` · `shfmt` · `yamllint` · `actionlint` | Zero typos, clean Markdown, live links, zero secrets, $<5\%$ code duplication, and clean shell/workflow scripts |

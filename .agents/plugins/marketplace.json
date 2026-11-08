@@ -1,11 +1,11 @@
 {
-  "name": "dot-agents-dev",
+  "name": "magic-dev",
   "interface": {
-    "displayName": "dot-agents Dev"
+    "displayName": "magic Dev"
   },
   "plugins": [
     {
-      "name": "dot-agents",
+      "name": "magic",
       "source": {
         "source": "url",
         "url": "./"

@@ -7,13 +7,13 @@ import { pathToFileURL } from "node:url";
 
 const repoDir = path.resolve(import.meta.dirname, "..");
 const skillsDir = path.join(repoDir, "skills");
-const pluginPath = path.join(repoDir, ".opencode/plugins/dot-agents.js");
+const pluginPath = path.join(repoDir, ".opencode/plugins/magic.js");
 const indexPath = path.join(repoDir, "index.js");
 const corePath = path.join(repoDir, "lib/bootstrap-core.js");
-const piExtensionPath = path.join(repoDir, ".pi/extensions/dot-agents.ts");
+const piExtensionPath = path.join(repoDir, ".pi/extensions/magic.ts");
 const packageJsonPath = path.join(repoDir, "package.json");
 
-const expectedMarker = "<EXTREMELY_IMPORTANT>\nYou have dot-agents.";
+const expectedMarker = "<EXTREMELY_IMPORTANT>\nYou have magic.";
 let importCounter = 0;
 
 async function importFresh(filePath) {
@@ -46,14 +46,14 @@ test("lib/bootstrap-core.js parses frontmatter variants and loads cached using-p
 	assert.match(bootstrap, /CUSTOM_TOOL_MAPPING/);
 });
 
-test("OpenCode V1: DotAgentsPlugin registers skills path, injects V1 bootstrap idempotently, and skips child sessions", async () => {
+test("OpenCode V1: MagicPlugin registers skills path, injects V1 bootstrap idempotently, and skips child sessions", async () => {
 	const canonicalMod = await import(pathToFileURL(pluginPath).href);
 	const indexMod = await import(pathToFileURL(indexPath).href);
 	assert.equal(indexMod.default, canonicalMod.default);
 
 	const mod = await importFresh(pluginPath);
-	assert.equal(mod.default.id, "dot-agents");
-	assert.equal(mod.default.server, mod.DotAgentsPlugin);
+	assert.equal(mod.default.id, "magic");
+	assert.equal(mod.default.server, mod.MagicPlugin);
 	assert.equal(typeof mod.V1_MAPPING, "string");
 	assert.equal(typeof mod.V2_MAPPING, "string");
 
@@ -265,13 +265,13 @@ test("OpenCode V2: default.setup registers all 74 skills, survives hostile draft
 
 test("Pi Extension & package.json: manifest contract, lifecycle hooks, multi-prompt injection, and compactionSummary ordering", async () => {
 	const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
-	assert.equal(pkg.name, "dot-agents");
+	assert.equal(pkg.name, "magic");
 	assert.equal(pkg.version, "0.2.0");
 	assert.equal(pkg.type, "module");
-	assert.equal(pkg.main, ".opencode/plugins/dot-agents.js");
+	assert.equal(pkg.main, ".opencode/plugins/magic.js");
 	assert.ok(Array.isArray(pkg.keywords) && pkg.keywords.includes("pi-package"));
 	assert.deepEqual(pkg.pi, {
-		extensions: ["./.pi/extensions/dot-agents.ts"],
+		extensions: ["./.pi/extensions/magic.ts"],
 		skills: ["./skills"],
 	});
 	assert.equal(pkg.dependencies, undefined);
@@ -322,7 +322,7 @@ test("Pi Extension & package.json: manifest contract, lifecycle hooks, multi-pro
 			assert.ok(res, `prompt ${promptIdx + 1} req ${req} must return injected messages`);
 			assert.equal(res.messages.length, history.length + 1);
 			assert.equal(res.messages[0].role, "user");
-			assert.match(textOf(res.messages[0]), /You have dot-agents\./);
+			assert.match(textOf(res.messages[0]), /You have magic\./);
 			assert.match(textOf(res.messages[0]), /# Using Poteto/);
 			assert.match(textOf(res.messages[0]), /## Pi tool mapping/);
 
@@ -342,6 +342,6 @@ test("Pi Extension & package.json: manifest contract, lifecycle hooks, multi-pro
 	assert.equal(compactedRes.messages[0], summary1);
 	assert.equal(compactedRes.messages[1], summary2);
 	assert.equal(compactedRes.messages[2].role, "user");
-	assert.match(textOf(compactedRes.messages[2]), /You have dot-agents\./);
+	assert.match(textOf(compactedRes.messages[2]), /You have magic\./);
 	assert.equal(compactedRes.messages[3], nextUser);
 });

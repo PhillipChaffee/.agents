@@ -1,14 +1,14 @@
 {
-  "name": "dot-agents",
+  "name": "magic",
   "version": "0.2.0",
   "description": "Skills, subagent definitions, operational rules, and multi-harness bootstrap for coding agents",
   "type": "module",
-  "main": ".opencode/plugins/dot-agents.js",
-  "repository": "https://github.com/PhillipChaffee/.agents",
+  "main": ".opencode/plugins/magic.js",
+  "repository": "https://github.com/PhillipChaffee/magic",
   "license": "MIT",
   "keywords": [
     "pi-package",
-    "dot-agents",
+    "magic",
     "skills",
     "subagents",
     "rules",
@@ -16,7 +16,7 @@
   ],
   "pi": {
     "extensions": [
-      "./.pi/extensions/dot-agents.ts"
+      "./.pi/extensions/magic.ts"
     ],
     "skills": [
       "./skills"

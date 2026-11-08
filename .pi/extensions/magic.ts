@@ -6,14 +6,14 @@ type ExtensionAPI = {
 	on(event: string, handler: (event: any, ctx?: any) => unknown): void;
 };
 
-const PI_PREAMBLE = `dot-agents:using-poteto bootstrap for pi
+const PI_PREAMBLE = `magic:using-poteto bootstrap for pi
 
 The using-poteto skill content is included below and is already loaded for this Pi session. Follow it now. Do not try to load using-poteto again.`;
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
 const skillsDir = resolve(extensionDir, "../../skills");
 
-export default function dotAgentsPiExtension(pi: ExtensionAPI) {
+export default function magicPiExtension(pi: ExtensionAPI) {
 	let injectBootstrap = true;
 
 	pi.on("session_start", async () => {
@@ -51,11 +51,11 @@ export default function dotAgentsPiExtension(pi: ExtensionAPI) {
 function piToolMapping(): string {
 	return `## Pi tool mapping
 
-Pi has native skills but does not expose Claude Code's \`Skill\` tool. When a dot-agents instruction says to invoke a skill, use Pi's native skill system instead: load the relevant \`SKILL.md\` with \`read\` when the skill applies, or let a human invoke \`/skill:name\` explicitly.
+Pi has native skills but does not expose Claude Code's \`Skill\` tool. When a magic instruction says to invoke a skill, use Pi's native skill system instead: load the relevant \`SKILL.md\` with \`read\` when the skill applies, or let a human invoke \`/skill:name\` explicitly.
 
 Pi's built-in coding tools are lowercase: \`read\`, \`write\`, \`edit\`, \`bash\`, plus optional \`grep\`, \`find\`, and \`ls\`. Use those for the corresponding actions: read a file, create or edit files, run shell commands, search file contents, find files by name, and list directories.
 
-Pi does not ship a standard subagent tool. If a subagent tool such as \`subagent\` from \`pi-subagents\` is available, use it for dot-agents subagent workflows. If no subagent tool is available, do the work in this session or explain the missing capability instead of inventing \`Task\` calls.
+Pi does not ship a standard subagent tool. If a subagent tool such as \`subagent\` from \`pi-subagents\` is available, use it for magic subagent workflows. If no subagent tool is available, do the work in this session or explain the missing capability instead of inventing \`Task\` calls.
 
 Pi does not ship a standard task-list tool. If an installed todo/task tool is available, use it. Otherwise track work in plan files or a repo-local \`TODO.md\` when task tracking is needed. Treat older \`TodoWrite\` references as this task-tracking action.`;
 }

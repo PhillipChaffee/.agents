@@ -2,7 +2,7 @@
 
 [![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **72 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
+**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **73 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
 
 ---
 
@@ -18,7 +18,7 @@ flowchart LR
 
     subgraph Engine["2. Kit Core (~/.agents)"]
         PB["23 Playbooks<br/>(Step-by-Step Loops)"]
-        SK["48 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
+        SK["49 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
         PR["24 Principle Skills<br/>(Core, Arch, Verify, Meta)"]
         AG["7 Specialist Sub-Agents<br/>(Delegates & Research Tiers)"]
     end
@@ -60,7 +60,7 @@ flowchart LR
 | **Research & Synthesis Skills** | 2 | `skills/{research,research-summary}/SKILL.md` | `skills/{research,research-summary}/{SKILL.md,skill.md}` | Tiered codebase/web/MCP research orchestrator (`docs/research/<topic>.md`) and structured research summaries |
 | **Proof-Driven Development Skills** | 6 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Orchestrator + 5 formal verification flows (Hoare/SMT, Dependent Types, Model Checking, Abstract Interpretation, Spec Auditing) |
 | **Engineering Principles** | 24 | `skills/principle-*/SKILL.md` | `skills/principle-*/{SKILL.md,skill.md}` | Single-rule design, architecture, verification, delegation, and meta invariants cited by `/poteto-mode` |
-| **Superpowers Workflows** | 3 | `skills/{writing-skills,writing-plans,subagent-driven-development}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Implementation plan authoring, sub-agent-driven plan execution with per-task review gates, and TDD skill authoring ([Superpowers](https://github.com/obra/superpowers)) |
+| **Superpowers & Authoring Workflows** | 4 | `skills/{writing-skills,writing-rules,writing-plans,subagent-driven-development}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Implementation plan authoring, sub-agent-driven plan execution, and TDD skill and rule authoring ([Superpowers](https://github.com/obra/superpowers)) |
 | **Execution Playbooks** | 23 | `skills/poteto-mode/playbooks/*.md` | `skills/poteto-mode/playbooks/*.md` | Structured workflows loaded automatically by `/poteto-mode` |
 | **Sub-Agents** | 7 | `agents/<name>/agent.md` | `agents/<name>/agent.md` | 5 tiered research agents + `poteto-agent` (code delegate) + `comment-sicko` (comment stripper) |
 | **Rules** | 3 | `rules/*.md` | `rules/*.md` | Always-on rules for doc lookup, new-repo bootstrapping, and polling bounds |
@@ -82,7 +82,7 @@ flowchart TD
     Q2 -->|"Build, fix, refactor, or ship"| Execute["/poteto-mode · /writing-plans · /subagent-driven-development · /autopilot · /make-pr-easy-to-review"]
     Q2 -->|"Mathematical proof or model check"| Prove["/proof-driven-development<br/>(routes across 5 proof flows)"]
     Q2 -->|"Adversarial diff or perf review"| Review["/interrogate · /thermo-nuclear-code-quality-review · /benchmark-checklist · /no-comments"]
-    Q2 -->|"Author or fix agent behavior"| Meta["/writing-skills · /reflect · /correct · /automate-me"]
+    Q2 -->|"Author or fix agent behavior"| Meta["/writing-skills · /writing-rules · /reflect · /correct · /automate-me"]
 ```
 
 ---
@@ -162,7 +162,7 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>39 Situational, PR, Research, Planning & Authoring Skills</strong> (non-formal-verification)</summary>
+<summary><strong>40 Situational, PR, Research, Planning & Authoring Skills</strong> (non-formal-verification)</summary>
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
@@ -202,6 +202,7 @@ flowchart LR
 | **Prose & Code Hygiene** | [`/technical-writing`](skills/technical-writing/SKILL.md) | Writing docs, RFCs, READMEs, PR descriptions, and commit messages to standard |
 | **Prose & Code Hygiene** | [`/bro`](skills/bro/SKILL.md) | Restating the previous reply in plain human language |
 | **Meta & Skill Evolution** | [`/writing-skills`](skills/writing-skills/SKILL.md) | Authoring and testing new skills with sub-agent pressure scenarios (TDD for skills) |
+| **Meta & Skill Evolution** | [`/writing-rules`](skills/writing-rules/SKILL.md) | Triaging, authoring, and pressure-testing agent rules (`rules/` and `agents.kit.md`) with TDD |
 | **Meta & Skill Evolution** | [`/reflect`](skills/reflect/SKILL.md) | Capturing lessons from a completed task as concrete skill edits |
 | **Meta & Skill Evolution** | [`/correct`](skills/correct/SKILL.md) | Stopping repeated agent mistakes at the highest structural level that works |
 | **Meta & Skill Evolution** | [`/automate-me`](skills/automate-me/SKILL.md) | Drafting a personal `-mode` skill from your actual working history |

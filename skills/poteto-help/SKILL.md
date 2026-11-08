@@ -110,6 +110,7 @@ The default answer is `/poteto-mode`, which runs most of the others when its ste
 | Keep a decision log during a run, and review it afterward | [`/show-me-your-work`](../show-me-your-work/SKILL.md) |
 | Pick a model for each role and a reasoning budget | [`/setup-pstack`](../setup-pstack/SKILL.md) |
 | Turn their own working habits into a personal mode skill | [`/automate-me`](../automate-me/SKILL.md) |
+| Author, triage, or test an agent rule (`rules/` or `agents.kit.md`) with TDD pressure scenarios | [`/writing-rules`](../writing-rules/SKILL.md) |
 | Turn what a finished task taught into skill edits | [`/reflect`](../reflect/SKILL.md) |
 | Stop agents from repeating the same mistakes in this repo | [`/correct`](../correct/SKILL.md) |
 | Find their way around pstack | `/poteto-help` |

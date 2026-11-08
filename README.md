@@ -2,7 +2,7 @@
 
 [![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **64 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
+**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **67 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
 
 ---
 
@@ -18,7 +18,7 @@ flowchart LR
 
     subgraph Engine["2. Kit Core (~/.agents)"]
         PB["23 Playbooks<br/>(Step-by-Step Loops)"]
-        SK["40 Situational, Research & Proof Skills<br/>(Research, Design, Prove, Ship)"]
+        SK["43 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
         PR["24 Principle Skills<br/>(Core, Arch, Verify, Meta)"]
         AG["7 Specialist Sub-Agents<br/>(Delegates & Research Tiers)"]
     end
@@ -56,6 +56,7 @@ flowchart LR
 | Category | Count | Source Path | Installed Target (`~/.agents/`) | Purpose |
 | --- | --- | --- | --- | --- |
 | **pstack Situational Skills** | 31 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Entry mode, architecture, debugging, multi-model review, statecharts, and shipping |
+| **PR Review & Merge-Ready Skills** | 3 | `skills/{autopilot,make-pr-easy-to-review,thermo-nuclear-code-quality-review}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Budget-disciplined PR autopilot, history/description review prep, and strict maintainability audit |
 | **Research & Synthesis Skills** | 2 | `skills/{research,research-summary}/SKILL.md` | `skills/{research,research-summary}/{SKILL.md,skill.md}` | Tiered codebase/web/MCP research orchestrator (`docs/research/<topic>.md`) and structured research summaries |
 | **Proof-Driven Development Skills** | 6 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Orchestrator + 5 formal verification flows (Hoare/SMT, Dependent Types, Model Checking, Abstract Interpretation, Spec Auditing) |
 | **Engineering Principles** | 24 | `skills/principle-*/SKILL.md` | `skills/principle-*/{SKILL.md,skill.md}` | Single-rule design, architecture, verification, delegation, and meta invariants cited by `/poteto-mode` |
@@ -78,9 +79,9 @@ flowchart TD
 
     Q2 -->|"Research, code, or history"| Understand["/research · /research-summary · /how · /why · /teach · /recall"]
     Q2 -->|"Design or parallel bakeoff"| Design["/architect · /arena · /swarm · /blast-radius"]
-    Q2 -->|"Build, fix, refactor, or ship"| Execute["/poteto-mode<br/>(auto-picks from 23 playbooks)"]
+    Q2 -->|"Build, fix, refactor, or ship"| Execute["/poteto-mode · /autopilot · /make-pr-easy-to-review"]
     Q2 -->|"Mathematical proof or model check"| Prove["/proof-driven-development<br/>(routes across 5 proof flows)"]
-    Q2 -->|"Adversarial diff or perf review"| Review["/interrogate · /benchmark-checklist · /no-comments"]
+    Q2 -->|"Adversarial diff or perf review"| Review["/interrogate · /thermo-nuclear-code-quality-review · /benchmark-checklist · /no-comments"]
     Q2 -->|"Author or fix agent behavior"| Meta["/writing-skills · /reflect · /correct · /automate-me"]
 ```
 
@@ -161,7 +162,7 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>31 Situational, Research & Authoring Skills</strong> (non-formal-verification)</summary>
+<summary><strong>34 Situational, PR, Research & Authoring Skills</strong> (non-formal-verification)</summary>
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
@@ -183,6 +184,9 @@ flowchart LR
 | **Design & Parallelism** | [`/arena`](skills/arena/SKILL.md) | Running $N$ parallel attempts at the same brief and grafting the best parts |
 | **Design & Parallelism** | [`/swarm`](skills/swarm/SKILL.md) | Dispatching $N$ parallel workers across slices or races into one report |
 | **Design & Parallelism** | [`/blast-radius`](skills/blast-radius/SKILL.md) | Checking what else a small-looking change could break outside the diff |
+| **Review & Verification** | [`/autopilot`](skills/autopilot/SKILL.md) | Driving a PR to merge-ready (conflicts, triaged review/bot threads, in-scope CI) under a strict diff size budget |
+| **Review & Verification** | [`/make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md) | Preparing PRs for review by cleaning commit history, improving PR descriptions, and adding reviewer guidance |
+| **Review & Verification** | [`/thermo-nuclear-code-quality-review`](skills/thermo-nuclear-code-quality-review/SKILL.md) | Running a strict maintainability audit for abstraction quality, >1k-line files, spaghetti branching, and code-judo simplifications |
 | **Review & Verification** | [`/interrogate`](skills/interrogate/SKILL.md) | Having diverse models adversarially review a diff to break it |
 | **Review & Verification** | [`/benchmark-checklist`](skills/benchmark-checklist/SKILL.md) | Vetting a benchmark speedup or regression number before trusting it |
 | **Review & Verification** | [`/create-verification-skill`](skills/create-verification-skill/SKILL.md) | Generating a project-local `verify-<app>` skill and feature map to drive the live app |

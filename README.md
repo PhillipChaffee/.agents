@@ -9,15 +9,13 @@
 
 ---
 
-[![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
 ## Installation
 
 You can use `magic` in two ways: **install it as a native plugin/package** in your coding harness, or **use it directly as a `.agents` directory** (`~/.agents` globally or `.agents/` inside a project).
 
 ### 1. Native Plugin Installation (Superpowers-Style)
 
-Install `magic` through your harness's plugin or package manager to register skills, sub-agents, rules, and the session-start bootstrap automatically:
+Install `magic` through your harness's plugin or package manager to register skills, sub-agents, rules, and the session-start bootstrap automatically. **You never need to invoke `/using-poteto` yourself**—just state your task in plain language or invoke a specific skill like `/poteto-mode` directly:
 
 | Harness | Installation Command / Configuration |
 | --- | --- |
@@ -64,22 +62,22 @@ When you use `~/.agents` (via `./scripts/install.sh` or `git clone`) **without**
 
 ---
 
-## How to Use It
+## The Basic Workflow
 
-- **Installed as a plugin/package (recommended):** `magic` is active automatically at session start. **You never need to invoke `/using-poteto` yourself**—just state your task in plain language (your agent will route it automatically) or invoke a specific workflow skill like `/poteto-mode` directly.
-- **Installed only as a `.agents` directory:** Because session-start hooks and plugin injectors do not run from a bare `~/.agents` directory, either invoke `/poteto-mode` (or `/using-poteto`) at the start of a task or wire your harness's global instructions/rules file as shown above.
+`magic` intercepts every request at session start, routes it to the right workflow, and verifies the result before shipping.
 
-| Step / Workflow | Command / Prompt | What Happens |
-| --- | --- | --- |
-| **1. Configure Model Roles (Once)** | `/setup-pstack` | Picks a reasoning budget, maps your available models to specialist roles (`fast` / `main` / `deep`), and optionally creates project-local `verify-<app>` and formal verification skills. |
-| **2. Build, Fix, Refactor, or Ship** | `/poteto-mode <goal + how to verify>` | Matches one of the 23 execution playbooks, copies its steps into the todo list, dispatches `poteto-agent` sub-agents, applies the 24 engineering principles, and verifies against the real artifact. |
-| **3. Plan & Execute Multi-Step Work** | `/writing-plans` $\to$ `/subagent-driven-development` | Turns a spec into a bite-sized TDD plan, then dispatches a fresh implementer and a two-stage (spec + code quality) reviewer sub-agent per task. |
-| **4. Research Code, Web, or Tools** | `/research <question>` or `/research-summary <topic>` | Triages complexity (Tier 1 direct, Tier 2 parallel, Tier 3 collector $\to$ planner $\to$ researcher $\to$ synthesizer pipeline) and writes a cited report to `docs/research/<topic>.md`. |
-| **5. Prove Correctness Formally** | `/proof-driven-development <target>` | Routes across 5 formal verification flows (Hoare logic/SMT, dependent types, TLA+/Kani model checking, abstract interpretation, and proof-cheat auditing). |
-| **6. Review & Drive PRs to Merge** | `/interrogate`, `/autopilot`, `/make-pr-easy-to-review` | Runs multi-model adversarial review, cleans commit history and reviewer guidance, and drives PRs to green under a strict diff size budget. |
-| **7. Ask What to Run** | `/poteto-help <question>` | Recommends the right skill, playbook, or principle and gives you a ready-to-send prompt without spending execution tokens. |
+<p align="center">
+  <img src="assets/workflow-diagram.svg" alt="magic workflow: 1. Session Start -> 2. Route Task -> 3. Research & 4. Architect & Plan -> 5. Execute & Prove -> 6. Review & Clean -> 7. Ship" width="100%" />
+</p>
 
-- **First-time walkthrough:** [The pstack guide (`docs/pstack-guide/README.md`)](docs/pstack-guide/README.md)
+- **1. Route ([`using-poteto`](skills/using-poteto/SKILL.md), [`workflow-routing`](rules/workflow-routing.md))** — Auto-injected at session start on plugin installs (no manual invocation needed; invoke manually only on bare `.agents` directory installs) to load the matching entry-point skill before the first tool call.
+- **2. Understand ([`research`](skills/research/SKILL.md), [`how`](skills/how/SKILL.md), [`why`](skills/why/SKILL.md))** — Dispatches read-only sub-agents to investigate code, history, or options into `docs/research/<topic>.md`.
+- **3. Design ([`architect`](skills/architect/SKILL.md), [`writing-plans`](skills/writing-plans/SKILL.md))** — Settles types and module boundaries, then writes a bite-sized TDD implementation plan.
+- **4. Execute ([`poteto-mode`](skills/poteto-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 23 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
+- **5. Prove ([`tdd`](skills/tdd/SKILL.md), [`proof-driven-development`](skills/proof-driven-development/SKILL.md))** — Enforces RED-GREEN-REFACTOR tests and routes subtle invariants to formal verification ([Hoare/SMT](skills/proving-with-hoare-logic/SKILL.md), [Lean 4](skills/proving-with-dependent-types/SKILL.md), [TLA+/Kani](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), [spec audit](skills/auditing-proof-specifications/SKILL.md)).
+- **6. Review ([`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md), [`unslop`](skills/unslop/SKILL.md))** — Strips narration comments, pits adversarial models against the diff, and cleans AI prose tells.
+- **7. Ship ([`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md), [`shipping`](skills/poteto-mode/playbooks/shipping.md))** — Structures clean commits, resolves CI and review threads, and verifies against the real artifact.
+- **First-time walkthrough:** [The pstack guide (`docs/pstack-guide/README.md`)](docs/pstack-guide/README.md) · **Configure model roles:** [`/setup-pstack`](skills/setup-pstack/SKILL.md) · **Ask what to run:** [`/poteto-help`](skills/poteto-help/SKILL.md)
 
 ---
 
@@ -93,30 +91,6 @@ When you use `~/.agents` (via `./scripts/install.sh` or `git clone`) **without**
 - **[mattpocock/skills](https://github.com/mattpocock/skills) by Matt Pocock** — The preserved skill archive in `skills-disabled/` and inspiration for spec-first grilling and vertical-slice planning workflows.
 
 Full upstream commit hashes, provenance notes, and MIT license notices are preserved in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
-
----
-
-## The Basic Workflow
-
-`magic` intercepts every request at session start, routes it to the right workflow, and verifies the result before shipping.
-
-```mermaid
-flowchart LR
-    Start(["1. Session Start<br/>/using-poteto"]) --> Route{"2. Route Task"}
-    Route -->|"Explore"| Research["3. Research<br/>/research · /how · /why"]
-    Route -->|"Design & Plan"| Plan["4. Architect & Plan<br/>/architect · /writing-plans"]
-    Research & Plan --> Build["5. Execute & Prove<br/>/poteto-mode · /sdd · /tdd · /proof"]
-    Build --> Review["6. Review & Clean<br/>/interrogate · /no-comments"]
-    Review --> Ship(["7. Ship<br/>/autopilot · /shipping"])
-```
-
-- **1. Route ([`using-poteto`](skills/using-poteto/SKILL.md), [`workflow-routing`](rules/workflow-routing.md))** — Auto-injected at session start on plugin installs (no manual invocation needed; invoke manually only on bare `.agents` directory installs) to load the matching entry-point skill before the first tool call.
-- **2. Understand ([`research`](skills/research/SKILL.md), [`how`](skills/how/SKILL.md), [`why`](skills/why/SKILL.md))** — Dispatches read-only sub-agents to investigate code, history, or options into `docs/research/<topic>.md`.
-- **3. Design ([`architect`](skills/architect/SKILL.md), [`writing-plans`](skills/writing-plans/SKILL.md))** — Settles types and module boundaries, then writes a bite-sized TDD implementation plan.
-- **4. Execute ([`poteto-mode`](skills/poteto-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 23 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
-- **5. Prove ([`tdd`](skills/tdd/SKILL.md), [`proof-driven-development`](skills/proof-driven-development/SKILL.md))** — Enforces RED-GREEN-REFACTOR tests and routes subtle invariants to formal verification ([Hoare/SMT](skills/proving-with-hoare-logic/SKILL.md), [Lean 4](skills/proving-with-dependent-types/SKILL.md), [TLA+/Kani](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), [spec audit](skills/auditing-proof-specifications/SKILL.md)).
-- **6. Review ([`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md), [`unslop`](skills/unslop/SKILL.md))** — Strips narration comments, pits adversarial models against the diff, and cleans AI prose tells.
-- **7. Ship ([`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md), [`shipping`](skills/poteto-mode/playbooks/shipping.md))** — Structures clean commits, resolves CI and review threads, and verifies against the real artifact.
 
 ---
 

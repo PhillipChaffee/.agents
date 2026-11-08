@@ -59,23 +59,21 @@ test("THIRD-PARTY-NOTICES.md documents obra/superpowers plugin and bootstrap fil
 	}
 });
 
-test("README.md and .gitignore document magic quote, badge placement, section order (Installation -> How to Use It -> Acknowledgments), and node_modules ignores", () => {
+test("README.md and .gitignore document magic quote, SVG workflow diagram, section order (Installation -> The Basic Workflow -> Acknowledgments -> Catalog Reference), and node_modules ignores", () => {
 	const readme = fs.readFileSync(path.join(repoDir, "README.md"), "utf8");
 	for (const expectedSnippet of [
 		"# magic",
 		"assets/magic-banner.png",
+		"assets/workflow-diagram.svg",
 		"Any sufficiently advanced technology is indistinguishable from magic.",
 		"Arthur C. Clarke",
-		"[![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml)",
 		"## Installation",
 		"### 1. Native Plugin Installation (Superpowers-Style)",
 		"### 2. Use as a `.agents` Directory (`~/.agents` or `.agents/`)",
 		"#### What Works vs. What Does Not Work in `.agents` Directory Mode",
 		"You never need to invoke `/using-poteto` yourself",
-		"## How to Use It",
-		"## Acknowledgments",
 		"## The Basic Workflow",
-		"flowchart LR",
+		"## Acknowledgments",
 		"Native Plugin Installation (Superpowers-Style)",
 		"/plugin marketplace add PhillipChaffee/magic",
 		"/plugin install magic@magic-dev",
@@ -94,26 +92,29 @@ test("README.md and .gitignore document magic quote, badge placement, section or
 		!readme.includes("Vendor-neutral AI coding kit"),
 		"Vendor-neutral prose line must be removed",
 	);
+	assert.ok(!readme.includes("[![validate]("), "Badges must be removed");
+	assert.ok(!readme.includes("## How to Use It"), "## How to Use It section must be removed");
 	assert.ok(
 		fs.existsSync(path.join(repoDir, "assets/magic-banner.png")),
 		"assets/magic-banner.png must exist",
+	);
+	assert.ok(
+		fs.existsSync(path.join(repoDir, "assets/workflow-diagram.svg")),
+		"assets/workflow-diagram.svg must exist",
 	);
 
 	const headingIdx = readme.indexOf("# magic");
 	const bannerIdx = readme.indexOf("assets/magic-banner.png");
 	const quoteIdx = readme.indexOf("Any sufficiently advanced technology is indistinguishable from magic.");
-	const firstHrIdx = readme.indexOf("\n---\n", quoteIdx);
-	const badgeIdx = readme.indexOf("[![validate](");
 	const installIdx = readme.indexOf("## Installation");
-	const howToUseIdx = readme.indexOf("## How to Use It");
-	const ackIdx = readme.indexOf("## Acknowledgments");
 	const workflowIdx = readme.indexOf("## The Basic Workflow");
+	const ackIdx = readme.indexOf("## Acknowledgments");
 	const catalogIdx = readme.indexOf("## Catalog Reference");
 	assert.ok(headingIdx === 0 && bannerIdx > headingIdx && bannerIdx < quoteIdx, "Banner must appear right under # magic");
-	assert.ok(quoteIdx < firstHrIdx && firstHrIdx < badgeIdx && badgeIdx < installIdx, "Badges must appear underneath the --- line break right above ## Installation");
-	assert.ok(installIdx < howToUseIdx, "## Installation must appear before ## How to Use It");
-	assert.ok(howToUseIdx < ackIdx, "## How to Use It must appear before ## Acknowledgments");
-	assert.ok(ackIdx < workflowIdx && workflowIdx < catalogIdx, "## Acknowledgments must be followed by ## The Basic Workflow and ## Catalog Reference");
+	assert.ok(quoteIdx < installIdx, "Quote must appear before ## Installation");
+	assert.ok(installIdx < workflowIdx, "## Installation must appear before ## The Basic Workflow");
+	assert.ok(workflowIdx < ackIdx, "## The Basic Workflow must appear before ## Acknowledgments");
+	assert.ok(ackIdx < catalogIdx, "## Acknowledgments must appear before ## Catalog Reference");
 
 	const gitignoreLines = fs
 		.readFileSync(path.join(repoDir, ".gitignore"), "utf8")

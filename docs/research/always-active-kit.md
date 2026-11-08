@@ -4,10 +4,10 @@ This investigation evaluated how to make the `dot-agents` kit automatically acti
 
 ## Key takeaways
 
-- **One bullet is not enough.** A single line in `agents.kit.md` reaches only 1 of 4 harnesses today and leaves subjective loopholes under the 25-word limit. [1][2]
-- **Four-harness rule + bridge wins.** A `rules/workflow-routing.md` rule plus `poteto-mode` SDO (skill discovery optimization) triggers and harness bridges covers 4 of 4 harnesses for 150 to 235 tokens. [2][3]
-- **Live install is currently empty.** On disk, `~/.agents/skills/`, `~/.agents/agents/`, and `~/.claude/rules/` hold 0 files today, and `~/.agents/AGENTS.md` is stale from October 26. [4][5]
-- **Avoid `@import` and startup hooks.** Force-loading `poteto-mode/SKILL.md` costs 6,250 to 7,150 tokens per turn, while `SessionStart` hooks fail in Cursor Cloud Agents and subagents. [6][7]
+- **One bullet is not enough.** A single line in `agents.kit.md` reaches only 1 of 4 harnesses today and leaves subjective loopholes under the 25-word limit. [1] [2]
+- **Four-harness rule + bridge wins.** A `rules/workflow-routing.md` rule plus `poteto-mode` SDO (skill discovery optimization) triggers and harness bridges covers 4 of 4 harnesses for 150 to 235 tokens. [2] [3]
+- **Live install is currently empty.** On disk, `~/.agents/skills/`, `~/.agents/agents/`, and `~/.claude/rules/` hold 0 files today, and `~/.agents/AGENTS.md` is stale from October 26. [4] [5]
+- **Avoid `@import` and startup hooks.** Force-loading `poteto-mode/SKILL.md` costs 6,250 to 7,150 tokens per turn, while `SessionStart` hooks fail in Cursor Cloud Agents and subagents. [6] [7]
 
 ## Visualization
 
@@ -24,25 +24,25 @@ flowchart LR
 The table below compares 5 activation options across the 4 local harnesses (`Cursor`, `Claude Code`, `Codex CLI`, and `OpenCode`) and repository contract tests.
 
 | Metric | 1. `agents.kit.md` 1-liner | 2. Rule + SDO + Bridge | 3. `@import` `poteto-mode` | 4. `SessionStart` hooks | 5. Manual `Option+Enter` |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | Automatic coverage (count, 4 local harnesses) | 1 of 4 [8] | **4 of 4** [9] | 1 of 4 [8] | 3 of 4 [7] | 0 of 4 [10] |
 | Always-on context cost (tokens per turn, repo files) | 20 to 35 [2] | 150 to 235 [2] | 6,250 to 7,150 [6] | 600 to 850 [7] | **0** [10] |
 | Cursor Cloud Agent and subagent reach (coverage, Cursor runtime) | No [11] | **Yes** [11] | Partial [8] | No [7] | No [10] |
-| Repo contract compliance (pass rate, `validate.sh` and `writing-rules.test.mjs`) | **Pass** [12] | **Pass** [12] | Fail [3][12] | Fail [13] | **Pass** [10] |
+| Repo contract compliance (pass rate, `validate.sh` and `writing-rules.test.mjs`) | **Pass** [12] | **Pass** [12] | Fail [3] [12] | Fail [13] | **Pass** [10] |
 
 ## Findings
 
 ### Why `agents.kit.md` alone does not activate the kit
 
-- `tests/writing-rules.test.mjs` caps `agents.kit.md` to single-line bullets of 25 words or fewer with no headings or tables. [2][12]
-- Zero of 4 harnesses natively auto-load `~/.agents/agents.md` or `~/.agents/rules/*.md` without harness-specific configuration bridges. [1][9]
-- Currently `skills/poteto-mode/SKILL.md` only triggers on the literal words `poteto` or `/poteto-mode`, so harnesses never auto-select it from task prompts. [6][14]
+- `tests/writing-rules.test.mjs` caps `agents.kit.md` to single-line bullets of 25 words or fewer with no headings or tables. [2] [12]
+- Zero of 4 harnesses natively auto-load `~/.agents/agents.md` or `~/.agents/rules/*.md` without harness-specific configuration bridges. [1] [9]
+- Currently `skills/poteto-mode/SKILL.md` only triggers on the literal words `poteto` or `/poteto-mode`, so harnesses never auto-select it from task prompts. [6] [14]
 
 ### Live disk drift and cross-harness bridges
 
-- `~/.agents/skills/` and `~/.agents/agents/` have 0 entries on disk after a November 7 cleanup, while `~/.agents/.kit-stamp` still reflects October 26. [4][5]
-- Cursor, Codex CLI, and OpenCode natively discover `~/.agents/skills/*/SKILL.md` (3 of 4), and the `~/.claude/skills` symlink covers Claude Code (4 of 4). [5][15]
-- Bridging rules to 4 of 4 harnesses requires `~/.claude/rules/kit`, `~/.cursor/rules/*.mdc`, a managed block in `~/.codex/AGENTS.md`, and `instructions` globs in `opencode.json`. [5][9][11]
+- `~/.agents/skills/` and `~/.agents/agents/` have 0 entries on disk after a November 7 cleanup, while `~/.agents/.kit-stamp` still reflects October 26. [4] [5]
+- Cursor, Codex CLI, and OpenCode natively discover `~/.agents/skills/*/SKILL.md` (3 of 4), and the `~/.claude/skills` symlink covers Claude Code (4 of 4). [5] [15]
+- Bridging rules to 4 of 4 harnesses requires `~/.claude/rules/kit`, `~/.cursor/rules/*.mdc`, a managed block in `~/.codex/AGENTS.md`, and `instructions` globs in `opencode.json`. [5] [9] [11]
 
 ## Open questions
 
@@ -69,11 +69,11 @@ The table below compares 5 activation options across the 4 local harnesses (`Cur
 8. `/Users/phillipchaffee/.claude/CLAUDE.md:17-25`
 9. `rules/new-repo-setup.md:43-46`
 10. `skills/poteto-mode/references/harness-adapter.md:32-52`
-11. https://cursor.com/docs/context/rules
+11. [Cursor Rules Documentation](https://cursor.com/docs/context/rules)
 12. `tests/writing-rules.test.mjs:39-64`
 13. `AGENTS.md:8-15`
 14. `skills/poteto-help/SKILL.md:42-60`
-15. https://cursor.com/docs/context/skills
+15. [Cursor Agent Skills Documentation](https://cursor.com/docs/context/skills)
 
 ## TL;DR
 

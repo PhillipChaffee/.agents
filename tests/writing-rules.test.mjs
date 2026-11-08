@@ -146,3 +146,31 @@ test("workflow-routing rule, agents.kit.md pointer, using-magic bootstrap skill,
 	assert.match(harnessAdapterText, /TODO\.md/);
 });
 
+test("large-file-creation rule satisfies frontmatter, word budget, and agents.kit.md link", () => {
+	const largeFile = path.join(repoDir, "rules/large-file-creation.md");
+	assert.ok(fs.existsSync(largeFile), "missing rules/large-file-creation.md");
+	const text = fs.readFileSync(largeFile, "utf8");
+	assert.ok(text.startsWith("---\n"), "large-file-creation.md: missing frontmatter start");
+	const fmEnd = text.indexOf("\n---", 4);
+	assert.notEqual(fmEnd, -1, "large-file-creation.md: missing frontmatter end");
+	const fm = text.slice(4, fmEnd);
+	const keys = fm
+		.split("\n")
+		.filter((line) => /^[A-Za-z][A-Za-z0-9-]*:/.test(line))
+		.map((line) => line.split(":")[0]);
+	assert.deepEqual(keys, ["alwaysApply", "description"]);
+
+	const body = text.slice(fmEnd + 4).trim();
+	const bodyWordCount = body.split(/\s+/).filter(Boolean).length;
+	assert.ok(bodyWordCount < 150, `large-file-creation.md body has ${bodyWordCount} words (expected < 150)`);
+
+	const kitLines = fs
+		.readFileSync(path.join(repoDir, "agents.kit.md"), "utf8")
+		.trim()
+		.split("\n");
+	assert.ok(
+		kitLines.some((line) => line.startsWith("- ") && line.includes("rules/large-file-creation.md")),
+		"agents.kit.md must contain a bullet linking to rules/large-file-creation.md",
+	);
+});
+

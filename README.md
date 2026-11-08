@@ -1,5 +1,9 @@
 # magic
 
+<p align="center">
+  <img src="assets/magic-banner.png" alt="magic — an open grimoire with a luminous geometric astrolabe diagram on an artisan drafting desk" width="100%" />
+</p>
+
 [![validate](https://github.com/PhillipChaffee/magic/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/magic/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Vendor-neutral AI coding kit & plugin** for `.agents`-compatible harnesses (Claude Code, Cursor, Codex, OpenCode, Pi): **74 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **4 operational rules**.

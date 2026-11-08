@@ -63,6 +63,7 @@ test("README.md and .gitignore document magic quote, section order (Installation
 	const readme = fs.readFileSync(path.join(repoDir, "README.md"), "utf8");
 	for (const expectedSnippet of [
 		"# magic",
+		"assets/magic-banner.png",
 		"Any sufficiently advanced technology is indistinguishable from magic.",
 		"Arthur C. Clarke",
 		"**74 active skills**",
@@ -84,11 +85,19 @@ test("README.md and .gitignore document magic quote, section order (Installation
 		assert.ok(readme.includes(expectedSnippet), `README.md missing: ${expectedSnippet}`);
 	}
 
+	assert.ok(
+		fs.existsSync(path.join(repoDir, "assets/magic-banner.png")),
+		"assets/magic-banner.png must exist",
+	);
+
+	const headingIdx = readme.indexOf("# magic");
+	const bannerIdx = readme.indexOf("assets/magic-banner.png");
 	const quoteIdx = readme.indexOf("Any sufficiently advanced technology is indistinguishable from magic.");
 	const installIdx = readme.indexOf("## Installation");
 	const howToUseIdx = readme.indexOf("## How to Use It");
 	const ackIdx = readme.indexOf("## Acknowledgments");
 	const archIdx = readme.indexOf("## Architecture & Workflow");
+	assert.ok(headingIdx === 0 && bannerIdx > headingIdx && bannerIdx < quoteIdx, "Banner must appear right under # magic");
 	assert.ok(quoteIdx > 0 && quoteIdx < installIdx, "Quote must appear before ## Installation");
 	assert.ok(installIdx < howToUseIdx, "## Installation must appear before ## How to Use It");
 	assert.ok(howToUseIdx < ackIdx, "## How to Use It must appear before ## Acknowledgments");

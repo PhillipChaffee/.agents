@@ -1,0 +1,20 @@
+{
+  "name": "dot-agents",
+  "description": "Vendor-neutral AI coding kit for Claude Code, Cursor, Codex, OpenCode, and Pi: execution playbooks, formal verification, engineering principles, specialist sub-agents, and operational rules",
+  "version": "0.2.0",
+  "author": {
+    "name": "Phillip Chaffee"
+  },
+  "homepage": "https://github.com/PhillipChaffee/.agents",
+  "repository": "https://github.com/PhillipChaffee/.agents",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "agents",
+    "playbooks",
+    "tdd",
+    "formal-verification",
+    "debugging",
+    "workflows"
+  ]
+}

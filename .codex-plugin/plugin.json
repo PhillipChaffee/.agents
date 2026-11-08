@@ -1,0 +1,45 @@
+{
+  "name": "dot-agents",
+  "version": "0.2.0",
+  "description": "Vendor-neutral AI coding kit for Claude Code, Cursor, Codex, OpenCode, and Pi: execution playbooks, formal verification, engineering principles, specialist sub-agents, and operational rules.",
+  "author": {
+    "name": "Phillip Chaffee",
+    "url": "https://github.com/PhillipChaffee/.agents"
+  },
+  "homepage": "https://github.com/PhillipChaffee/.agents",
+  "repository": "https://github.com/PhillipChaffee/.agents",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "agents",
+    "playbooks",
+    "tdd",
+    "formal-verification",
+    "debugging",
+    "code-review",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "dot-agents",
+    "shortDescription": "Execution playbooks, formal verification, and engineering principles for coding agents",
+    "longDescription": "Use dot-agents to route engineering, research, and formal-verification work through structured playbooks, specialist sub-agents, and proven design principles.",
+    "developerName": "Phillip Chaffee",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Route this task through /poteto-mode and verify the result.",
+      "Research how this subsystem works and cite primary sources."
+    ],
+    "websiteURL": "https://github.com/PhillipChaffee/.agents",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#0EA5E9",
+    "screenshots": []
+  }
+}

@@ -36,7 +36,7 @@
   <!-- 1. Session Start -->
   <rect x="24" y="83" width="150" height="64" rx="32" class="node-pill" />
   <text x="99" y="110" class="title">1. Session Start</text>
-  <text x="99" y="129" class="sub">/using-poteto</text>
+  <text x="99" y="129" class="sub">/using-magic</text>
 
   <!-- Edge 1 to 2 -->
   <path d="M 174 115 L 204 115" class="edge" marker-end="url(#arrow)" />
@@ -72,7 +72,7 @@
   <!-- 5. Execute and Prove -->
   <rect x="680" y="67" width="166" height="96" rx="8" class="node-box" />
   <text x="763" y="96" class="title">5. Execute &amp; Prove</text>
-  <text x="763" y="118" class="sub">/poteto-mode &#183; /sdd</text>
+  <text x="763" y="118" class="sub">/magic-mode &#183; /sdd</text>
   <text x="763" y="137" class="sub">/tdd &#183; /proof</text>
 
   <!-- Edge 5 to 6 -->

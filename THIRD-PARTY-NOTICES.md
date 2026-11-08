@@ -68,8 +68,8 @@ SOFTWARE.
 
 ## pstack
 
-The 58 pstack skills, the `poteto-agent` and `comment-sicko` agents, and
-`docs/pstack-guide/` are ported from
+The 58 pstack skills, the `magic-agent` and `comment-sicko` agents, and
+`docs/magic-guide/` are ported from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan,
 synced at `cursor/plugins` commit
 `c742dd61706fbacc1b95f1a20b7b988cf096ce6c` (pstack 0.15.36).

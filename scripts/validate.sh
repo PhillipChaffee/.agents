@@ -111,7 +111,7 @@ if not agents:
 
 AGENT_REF = re.compile(
     r"\b((?:cr)-[a-z][a-z-]*|researcher-(?:lite|mid|deep)|"
-    r"research-(?:planner|synthesizer)|poteto-agent|comment-sicko)\b"
+    r"research-(?:planner|synthesizer)|magic-agent|comment-sicko)\b"
 )
 SKILL_CMD = re.compile(r"`/([a-z][a-z0-9-]*)`")
 # A /name followed by "/" or "<" is a path or a placeholder such as
@@ -130,20 +130,20 @@ EXTERNAL = {
     # /loop is a harness built-in (Cursor and Claude Code both ship one).
     "loop",
 }
-# Consumer-local rules the pstack skills read but the kit never ships:
+# Consumer-local rules the magic skills read but the kit never ships:
 # the installer-era models.json has a role-file sibling written by
-# /setup-pstack into the consumer's rules directory.
-CONSUMER_RULES = {"pstack-models"}
-# The three pstack mapping references translate upstream names (Cursor
+# /setup-magic into the consumer's rules directory.
+CONSUMER_RULES = {"magic-models"}
+# The three magic mapping references translate upstream names (Cursor
 # paths, vendor model slugs, forge commands) into the kit's neutral terms,
 # so they name those terms by design.
 MAPPING_DOCS = {
-    "skills/poteto-mode/references/harness-adapter.md",
-    "skills/poteto-mode/references/model-roles.md",
-    "skills/poteto-mode/references/forge-operations.md",
+    "skills/magic-mode/references/harness-adapter.md",
+    "skills/magic-mode/references/model-roles.md",
+    "skills/magic-mode/references/forge-operations.md",
 }
-# Files the owner restored to upstream pstack wording on purpose.
-VERBATIM_LIST = Path("scripts/pstack-verbatim.txt")
+# Files the owner restored to upstream wording on purpose.
+VERBATIM_LIST = Path("scripts/magic-verbatim.txt")
 if VERBATIM_LIST.exists():
     for line in VERBATIM_LIST.read_text().splitlines():
         line = line.strip()
@@ -155,7 +155,7 @@ BANNED = re.compile(
     r"\b(?:grok|composer|gpt|gemini)-[0-9]|\bclaude-[a-z]+-[0-9]|"
     r"subagent_type: generalPurpose|environment: \"(?:cloud|local)\"|"
     r"cloud_base_branch|\bAskQuestion\b|cursor-team-kit|\bBugbot\b|"
-    r"~/\.cursor|pstack-models\.mdc|\borigin pr\b|\bgh (?:pr|api|issue)\b|"
+    r"~/\.cursor|magic-models\.mdc|\borigin pr\b|\bgh (?:pr|api|issue)\b|"
     r"\bgt (?:submit|stack|sync)\b"
 )
 

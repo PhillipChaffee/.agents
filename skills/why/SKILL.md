@@ -9,7 +9,7 @@ name: why
 
 Investigate the motivation and intent behind code. The companion `how` skill answers what the code does and how it works. `why` answers what forces led to its shape.
 
-Each spawn below names a role line in the `pstack-models` role file (see `model-roles.md`) and a default. Set `model` to that line's value, or to the default if the role file or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the harness rejects the resolved model, fall back to the role's default tier and say so. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
+Each spawn below names a role line in the `magic-models` role file (see `model-roles.md`) and a default. Set `model` to that line's value, or to the default if the role file or the line is missing. Leave `model` unset when the value is `auto` or `inherit-parent`. If the harness rejects the resolved model, fall back to the role's default tier and say so. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **magic-mode** skill.
 
 Every spawn is a general-purpose, read-write subagent. **Do not use a read-only subagent.** It strips MCP access in some harnesses, which disables the MCP-backed investigators and the synthesizer's citation spot-checks. Investigators still shouldn't write anything.
 

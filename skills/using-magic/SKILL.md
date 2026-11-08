@@ -1,11 +1,11 @@
 ---
 description: Use when starting any conversation or task - establishes how to find, route, and invoke magic skills before any response or action
 enabled: true
-id: using-poteto
-name: using-poteto
+id: using-magic
+name: using-magic
 ---
 
-# Using Poteto
+# Using Magic
 
 <SUBAGENT-STOP>
 If you were dispatched as a subagent to execute a specific scoped subtask, ignore this bootstrap skill and execute your assigned task directly.
@@ -25,11 +25,11 @@ Invoke the matching entry-point skill BEFORE any tool call, file read, codebase 
 
 | Observable task signal | Entry-point skill |
 | --- | --- |
-| Writing, editing, debugging, refactoring, testing, reviewing, or shipping code, docs, or configuration, or running multi-step engineering workflows | [`/poteto-mode`](../poteto-mode/SKILL.md) |
+| Writing, editing, debugging, refactoring, testing, reviewing, or shipping code, docs, or configuration, or running multi-step engineering workflows | [`/magic-mode`](../magic-mode/SKILL.md) |
 | Investigating a codebase, comparing options, or answering how, why, or where questions across files, web, or MCP | [`/research`](../research/SKILL.md) |
 | Producing a brief, cited research summary with a head-to-head comparison table | [`/research-summary`](../research-summary/SKILL.md) |
 | Writing or auditing formal proofs, loop invariants, state machines, or model-checked specifications | [`/proof-driven-development`](../proof-driven-development/SKILL.md) |
-| Unsure which skill, playbook, or principle fits the request | [`/poteto-help`](../poteto-help/SKILL.md) |
+| Unsure which skill, playbook, or principle fits the request | [`/magic-help`](../magic-help/SKILL.md) |
 
 ## Exceptions (Skip Entry-Point Routing)
 
@@ -59,7 +59,7 @@ These thoughts mean STOP. You are rationalizing around skill routing:
 
 ## Platform Adaptation
 
-Read [harness-adapter.md](../poteto-mode/references/harness-adapter.md) once per session for how neutral terms in kit skills map to your active harness (`Cursor`, `Claude Code`, `Codex`, `OpenCode`, and `Pi`).
+Read [harness-adapter.md](../magic-mode/references/harness-adapter.md) once per session for how neutral terms in kit skills map to your active harness (`Cursor`, `Claude Code`, `Codex`, `OpenCode`, and `Pi`).
 
 ## User Instructions
 

@@ -6,9 +6,9 @@ type ExtensionAPI = {
 	on(event: string, handler: (event: any, ctx?: any) => unknown): void;
 };
 
-const PI_PREAMBLE = `magic:using-poteto bootstrap for pi
+const PI_PREAMBLE = `magic:using-magic bootstrap for pi
 
-The using-poteto skill content is included below and is already loaded for this Pi session. Follow it now. Do not try to load using-poteto again.`;
+The using-magic skill content is included below and is already loaded for this Pi session. Follow it now. Do not try to load using-magic again.`;
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
 const skillsDir = resolve(extensionDir, "../../skills");

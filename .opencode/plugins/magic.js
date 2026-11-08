@@ -14,7 +14,7 @@ export const V1_MAPPING = `**Tool Mapping for OpenCode:**
 When skills request actions, substitute OpenCode equivalents:
 - Create or update todos → \`todowrite\`
 - \`Subagent (general-purpose):\` → \`task\` with \`subagent_type: "general"\`
-- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`magic:\` prefix skills use when they name each other (\`magic:poteto-mode\` → \`skill\` with \`name: "poteto-mode"\`)
+- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`magic:\` prefix skills use when they name each other (\`magic:magic-mode\` → \`skill\` with \`name: "magic-mode"\`)
 - Read files → \`read\`
 - Create, edit, or delete files → \`apply_patch\`
 - Run shell commands → \`bash\`
@@ -27,7 +27,7 @@ export const V2_MAPPING = `**Tool Mapping for OpenCode:**
 When skills request actions, substitute OpenCode equivalents:
 - Create or update todos → OpenCode v2 has no todo tool; track the plan in a markdown file (or the harness's plan facility) instead
 - \`Subagent (general-purpose):\` → \`subagent\` with \`agent: "general"\` (give it \`description\` and \`prompt\`, optionally \`background\`; pass \`sessionID\` to continue a previous subagent)
-- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`magic:\` prefix skills use when they name each other (\`magic:poteto-mode\` → \`skill\` with \`id: "poteto-mode"\`)
+- Invoke a skill → OpenCode's native \`skill\` tool. Skill ids are bare names, so drop the \`magic:\` prefix skills use when they name each other (\`magic:magic-mode\` → \`skill\` with \`id: "magic-mode"\`)
 - Read files → \`read\`
 - Create, edit, or delete files → use \`patch\` with \`patchText\` when available; otherwise use \`write\` to create or overwrite files, \`edit\` for targeted changes, and \`shell\` for deletion
 - Run shell commands → \`shell\` (\`command\`, \`workdir\`, \`timeout\`, \`background\`)

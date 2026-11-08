@@ -81,7 +81,7 @@ test("writing-rules rule_triage flowchart renders cleanly with render-graphs.js"
 	assert.ok(fs.existsSync(path.join(skillCopyDir, "diagrams/rule_triage.svg")));
 });
 
-test("workflow-routing rule, agents.kit.md pointer, using-poteto bootstrap skill, and poteto-mode SDO trigger satisfy routing contract", () => {
+test("workflow-routing rule, agents.kit.md pointer, using-magic bootstrap skill, and magic-mode SDO trigger satisfy routing contract", () => {
 	const routingFile = path.join(repoDir, "rules/workflow-routing.md");
 	const routingText = fs.readFileSync(routingFile, "utf8");
 	assert.ok(routingText.startsWith("---\n"), "workflow-routing.md: missing frontmatter start");
@@ -97,7 +97,7 @@ test("workflow-routing rule, agents.kit.md pointer, using-poteto bootstrap skill
 	const routingBody = routingText.slice(routingFmEnd + 4).trim();
 	const bodyWordCount = routingBody.split(/\s+/).filter(Boolean).length;
 	assert.ok(bodyWordCount < 150, `workflow-routing.md body has ${bodyWordCount} words (expected < 150)`);
-	assert.match(routingBody, /\/poteto-mode/);
+	assert.match(routingBody, /\/magic-mode/);
 	assert.match(routingBody, /\/research/);
 	assert.match(routingBody, /\/proof-driven-development/);
 
@@ -114,29 +114,29 @@ test("workflow-routing rule, agents.kit.md pointer, using-poteto bootstrap skill
 		assert.ok(words.length <= 25, `agents.kit.md line exceeds 25 words (${words.length}): ${line}`);
 	}
 
-	const usingPotetoFile = path.join(repoDir, "skills/using-poteto/SKILL.md");
-	assert.ok(fs.existsSync(usingPotetoFile), "missing skills/using-poteto/SKILL.md");
-	const usingPotetoText = fs.readFileSync(usingPotetoFile, "utf8");
-	assert.ok(usingPotetoText.startsWith("---\n"), "using-poteto: missing frontmatter start");
-	const upFmEnd = usingPotetoText.indexOf("\n---", 4);
-	assert.notEqual(upFmEnd, -1, "using-poteto: missing frontmatter end");
-	const upFm = usingPotetoText.slice(4, upFmEnd);
+	const usingMagicFile = path.join(repoDir, "skills/using-magic/SKILL.md");
+	assert.ok(fs.existsSync(usingMagicFile), "missing skills/using-magic/SKILL.md");
+	const usingMagicText = fs.readFileSync(usingMagicFile, "utf8");
+	assert.ok(usingMagicText.startsWith("---\n"), "using-magic: missing frontmatter start");
+	const upFmEnd = usingMagicText.indexOf("\n---", 4);
+	assert.notEqual(upFmEnd, -1, "using-magic: missing frontmatter end");
+	const upFm = usingMagicText.slice(4, upFmEnd);
 	const upKeys = upFm
 		.split("\n")
 		.filter((line) => /^[A-Za-z][A-Za-z0-9-]*:/.test(line))
 		.map((line) => line.split(":")[0]);
 	assert.deepEqual(upKeys, ["description", "enabled", "id", "name"]);
-	assert.match(usingPotetoText, /<SUBAGENT-STOP>/);
-	assert.match(usingPotetoText, /<EXTREMELY-IMPORTANT>/);
-	assert.match(usingPotetoText, /\.\.\/poteto-mode\/references\/harness-adapter\.md/);
+	assert.match(usingMagicText, /<SUBAGENT-STOP>/);
+	assert.match(usingMagicText, /<EXTREMELY-IMPORTANT>/);
+	assert.match(usingMagicText, /\.\.\/magic-mode\/references\/harness-adapter\.md/);
 
-	const potetoModeText = fs.readFileSync(path.join(repoDir, "skills/poteto-mode/SKILL.md"), "utf8");
-	const pmFmEnd = potetoModeText.indexOf("\n---", 4);
-	const pmFm = potetoModeText.slice(4, pmFmEnd);
-	assert.match(pmFm, /^description: ["']?Use when /m, "poteto-mode description must start with 'Use when'");
+	const magicModeText = fs.readFileSync(path.join(repoDir, "skills/magic-mode/SKILL.md"), "utf8");
+	const pmFmEnd = magicModeText.indexOf("\n---", 4);
+	const pmFm = magicModeText.slice(4, pmFmEnd);
+	assert.match(pmFm, /^description: ["']?Use when /m, "magic-mode description must start with 'Use when'");
 
 	const harnessAdapterText = fs.readFileSync(
-		path.join(repoDir, "skills/poteto-mode/references/harness-adapter.md"),
+		path.join(repoDir, "skills/magic-mode/references/harness-adapter.md"),
 		"utf8",
 	);
 	assert.match(harnessAdapterText, /spawn_agent \{fork_turns: "none"\}/);

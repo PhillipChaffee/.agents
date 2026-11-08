@@ -1,19 +1,19 @@
 ---
-description: Configure which models pstack uses per role and at what reasoning budget. Detects your available models and writes an always-applied rule that overrides the skill defaults. Use for /setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
+description: Configure which models magic uses per role and at what reasoning budget. Detects your available models and writes an always-applied rule that overrides the skill defaults. Use for /setup-magic, "configure magic models", "magic budget", or changing magic's model choices.
 enabled: true
-id: setup-pstack
-name: setup-pstack
+id: setup-magic
+name: setup-magic
 ---
 
-# Setup pstack
+# Setup magic
 
-Write the `pstack-models` role file (see [`model-roles.md`](../poteto-mode/references/model-roles.md)), an always-applied rule that sets pstack's model per role.
+Write the `magic-models` role file (see [`model-roles.md`](../magic-mode/references/model-roles.md)), an always-applied rule that sets magic's model per role.
 
 ## Steps
 
 ### 1. Detect available models
 
-Enumerate the model identifiers you can pass to a subagent in this session (the [harness adapter](../poteto-mode/references/harness-adapter.md) says how each harness takes a model for a subagent). That is the dependable source. If the harness also exposes a models API or CLI that lists the user's entitled models, prefer it for completeness. If you cannot detect any, offer the tier names `fast`, `main`, and `deep` plus `inherit-parent` and `auto`, or ask the user to paste the model identifiers they have access to. Never write a real model identifier you have not confirmed is available. The tier names and the aliases `inherit-parent` and `auto` are always valid even though they are not detected models.
+Enumerate the model identifiers you can pass to a subagent in this session (the [harness adapter](../magic-mode/references/harness-adapter.md) says how each harness takes a model for a subagent). That is the dependable source. If the harness also exposes a models API or CLI that lists the user's entitled models, prefer it for completeness. If you cannot detect any, offer the tier names `fast`, `main`, and `deep` plus `inherit-parent` and `auto`, or ask the user to paste the model identifiers they have access to. Never write a real model identifier you have not confirmed is available. The tier names and the aliases `inherit-parent` and `auto` are always valid even though they are not detected models.
 
 ### 2. Load current state
 
@@ -38,10 +38,10 @@ Every real model identifier written must be in the detected set. The tier names 
 
 ### 5. Write the rule
 
-Write the role file at the location the harness adapter names, with any header that harness needs for an always-applied rule, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Never write `CLAUDE.md`, `AGENTS.md`, or `agents.md`. Shape:
+Write the role file at the location the harness adapter names, with any header that harness needs for an always-applied rule, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels magic-mode uses. Overwrite the whole file so re-runs stay idempotent. Never write `CLAUDE.md`, `AGENTS.md`, or `agents.md`. Shape:
 
 ```text
-# pstack model configuration. One line per role. Delete a line to fall back to the default tier.
+# magic model configuration. One line per role. Delete a line to fall back to the default tier.
 # `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit the model field). Alias entries in a panel list still count toward its fan-out.
 # budget: large (xhigh)
 feature, refactoring: main

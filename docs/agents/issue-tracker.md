@@ -46,7 +46,7 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 
 ## Pull request operations
 
-The pstack playbooks name forge operations (defined in `skills/poteto-mode/references/forge-operations.md`) and leave the command to this file. On this repo they resolve to `gh`:
+The magic playbooks name forge operations (defined in `skills/magic-mode/references/forge-operations.md`) and leave the command to this file. On this repo they resolve to `gh`:
 
 | Operation | Command |
 | --- | --- |

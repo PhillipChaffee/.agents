@@ -1,4 +1,4 @@
-# Baseline (RED): Unmodified `/poteto-mode` + `/how`
+# Baseline (RED): Unmodified `/magic-mode` + `/how`
 
 **Consumer and maintainer impact.** An engineer or product manager running `/statechart` gets Mermaid statecharts, PNG diagrams, and plain-language bug stories generated from TLA+ models or hand-drawn Mermaid charts, while untrusted rule tokens in `.cfg` files cannot write files outside the temporary work folder, as verified in `skills/statechart/scripts/statechart.mjs` and `tests/pr26-regressions.test.mjs`. The next engineer maintaining `skills/statechart/scripts/statechart.mjs` inherits a single CLI entrypoint that snapshots inputs before running TLC, confines per-rule output filenames with `encodeURIComponent`, and publishes output folders atomically only after verifying that no input file changed during the run, as read in `skills/statechart/scripts/statechart.mjs` and `skills/statechart/scripts/snapshot.mjs`.
 

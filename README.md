@@ -11,31 +11,59 @@
 
 ## Installation
 
-You can use `magic` in two ways: **install it as a native plugin/package** in your coding harness, or **use it directly as a `.agents` directory** (`~/.agents` globally or `.agents/` inside a project).
+Install `magic` as a native plugin for your coding harness, or sync it as a `.agents` directory (`~/.agents` globally or `.agents/` in a project). When installed as a plugin, `using-magic` loads automatically at session start. **You never need to invoke `/using-magic` yourself**—just state your task in plain language or invoke a skill like `/magic-mode` directly.
 
-### 1. Native Plugin Installation (Superpowers-Style)
+### Claude Code
 
-Install `magic` through your harness's plugin or package manager to register skills, sub-agents, rules, and the session-start bootstrap automatically. **You never need to invoke `/using-poteto` yourself**—just state your task in plain language or invoke a specific skill like `/poteto-mode` directly:
+- Register the marketplace and install the plugin:
 
-| Harness | Installation Command / Configuration |
-| --- | --- |
-| **Claude Code** | `/plugin marketplace add PhillipChaffee/magic` then `/plugin install magic@magic-dev` |
-| **Cursor** | `/add-plugin` from the repository (or `.cursor-plugin/plugin.json`) |
-| **Codex CLI / App** | `/plugins` via `.agents/plugins/marketplace.json` (or `~/.agents/skills`) |
-| **OpenCode (V1 & V2)** | `"plugins": ["magic@git+https://github.com/PhillipChaffee/magic.git"]` in `opencode.json` (or `"plugin"` in V1) |
-| **Pi** | `pi install git:github.com/PhillipChaffee/magic` (or `pi -e /path/to/magic`) |
+  ```bash
+  /plugin marketplace add PhillipChaffee/magic
+  /plugin install magic@magic-dev
+  ```
 
-### 2. Use as a `.agents` Directory (`~/.agents` or `.agents/`)
+### Cursor
 
-Because this repository's root layout (`skills/`, `agents/`, `rules/`, `agents.kit.md`) follows the `.agents` directory standard, you can either clone it directly as `~/.agents` (or a project's `.agents/` folder) or sync it non-destructively into an existing `~/.agents` directory with `./scripts/install.sh`:
+- In Cursor Agent chat, install the plugin from this repository (`.cursor-plugin/plugin.json`):
 
-```sh
-# Option A: Non-destructive sync into ~/.agents (writes both SKILL.md and skill.md + prompts for models.json)
-git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/install.sh --target agents
+  ```text
+  /add-plugin https://github.com/PhillipChaffee/magic
+  ```
 
-# Option B: Clone directly as ~/.agents (for harnesses that auto-discover ~/.agents/skills/)
-git clone https://github.com/PhillipChaffee/magic.git ~/.agents
-```
+### Codex
+
+- Install from `.agents/plugins/marketplace.json` via `/plugins` in the Codex CLI or App.
+
+### OpenCode
+
+- Add `magic` to your `opencode.json` (use `"plugins"` on OpenCode V2 or `"plugin"` on V1):
+
+  ```json
+  {
+    "plugins": ["magic@git+https://github.com/PhillipChaffee/magic.git"]
+  }
+  ```
+
+### Pi
+
+- Install `magic` as a Pi package (or run `pi -e /path/to/magic` for a local checkout):
+
+  ```bash
+  pi install git:github.com/PhillipChaffee/magic
+  ```
+
+### .agents Directory (~/.agents or .agents/)
+
+- Sync `magic` non-destructively into `~/.agents` (or clone directly to `~/.agents` / `.agents/`):
+
+  ```bash
+  git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/install.sh --target agents
+  ```
+
+- **What works vs. what doesn't without a plugin:** `Cursor`, `Codex`, and `OpenCode` auto-discover `~/.agents/skills/` (and `.agents/skills/`), whereas `Claude Code` and `Pi` do not scan `~/.agents/` by default. Without native plugin installation or manual bridging, no harness runs `SessionStart` hooks, plugin injectors, or `~/.agents/rules/*.md` automatically, so you must invoke `/magic-mode` or `/using-magic` manually.
+
+<details>
+<summary><strong><code>.agents</code> directory CLI flags &amp; per-harness behavior</strong></summary>
 
 | `./scripts/install.sh` Flag | Behavior | Touches Unmanaged Files in `~/.agents`? |
 | --- | --- | --- |
@@ -48,17 +76,15 @@ git clone https://github.com/PhillipChaffee/magic.git ~/.agents
 
 - **Security boundary:** Never commit API keys, tokens, or private MCP configs. `models.json` and `.kit-stamp` stay local to `~/.agents/`.
 
-#### What Works vs. What Does Not Work in `.agents` Directory Mode
-
-When you use `~/.agents` (via `./scripts/install.sh` or `git clone`) **without** installing the native plugin/package for your harness, no harness executes `hooks/`, `.opencode/plugins/magic.js`, or `.pi/extensions/magic.ts` from inside `~/.agents/`, and no harness natively auto-loads `~/.agents/rules/*.md` or `~/.agents/agents.md`:
-
 | Harness | What Works from `~/.agents` Alone | What Does **Not** Work Without the Plugin (and How to Bridge Manually) |
 | --- | --- | --- |
 | **Cursor** | Auto-discovers `~/.agents/skills/` and `.agents/skills/` in local sessions | **No `sessionStart` hook**, **no `~/.agents/rules/*.md` or `agents.md`** (Cursor requires `.mdc` files in `~/.cursor/rules/`), **no named `agents/` registration**, and local `~/.agents/` is not mounted in Cloud Agents. |
-| **Codex CLI / App** | Auto-discovers `~/.agents/skills/` and `.agents/skills/` (surfaces `using-poteto` in the skill index) | **No `~/.agents/rules/*.md` or `agents.md`** (Codex reads `~/.codex/AGENTS.md` and uses `~/.codex/rules/*.rules` for Starlark command allowlists, not Markdown rules). |
+| **Codex CLI / App** | Auto-discovers `~/.agents/skills/` and `.agents/skills/` (surfaces `using-magic` in the skill index) | **No `~/.agents/rules/*.md` or `agents.md`** (Codex reads `~/.codex/AGENTS.md` and uses `~/.codex/rules/*.rules` for Starlark command allowlists, not Markdown rules). |
 | **OpenCode (V1 & V2)** | Auto-discovers `~/.agents/skills/` and `.agents/skills/` | **No `.opencode/plugins/magic.js` bootstrap or V1/V2 tool-mapping injection**, and **no `~/.agents/rules/*.md` or `agents.md`** unless you add `"instructions": ["~/.agents/agents.md", "~/.agents/rules/*.md"]` to `opencode.json`. |
 | **Claude Code** | *None by default* (Claude Code only scans `~/.claude/` and `.claude/`) | **No `SessionStart` hook, skills, agents, or rules** unless you symlink `~/.claude/{skills,agents,rules}` to `~/.agents/` and `@`-import `~/.agents/agents.md` in `~/.claude/CLAUDE.md`. |
 | **Pi** | *None by default* (Pi does not scan `~/.agents/`) | **No `.pi/extensions/magic.ts` bootstrap, Pi tool mapping, or skills** unless installed as a Pi package (`pi install` or `pi -e`). |
+
+</details>
 
 ---
 
@@ -70,14 +96,14 @@ When you use `~/.agents` (via `./scripts/install.sh` or `git clone`) **without**
   <img src="assets/workflow-diagram.svg" alt="magic workflow: 1. Session Start to 2. Route Task to 3. Research and 4. Architect and Plan to 5. Execute and Prove to 6. Review and Clean to 7. Ship" width="100%" />
 </p>
 
-- **1. Route ([`using-poteto`](skills/using-poteto/SKILL.md), [`workflow-routing`](rules/workflow-routing.md))** — Auto-injected at session start on plugin installs (no manual invocation needed; invoke manually only on bare `.agents` directory installs) to load the matching entry-point skill before the first tool call.
+- **1. Route ([`using-magic`](skills/using-magic/SKILL.md), [`workflow-routing`](rules/workflow-routing.md))** — Auto-injected at session start on plugin installs (no manual invocation needed; invoke manually only on bare `.agents` directory installs) to load the matching entry-point skill before the first tool call.
 - **2. Understand ([`research`](skills/research/SKILL.md), [`how`](skills/how/SKILL.md), [`why`](skills/why/SKILL.md))** — Dispatches read-only sub-agents to investigate code, history, or options into `docs/research/<topic>.md`.
 - **3. Design ([`architect`](skills/architect/SKILL.md), [`writing-plans`](skills/writing-plans/SKILL.md))** — Settles types and module boundaries, then writes a bite-sized TDD implementation plan.
-- **4. Execute ([`poteto-mode`](skills/poteto-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 23 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
+- **4. Execute ([`magic-mode`](skills/magic-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 23 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
 - **5. Prove ([`tdd`](skills/tdd/SKILL.md), [`proof-driven-development`](skills/proof-driven-development/SKILL.md))** — Enforces RED-GREEN-REFACTOR tests and routes subtle invariants to formal verification ([Hoare/SMT](skills/proving-with-hoare-logic/SKILL.md), [Lean 4](skills/proving-with-dependent-types/SKILL.md), [TLA+/Kani](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), [spec audit](skills/auditing-proof-specifications/SKILL.md)).
 - **6. Review ([`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md), [`unslop`](skills/unslop/SKILL.md))** — Strips narration comments, pits adversarial models against the diff, and cleans AI prose tells.
-- **7. Ship ([`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md), [`shipping`](skills/poteto-mode/playbooks/shipping.md))** — Structures clean commits, resolves CI and review threads, and verifies against the real artifact.
-- **First-time walkthrough:** [The pstack guide (`docs/pstack-guide/README.md`)](docs/pstack-guide/README.md) · **Configure model roles:** [`/setup-pstack`](skills/setup-pstack/SKILL.md) · **Ask what to run:** [`/poteto-help`](skills/poteto-help/SKILL.md)
+- **7. Ship ([`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md), [`shipping`](skills/magic-mode/playbooks/shipping.md))** — Structures clean commits, resolves CI and review threads, and verifies against the real artifact.
+- **First-time walkthrough:** [The magic guide (`docs/magic-guide/README.md`)](docs/magic-guide/README.md) · **Configure model roles:** [`/setup-magic`](skills/setup-magic/SKILL.md) · **Ask what to run:** [`/magic-help`](skills/magic-help/SKILL.md)
 
 ---
 
@@ -85,7 +111,7 @@ When you use `~/.agents` (via `./scripts/install.sh` or `git clone`) **without**
 
 `magic` stands on the shoulders of several open-source agent frameworks whose ideas, skills, playbooks, and plugin infrastructure were borrowed, combined, and augmented here. Huge thanks to their creators and maintainers:
 
-- **[pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan (`@poteto`)** — The heart of the execution engine: `/poteto-mode`, all 23 execution playbooks, the 24 `principle-*` skills, the situational engineering skills (`/how`, `/why`, `/teach`, `/architect`, `/arena`, `/swarm`, `/interrogate`, `/blast-radius`, `/statechart`, `/ketchup`, `/ketchup-video`, `/unslop`, `/technical-writing`, `/no-comments`, `/setup-pstack`, `/poteto-help`), the `poteto-agent` and `comment-sicko` sub-agents, and `docs/pstack-guide/`. Augmented here with vendor-neutral harness, model-role, and forge adapters so the entire stack runs outside Cursor too.
+- **[pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan (`@poteto`)** — The heart of the execution engine (adapted here as `/magic-mode`, `/magic-help`, `/setup-magic`, `magic-agent`, and `docs/magic-guide/`): all 23 execution playbooks, the 24 `principle-*` skills, the situational engineering skills (`/how`, `/why`, `/teach`, `/architect`, `/arena`, `/swarm`, `/interrogate`, `/blast-radius`, `/statechart`, `/ketchup`, `/ketchup-video`, `/unslop`, `/technical-writing`, `/no-comments`, `/setup-magic`, `/magic-help`), the `magic-agent` and `comment-sicko` sub-agents, and `docs/magic-guide/`. Augmented here with vendor-neutral harness, model-role, and forge adapters so the entire stack runs outside Cursor too.
 - **[Superpowers](https://github.com/obra/superpowers) by Jesse Vincent (`@obra`) and [Prime Radiant](https://primeradiant.com)** — The multi-harness plugin and zero-fork session-start bootstrap architecture (`hooks/run-hook.cmd`, `hooks/session-start`, `.opencode/plugins/magic.js`, `.pi/extensions/magic.ts`, and the Claude Code, Cursor, and Codex plugin manifests), plus the `/writing-skills`, `/writing-plans`, and `/subagent-driven-development` workflows.
 - **[cursor-team-kit](https://github.com/cursor/plugins) by Cursor** — The `/make-pr-easy-to-review` and `/thermo-nuclear-code-quality-review` PR review and maintainability audit skills.
 - **[mattpocock/skills](https://github.com/mattpocock/skills) by Matt Pocock** — The preserved skill archive in `skills-disabled/` and inspiration for spec-first grilling and vertical-slice planning workflows.
@@ -97,33 +123,33 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 ## Catalog Reference
 
 <details>
-<summary><strong>23 Playbooks</strong> (auto-routed by <code>/poteto-mode</code>)</summary>
+<summary><strong>23 Playbooks</strong> (auto-routed by <code>/magic-mode</code>)</summary>
 
 | Category | Playbook | Use For |
 | --- | --- | --- |
-| **Understand & Diagnose** | [investigation](skills/poteto-mode/playbooks/investigation.md) | Read-only question: how $X$ works, why $Y$ was built this way, or whether an assumption holds |
-| **Understand & Diagnose** | [runtime forensics](skills/poteto-mode/playbooks/runtime-forensics.md) | Diagnose a live symptom (memory leak, idle-CPU spin, glitch) from runtime instrumentation |
-| **Understand & Diagnose** | [trace forensics](skills/poteto-mode/playbooks/trace-forensics.md) | Diagnose a captured profiling artifact (`cpuprofile`, trace, spindump, heap snapshot) |
-| **Build, Fix & Optimize** | [feature](skills/poteto-mode/playbooks/feature.md) | New or changed behavior built from a named data shape |
-| **Build, Fix & Optimize** | [bug fix](skills/poteto-mode/playbooks/bug-fix.md) | Reproduce a defect, root-cause it, and fix with runtime evidence |
-| **Build, Fix & Optimize** | [refactoring](skills/poteto-mode/playbooks/refactoring.md) | Behavior-preserving change to code structure or shape |
-| **Build, Fix & Optimize** | [perf issue](skills/poteto-mode/playbooks/perf-issue.md) | Trace a measured slowness and improve it against a baseline |
-| **Build, Fix & Optimize** | [hillclimb](skills/poteto-mode/playbooks/hillclimb.md) | Sustained, hypothesis-driven improvement of one metric against a target |
-| **Build, Fix & Optimize** | [prototype](skills/poteto-mode/playbooks/prototype.md) | Throwaway sketch to settle a design or empirical fork by observation |
-| **Build, Fix & Optimize** | [visual parity](skills/poteto-mode/playbooks/visual-parity.md) | Pixel-exact UI equivalence between two implementations |
-| **PRs & Shipping** | [opening a PR](skills/poteto-mode/playbooks/opening-a-pr.md) | Open a review-ready PR from small ordered commits (runs at the end of build playbooks) |
-| **PRs & Shipping** | [babysit](skills/poteto-mode/playbooks/babysit.md) | Drive a PR or stack to merge-ready: conflicts, review threads, and CI |
-| **PRs & Shipping** | [shipping](skills/poteto-mode/playbooks/shipping.md) | Independently verify a green stack and land the contiguous verified run bottom-up |
-| **Scale & Autonomy** | [multi-phase plan](skills/poteto-mode/playbooks/multi-phase-plan.md) | Author a plan for work spanning multiple phases or stacked PRs |
-| **Scale & Autonomy** | [autonomous run](skills/poteto-mode/playbooks/autonomous-run.md) | Drive a long task to completion against a checkable predicate without stopping |
-| **Scale & Autonomy** | [orchestrate](skills/poteto-mode/playbooks/orchestrate.md) | Coordinate a multi-day, multi-PR program across fleets of sub-agents |
-| **Scale & Autonomy** | [autopilot-full](skills/poteto-mode/playbooks/autopilot-full.md) | Run independent PRs to merged with one owner per PR and a swarm verdict before merge |
-| **Scale & Autonomy** | [autopilot-stack](skills/poteto-mode/playbooks/autopilot-stack.md) | Build and verify one linear base-branch stack for the operator to review and land |
-| **Session & Hygiene** | [session pickup](skills/poteto-mode/playbooks/session-pickup.md) | Resume or take over a prior agent's in-flight branch or transcript |
-| **Session & Hygiene** | [pause safely](skills/poteto-mode/playbooks/pause-safely.md) | Suspend in-flight work cleanly so it can be resumed without state loss |
-| **Session & Hygiene** | [worktree cleanup](skills/poteto-mode/playbooks/worktree-cleanup.md) | Reclaim disk by pruning merged/abandoned worktrees and stale simulators (safety-gated) |
-| **Skills & Evals** | [authoring a skill](skills/poteto-mode/playbooks/authoring-a-skill.md) | Author or edit a `SKILL.md` |
-| **Skills & Evals** | [eval](skills/poteto-mode/playbooks/eval.md) | Blind-test how a skill or prompt change affects agent behavior |
+| **Understand & Diagnose** | [investigation](skills/magic-mode/playbooks/investigation.md) | Read-only question: how $X$ works, why $Y$ was built this way, or whether an assumption holds |
+| **Understand & Diagnose** | [runtime forensics](skills/magic-mode/playbooks/runtime-forensics.md) | Diagnose a live symptom (memory leak, idle-CPU spin, glitch) from runtime instrumentation |
+| **Understand & Diagnose** | [trace forensics](skills/magic-mode/playbooks/trace-forensics.md) | Diagnose a captured profiling artifact (`cpuprofile`, trace, spindump, heap snapshot) |
+| **Build, Fix & Optimize** | [feature](skills/magic-mode/playbooks/feature.md) | New or changed behavior built from a named data shape |
+| **Build, Fix & Optimize** | [bug fix](skills/magic-mode/playbooks/bug-fix.md) | Reproduce a defect, root-cause it, and fix with runtime evidence |
+| **Build, Fix & Optimize** | [refactoring](skills/magic-mode/playbooks/refactoring.md) | Behavior-preserving change to code structure or shape |
+| **Build, Fix & Optimize** | [perf issue](skills/magic-mode/playbooks/perf-issue.md) | Trace a measured slowness and improve it against a baseline |
+| **Build, Fix & Optimize** | [hillclimb](skills/magic-mode/playbooks/hillclimb.md) | Sustained, hypothesis-driven improvement of one metric against a target |
+| **Build, Fix & Optimize** | [prototype](skills/magic-mode/playbooks/prototype.md) | Throwaway sketch to settle a design or empirical fork by observation |
+| **Build, Fix & Optimize** | [visual parity](skills/magic-mode/playbooks/visual-parity.md) | Pixel-exact UI equivalence between two implementations |
+| **PRs & Shipping** | [opening a PR](skills/magic-mode/playbooks/opening-a-pr.md) | Open a review-ready PR from small ordered commits (runs at the end of build playbooks) |
+| **PRs & Shipping** | [babysit](skills/magic-mode/playbooks/babysit.md) | Drive a PR or stack to merge-ready: conflicts, review threads, and CI |
+| **PRs & Shipping** | [shipping](skills/magic-mode/playbooks/shipping.md) | Independently verify a green stack and land the contiguous verified run bottom-up |
+| **Scale & Autonomy** | [multi-phase plan](skills/magic-mode/playbooks/multi-phase-plan.md) | Author a plan for work spanning multiple phases or stacked PRs |
+| **Scale & Autonomy** | [autonomous run](skills/magic-mode/playbooks/autonomous-run.md) | Drive a long task to completion against a checkable predicate without stopping |
+| **Scale & Autonomy** | [orchestrate](skills/magic-mode/playbooks/orchestrate.md) | Coordinate a multi-day, multi-PR program across fleets of sub-agents |
+| **Scale & Autonomy** | [autopilot-full](skills/magic-mode/playbooks/autopilot-full.md) | Run independent PRs to merged with one owner per PR and a swarm verdict before merge |
+| **Scale & Autonomy** | [autopilot-stack](skills/magic-mode/playbooks/autopilot-stack.md) | Build and verify one linear base-branch stack for the operator to review and land |
+| **Session & Hygiene** | [session pickup](skills/magic-mode/playbooks/session-pickup.md) | Resume or take over a prior agent's in-flight branch or transcript |
+| **Session & Hygiene** | [pause safely](skills/magic-mode/playbooks/pause-safely.md) | Suspend in-flight work cleanly so it can be resumed without state loss |
+| **Session & Hygiene** | [worktree cleanup](skills/magic-mode/playbooks/worktree-cleanup.md) | Reclaim disk by pruning merged/abandoned worktrees and stale simulators (safety-gated) |
+| **Skills & Evals** | [authoring a skill](skills/magic-mode/playbooks/authoring-a-skill.md) | Author or edit a `SKILL.md` |
+| **Skills & Evals** | [eval](skills/magic-mode/playbooks/eval.md) | Blind-test how a skill or prompt change affects agent behavior |
 
 </details>
 
@@ -132,10 +158,10 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
-| **Entry & Routing** | [`/using-poteto`](skills/using-poteto/SKILL.md) | Session-start bootstrap that routes tasks to `/poteto-mode`, `/research`, `/proof-driven-development`, or `/poteto-help` before acting |
-| **Entry & Routing** | [`/poteto-mode`](skills/poteto-mode/SKILL.md) | Default entry point for any non-trivial engineering task |
-| **Entry & Routing** | [`/poteto-help`](skills/poteto-help/SKILL.md) | Unsure which skill, playbook, or principle fits your task |
-| **Entry & Routing** | [`/setup-pstack`](skills/setup-pstack/SKILL.md) | Configuring per-role models and reasoning budgets |
+| **Entry & Routing** | [`/using-magic`](skills/using-magic/SKILL.md) | Session-start bootstrap that routes tasks to `/magic-mode`, `/research`, `/proof-driven-development`, or `/magic-help` before acting |
+| **Entry & Routing** | [`/magic-mode`](skills/magic-mode/SKILL.md) | Default entry point for any non-trivial engineering task |
+| **Entry & Routing** | [`/magic-help`](skills/magic-help/SKILL.md) | Unsure which skill, playbook, or principle fits your task |
+| **Entry & Routing** | [`/setup-magic`](skills/setup-magic/SKILL.md) | Configuring per-role models and reasoning budgets |
 | **Entry & Routing** | [`/figure-it-out`](skills/figure-it-out/SKILL.md) | No bundled playbook fits; designs a bespoke, auditable playbook |
 | **Planning & Execution** | [`/writing-plans`](skills/writing-plans/SKILL.md) | Turning a spec or requirements for a multi-step task into a bite-sized TDD implementation plan before touching code |
 | **Planning & Execution** | [`/subagent-driven-development`](skills/subagent-driven-development/SKILL.md) | Executing an implementation plan with a fresh implementer and two-stage reviewer sub-agent per task |
@@ -215,7 +241,7 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 
 | Agent | Mode | Role |
 | --- | --- | --- |
-| [`poteto-agent`](agents/poteto-agent/agent.md) | Read-Write | Delegate sub-agent spawned by `/poteto-mode` playbooks; loads `poteto-mode` and its principles |
+| [`magic-agent`](agents/magic-agent/agent.md) | Read-Write | Delegate sub-agent spawned by `/magic-mode` playbooks; loads `magic-mode` and its principles |
 | [`comment-sicko`](agents/comment-sicko/agent.md) | Read-Write | Strips narration comments and flags `MUST KILL` refactor targets for `/no-comments` |
 | [`research-planner`](agents/research-planner/agent.md) | Read-Only (Thinking) | Decomposes complex investigations into parallel, right-sized researcher subtasks |
 | [`researcher-lite`](agents/researcher-lite/agent.md) | Read-Only | High-volume, low-cost lookups: definitions, call sites, config values |
@@ -228,7 +254,7 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 | File | Scope | Rule Summary |
 | --- | --- | --- |
 | [`agents.kit.md`](agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution, workflow routing pointer) |
-| [`rules/workflow-routing.md`](rules/workflow-routing.md) | Always applied | Route engineering, research, and formal-proof tasks to `/poteto-mode`, `/research`, or `/proof-driven-development` before acting |
+| [`rules/workflow-routing.md`](rules/workflow-routing.md) | Always applied | Route engineering, research, and formal-proof tasks to `/magic-mode`, `/research`, or `/proof-driven-development` before acting |
 | [`rules/look-it-up.md`](rules/look-it-up.md) | Always applied | Never answer factual tool/API questions from memory; check official docs and primary sources first |
 | [`rules/new-repo-setup.md`](rules/new-repo-setup.md) | New repo creation | Bootstrap greenfield repos from the strictest-setups reference repo ($\ge 95\%$ coverage + full hygiene gates) |
 | [`rules/sleeps-and-polling.md`](rules/sleeps-and-polling.md) | CI & background waits | Cap single-call sleeps at $\le 30\text{s}$ and return control between polls |

@@ -19,15 +19,15 @@ case "$0" in
 esac
 PLUGIN_ROOT="${SCRIPT_DIR}/.."
 
-# Read using-poteto content with the read builtin (no cat, for the same
+# Read using-magic content with the read builtin (no cat, for the same
 # PATH-independence reason, and no $(< file) subshell). read returns 1 at end
 # of file, hence || true; the loop drops trailing newlines as $(< file) did.
-skill_md="${PLUGIN_ROOT}/skills/using-poteto/SKILL.md"
-using_poteto_content="Error reading using-poteto skill"
+skill_md="${PLUGIN_ROOT}/skills/using-magic/SKILL.md"
+using_magic_content="Error reading using-magic skill"
 if [ -r "$skill_md" ]; then
-  IFS= read -r -d '' using_poteto_content < "$skill_md" || true
-  while [[ $using_poteto_content == *$'\n' ]]; do
-    using_poteto_content="${using_poteto_content%$'\n'}"
+  IFS= read -r -d '' using_magic_content < "$skill_md" || true
+  while [[ $using_magic_content == *$'\n' ]]; do
+    using_magic_content="${using_magic_content%$'\n'}"
   done
 fi
 
@@ -42,11 +42,11 @@ escape_for_json() {
     s="${s//$'\n'/\\n}"
     s="${s//$'\r'/\\r}"
     s="${s//$'\t'/\\t}"
-    using_poteto_escaped="$s"
+    using_magic_escaped="$s"
 }
 
-escape_for_json "$using_poteto_content"
-session_context="<EXTREMELY_IMPORTANT>\nYou have magic.\n\n**Below is the full content of your 'magic:using-poteto' bootstrap skill. Follow it to route every task. For all other skills, use your platform's skill tool or read the skill's SKILL.md:**\n\n${using_poteto_escaped}\n</EXTREMELY_IMPORTANT>"
+escape_for_json "$using_magic_content"
+session_context="<EXTREMELY_IMPORTANT>\nYou have magic.\n\n**Below is the full content of your 'magic:using-magic' bootstrap skill. Follow it to route every task. For all other skills, use your platform's skill tool or read the skill's SKILL.md:**\n\n${using_magic_escaped}\n</EXTREMELY_IMPORTANT>"
 
 # Output context injection as JSON.
 # Cursor hooks expect additional_context (snake_case).

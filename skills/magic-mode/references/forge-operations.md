@@ -1,6 +1,6 @@
 # Forge operations
 
-The kit is forge-agnostic (ADR-0007). pstack skills name the operation they need on the code host and never the command. This file lists the operations and how to resolve them.
+The kit is forge-agnostic (ADR-0007). magic skills name the operation they need on the code host and never the command. This file lists the operations and how to resolve them.
 
 ## Resolve the forge once
 
@@ -41,7 +41,7 @@ A stack is a base-branch chain. The root PR targets trunk; each child branch is 
 
 ## Upstream commands
 
-Upstream pstack writes these operations as `gh` commands, `origin pr` commands (Cursor's Origin forge), or calls to its GitHub-only `scripts/watch-pr/watch-pr` tool. If a skill you restored to upstream wording names one, perform the operation it stands for on the resolved forge. A watcher verdict of `READY` means merge-ready as defined below.
+Upstream skills restored to verbatim wording may write these operations as `gh` commands, `origin pr` commands (Cursor's Origin forge), or calls to a GitHub-only `scripts/watch-pr/watch-pr` tool. If a skill you restored to upstream wording names one, perform the operation it stands for on the resolved forge. A watcher verdict of `READY` means merge-ready as defined below.
 
 ## Merge-ready
 

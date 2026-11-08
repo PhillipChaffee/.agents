@@ -59,7 +59,7 @@ Untrusted .cfg token:  INVARIANT ../../../../escape
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| `cleanup guide requires fresh inspection and non-forced removal` | Passed | `ok 1` (1.16 ms), verified playbook flags in `skills/poteto-mode/playbooks/worktree-cleanup.md`. |
+| `cleanup guide requires fresh inspection and non-forced removal` | Passed | `ok 1` (1.16 ms), verified playbook flags in `skills/magic-mode/playbooks/worktree-cleanup.md`. |
 | `worktree audit preserves <kind> work` (6 subtests) | Passed | `ok 2` through `ok 7` (44.7 ms to 50.1 ms each), covering `clean`, `tracked`, `untracked`, `ignored`, `hidden-untracked`, and `status-failure`. |
 | `statechart confines INVARIANT output for Safe_Name1` | Passed | `ok 8` (69.0 ms), wrote `statechart-*/tlc/M-Safe_Name1.cfg` inside `TMPDIR`. |
 | `statechart confines INVARIANT output for ../../../../escape` | Passed | `ok 9` (70.6 ms), wrote `statechart-*/tlc/M-..%2F..%2F..%2F..%2Fescape.cfg` and preserved `TMPDIR/escape.cfg` and `TMPDIR/escape.out`. |

@@ -20,7 +20,7 @@
 | `skills/statechart/SKILL.md` | Defines the `/statechart` skill workflow for reader-centric state and step labels, rule modeling, `from-spec` and `from-chart` directions, code replay, and hand-off artifacts. |
 | `skills/statechart/scripts/statechart.mjs` | Main CLI script handling flag parsing, TLC execution, DOT graph dumping, `tlc-to-chart.mjs` orchestration, PNG rendering, path confinement, and atomic output publishing. |
 | `skills/statechart/scripts/snapshot.mjs` | Snapshot helper (`Inputs`, `copyPath`) that copies input specs, configs, maps, and local dependencies into an isolated `statechart-inputs-*` temp root and checks base64 digests for mid-run mutations. |
-| `tests/pr26-regressions.test.mjs` | Regression test suite verifying `poteto-mode` worktree audit safety (tests 1-7) and `statechart` path-traversal confinement for `INVARIANT` and `PROPERTY` names (tests 8-11). |
+| `tests/pr26-regressions.test.mjs` | Regression test suite verifying `magic-mode` worktree audit safety (tests 1-7) and `statechart` path-traversal confinement for `INVARIANT` and `PROPERTY` names (tests 8-11). |
 
 ## Execution Pipeline and Path Confinement
 

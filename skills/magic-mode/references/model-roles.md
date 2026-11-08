@@ -1,8 +1,8 @@
 # Model roles
 
-The kit pins no models (ADR-0001). pstack skills never name a model. They name a **role**, and the role resolves to a model when the subagent is spawned:
+The kit pins no models (ADR-0001). magic skills never name a model. They name a **role**, and the role resolves to a model when the subagent is spawned:
 
-1. The consumer's `pstack-models` role file, when it has a line for the role.
+1. The consumer's `magic-models` role file, when it has a line for the role.
 2. Otherwise the role's default tier in the table below.
 3. A tier resolves through the harness's own configuration. The kit's installer records the consumer's `fast`, `main`, and `deep` choices in `~/.agents/models.json`, and the [harness adapter](harness-adapter.md) says how each harness takes a model for a subagent.
 
@@ -34,7 +34,7 @@ A panel role's value is a list. One subagent runs per entry, alias entries inclu
 
 ## Upstream model names
 
-Upstream pstack writes Cursor model slugs. If a skill you restored to upstream wording names one, read it as a tier: `claude-opus-5-5-xhigh` is the `deep` tier, `grok-4.7-xhigh-fast` is the `main` tier, and the `pstack-models.mdc` rule is the role file below.
+Upstream skills restored to verbatim wording may write Cursor model slugs. If a skill you restored to upstream wording names one, read it as a tier: `claude-opus-5-5-xhigh` is the `deep` tier, `grok-4.7-xhigh-fast` is the `main` tier, and the `magic-models.mdc` rule is the role file below.
 
 ## Reasoning level and speed
 
@@ -42,10 +42,10 @@ Where the harness exposes a reasoning-effort setting, the ladder is `max` > `xhi
 
 ## The role file
 
-`/setup-pstack` writes the role file. It is an always-applied rule, so its lines are normally already in context. If they are not, read the file. The [harness adapter](harness-adapter.md) names where it lives; in the protocol layout it is `~/.agents/rules/pstack-models.md`. Its shape:
+`/setup-magic` writes the role file. It is an always-applied rule, so its lines are normally already in context. If they are not, read the file. The [harness adapter](harness-adapter.md) names where it lives; in the protocol layout it is `~/.agents/rules/magic-models.md`. Its shape:
 
 ```text
-# pstack model configuration. One line per role. Delete a line to fall back to the default tier.
+# magic model configuration. One line per role. Delete a line to fall back to the default tier.
 # `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit the model field).
 # budget: large (xhigh)
 feature, refactoring: main

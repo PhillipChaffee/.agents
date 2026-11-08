@@ -53,7 +53,7 @@ digraph rule_triage {
 | Mechanical check (JSON key sorting, import order, formatting, banned regex) | **Linter / formatter / pre-commit / CI script** (per [`/correct`](../correct/SKILL.md)) | Prose rule in `rules/` | LLMs drift on mechanical formatting; a deterministic script catches it 100% of the time at 0 token cost. |
 | Generic coding platitude ("write clean, readable code", "use descriptive variable names") | **None (delete it)** | `alwaysApply: true` rule | Models already try to write clean code by default. Platitude rules are pure context-window waste. |
 | Multi-step workflow, 7-step RCA playbook, or subagent prompt templates | **On-demand Skill** (`skills/<name>/SKILL.md` via [`/writing-skills`](../writing-skills/SKILL.md)) | `alwaysApply: true` rule or multi-paragraph `agents.kit.md` block | Workflows only apply when triggered; putting them in a rule taxes every unrelated turn. |
-| Language-, framework-, or company-stack invariant (Django `SeparateDatabaseAndState` two-MR column drops, Statsig unit IDs, prod data access) | **Project-local rule** (in the target repo's rules directory; see [`harness-adapter.md`](../poteto-mode/references/harness-adapter.md)) | Global `.agents` kit `rules/` | Per ADR-0002 and ADR-0007, the global `.agents` kit carries zero language-specific or company-stack rules. |
+| Language-, framework-, or company-stack invariant (Django `SeparateDatabaseAndState` two-MR column drops, Statsig unit IDs, prod data access) | **Project-local rule** (in the target repo's rules directory; see [`harness-adapter.md`](../magic-mode/references/harness-adapter.md)) | Global `.agents` kit `rules/` | Per ADR-0002 and ADR-0007, the global `.agents` kit carries zero language-specific or company-stack rules. |
 | Universal, cross-cutting behavioral invariant where the agent doesn't know to load a skill first (looking up docs vs. guessing, $\le 30\text{s}$ sleep cap, `rg` over `grep`) | **Kit rule** (`rules/<name>.md` or 1-line bullet in `agents.kit.md`) | Unenforced chat reminder | Fires on unconscious default behaviors across every task and language. |
 
 ## Where Rules Live & Packaging Contract
@@ -80,7 +80,7 @@ description: >-
 ```
 
 - **Quoting `globs`:** When writing a file-scoped project rule (`alwaysApply: false`), always quote glob strings (`globs: ["**/*.py"]` or `globs: "**/*.json"`). Unquoted `globs: *.py` is invalid YAML (`*` is a YAML alias anchor) and misses subdirectories.
-- **Zero vendor, harness, or forge lock-in (ADR-0001, ADR-0007):** Never put vendor model slugs, harness-specific rule paths, or forge CLI commands inside kit rules. Use the neutral terms in [`harness-adapter.md`](../poteto-mode/references/harness-adapter.md).
+- **Zero vendor, harness, or forge lock-in (ADR-0001, ADR-0007):** Never put vendor model slugs, harness-specific rule paths, or forge CLI commands inside kit rules. Use the neutral terms in [`harness-adapter.md`](../magic-mode/references/harness-adapter.md).
 - **Token budget:**
   - `agents.kit.md` pointer: $\le 25$ words (1 bullet line).
   - Standard operational rule (`rules/sleeps-and-polling.md`, `rules/look-it-up.md`): **$< 150$ words**.

@@ -21,7 +21,7 @@ async function importFresh(filePath) {
 	return import(`${url}?t=${++importCounter}`);
 }
 
-test("lib/bootstrap-core.js parses frontmatter variants and loads cached using-poteto bootstrap", async () => {
+test("lib/bootstrap-core.js parses frontmatter variants and loads cached using-magic bootstrap", async () => {
 	const core = await importFresh(corePath);
 	assert.equal(core.BOOTSTRAP_MARKER, expectedMarker);
 
@@ -42,7 +42,7 @@ test("lib/bootstrap-core.js parses frontmatter variants and loads cached using-p
 
 	const bootstrap = core.loadBootstrapContent(skillsDir, "CUSTOM_TOOL_MAPPING");
 	assert.ok(bootstrap?.startsWith(expectedMarker));
-	assert.match(bootstrap, /# Using Poteto/);
+	assert.match(bootstrap, /# Using Magic/);
 	assert.match(bootstrap, /CUSTOM_TOOL_MAPPING/);
 });
 
@@ -99,7 +99,7 @@ test("OpenCode V1: MagicPlugin registers skills path, injects V1 bootstrap idemp
 	assert.equal(rootOutput.messages[0].parts.length, 2);
 	assert.ok(rootOutput.messages[0].parts[0].text.startsWith(expectedMarker));
 	assert.ok(rootOutput.messages[0].parts[0].text.includes(mod.V1_MAPPING));
-	assert.match(rootOutput.messages[0].parts[0].text, /# Using Poteto/);
+	assert.match(rootOutput.messages[0].parts[0].text, /# Using Magic/);
 
 	await transform({}, rootOutput);
 	assert.equal(rootOutput.messages[0].parts.length, 2, "repeat call on same message must be idempotent");
@@ -323,7 +323,7 @@ test("Pi Extension & package.json: manifest contract, lifecycle hooks, multi-pro
 			assert.equal(res.messages.length, history.length + 1);
 			assert.equal(res.messages[0].role, "user");
 			assert.match(textOf(res.messages[0]), /You have magic\./);
-			assert.match(textOf(res.messages[0]), /# Using Poteto/);
+			assert.match(textOf(res.messages[0]), /# Using Magic/);
 			assert.match(textOf(res.messages[0]), /## Pi tool mapping/);
 
 			const duplicateCheck = await contextHandler({ type: "context", messages: res.messages }, {});

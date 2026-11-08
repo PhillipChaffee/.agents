@@ -30,9 +30,9 @@ function parseHookOutput(stdout, shape) {
 		assert.fail(`unknown shape: ${shape}`);
 	}
 	assert.match(context, /^<EXTREMELY_IMPORTANT>\nYou have magic\./);
-	assert.match(context, /magic:using-poteto/);
-	assert.match(context, /# Using Poteto/);
-	assert.doesNotMatch(context, /Error reading using-poteto skill/);
+	assert.match(context, /magic:using-magic/);
+	assert.match(context, /# Using Magic/);
+	assert.doesNotMatch(context, /Error reading using-magic skill/);
 	return context;
 }
 

@@ -5,7 +5,7 @@ import test from "node:test";
 
 const repoDir = path.resolve(import.meta.dirname, "..");
 
-const ALL_58_PSTACK_SKILLS = [
+const ALL_58_MAGIC_SKILLS = [
 	"architect",
 	"arena",
 	"automate-me",
@@ -21,12 +21,12 @@ const ALL_58_PSTACK_SKILLS = [
 	"interrogate",
 	"ketchup",
 	"ketchup-video",
+	"magic-help",
+	"magic-mode",
 	"maintain-formal-verification-skill",
 	"maintain-verification-skill",
 	"make-bot-ui",
 	"no-comments",
-	"poteto-help",
-	"poteto-mode",
 	"principle-attack-the-premise",
 	"principle-boundary-discipline",
 	"principle-build-the-lever",
@@ -53,7 +53,7 @@ const ALL_58_PSTACK_SKILLS = [
 	"principle-type-system-discipline",
 	"recall",
 	"reflect",
-	"setup-pstack",
+	"setup-magic",
 	"sharpen",
 	"show-me-your-work",
 	"statechart",
@@ -66,18 +66,18 @@ const ALL_58_PSTACK_SKILLS = [
 	"why",
 ];
 
-test("all 58 upstream pstack skills are present including make-bot-ui, tdd, and typescript-best-practices", () => {
-	assert.equal(ALL_58_PSTACK_SKILLS.length, 58);
-	for (const skill of ALL_58_PSTACK_SKILLS) {
+test("all 58 core magic skills are present including make-bot-ui, tdd, and typescript-best-practices", () => {
+	assert.equal(ALL_58_MAGIC_SKILLS.length, 58);
+	for (const skill of ALL_58_MAGIC_SKILLS) {
 		const entry = path.join(repoDir, "skills", skill, "SKILL.md");
-		assert.ok(fs.existsSync(entry), `missing pstack skill: ${skill}`);
+		assert.ok(fs.existsSync(entry), `missing magic skill: ${skill}`);
 	}
 	assert.ok(
 		fs.existsSync(path.join(repoDir, "skills/typescript-best-practices/references/patterns.md")),
 	);
 });
 
-test("upstream pstack 0.15.36 updates are synced while local customizations are preserved", () => {
+test("synced magic skill updates and local customizations are preserved", () => {
 	// 1. interrogate updated to run-proven adversaries & retired references removed
 	const interrogate = fs.readFileSync(path.join(repoDir, "skills/interrogate/SKILL.md"), "utf8");
 	assert.match(interrogate, /Adversaries try to break a change or a design/);
@@ -101,7 +101,7 @@ test("upstream pstack 0.15.36 updates are synced while local customizations are 
 
 	// 4. orchestrate has agentic Topology & Supervision sections with neutral vocabulary
 	const orchestrate = fs.readFileSync(
-		path.join(repoDir, "skills/poteto-mode/playbooks/orchestrate.md"),
+		path.join(repoDir, "skills/magic-mode/playbooks/orchestrate.md"),
 		"utf8",
 	);
 	assert.match(orchestrate, /## Topology/);
@@ -113,8 +113,8 @@ test("upstream pstack 0.15.36 updates are synced while local customizations are 
 	assert.ok(fs.existsSync(path.join(repoDir, "skills/statechart/scripts/statechart.ts")));
 	assert.ok(fs.existsSync(path.join(repoDir, "skills/statechart/scripts/statechart.mjs")));
 
-	// 6. poteto-help preserves local custom skill rows while adding synced updates
-	const potetoHelp = fs.readFileSync(path.join(repoDir, "skills/poteto-help/SKILL.md"), "utf8");
+	// 6. magic-help preserves local custom skill rows while adding synced updates
+	const magicHelp = fs.readFileSync(path.join(repoDir, "skills/magic-help/SKILL.md"), "utf8");
 	for (const customSkill of [
 		"/proof-driven-development",
 		"/proving-with-hoare-logic",
@@ -131,6 +131,6 @@ test("upstream pstack 0.15.36 updates are synced while local customizations are 
 		"/typescript-best-practices",
 		"/make-bot-ui",
 	]) {
-		assert.ok(potetoHelp.includes(customSkill), `poteto-help missing ${customSkill}`);
+		assert.ok(magicHelp.includes(customSkill), `magic-help missing ${customSkill}`);
 	}
 });

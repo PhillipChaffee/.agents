@@ -33,7 +33,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Route this task through /poteto-mode and verify the result.",
+      "Route this task through /magic-mode and verify the result.",
       "Research how this subsystem works and cite primary sources."
     ],
     "websiteURL": "https://github.com/PhillipChaffee/magic",

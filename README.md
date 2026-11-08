@@ -50,11 +50,24 @@ git clone https://github.com/PhillipChaffee/magic.git ~/.agents
 
 - **Security boundary:** Never commit API keys, tokens, or private MCP configs. `models.json` and `.kit-stamp` stay local to `~/.agents/`.
 
+#### What Works vs. What Does Not Work in `.agents` Directory Mode
+
+When you use `~/.agents` (via `./scripts/install.sh` or `git clone`) **without** installing the native plugin/package for your harness, no harness executes `hooks/`, `.opencode/plugins/magic.js`, or `.pi/extensions/magic.ts` from inside `~/.agents/`, and no harness natively auto-loads `~/.agents/rules/*.md` or `~/.agents/agents.md`:
+
+| Harness | What Works from `~/.agents` Alone | What Does **Not** Work Without the Plugin (and How to Bridge Manually) |
+| --- | --- | --- |
+| **Cursor** | Auto-discovers `~/.agents/skills/` and `.agents/skills/` in local sessions | **No `sessionStart` hook**, **no `~/.agents/rules/*.md` or `agents.md`** (Cursor requires `.mdc` files in `~/.cursor/rules/`), **no named `agents/` registration**, and local `~/.agents/` is not mounted in Cloud Agents. |
+| **Codex CLI / App** | Auto-discovers `~/.agents/skills/` and `.agents/skills/` (surfaces `using-poteto` in the skill index) | **No `~/.agents/rules/*.md` or `agents.md`** (Codex reads `~/.codex/AGENTS.md` and uses `~/.codex/rules/*.rules` for Starlark command allowlists, not Markdown rules). |
+| **OpenCode (V1 & V2)** | Auto-discovers `~/.agents/skills/` and `.agents/skills/` | **No `.opencode/plugins/magic.js` bootstrap or V1/V2 tool-mapping injection**, and **no `~/.agents/rules/*.md` or `agents.md`** unless you add `"instructions": ["~/.agents/agents.md", "~/.agents/rules/*.md"]` to `opencode.json`. |
+| **Claude Code** | *None by default* (Claude Code only scans `~/.claude/` and `.claude/`) | **No `SessionStart` hook, skills, agents, or rules** unless you symlink `~/.claude/{skills,agents,rules}` to `~/.agents/` and `@`-import `~/.agents/agents.md` in `~/.claude/CLAUDE.md`. |
+| **Pi** | *None by default* (Pi does not scan `~/.agents/`) | **No `.pi/extensions/magic.ts` bootstrap, Pi tool mapping, or skills** unless installed as a Pi package (`pi install` or `pi -e`). |
+
 ---
 
 ## How to Use It
 
-Once installed, `magic` is active automatically at the start of every session (`skills/using-poteto/SKILL.md` and `rules/workflow-routing.md`). Before taking action on a task, your agent checks the request against its entry-point skills—or you can invoke any skill directly with `/<skill-name>`.
+- **Installed as a plugin/package (recommended):** `magic` is active automatically at session start. **You never need to invoke `/using-poteto` yourself**—just state your task in plain language (your agent will route it automatically) or invoke a specific workflow skill like `/poteto-mode` directly.
+- **Installed only as a `.agents` directory:** Because session-start hooks and plugin injectors do not run from a bare `~/.agents` directory, either invoke `/poteto-mode` (or `/using-poteto`) at the start of a task or wire your harness's global instructions/rules file as shown above.
 
 | Step / Workflow | Command / Prompt | What Happens |
 | --- | --- | --- |
@@ -85,23 +98,25 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 
 ## The Basic Workflow
 
-It starts from the moment you fire up your coding agent. Instead of jumping straight into guessing or writing ad-hoc code, `magic` intercepts the task before the first tool call and routes it to the right entry-point workflow—whether you are investigating a system, designing a feature, hunting a bug, or proving an invariant.
+`magic` intercepts every request at session start, routes it to the right workflow, and verifies the result before shipping.
 
-When a task needs context or comparison first, it dispatches tiered read-only research sub-agents so raw exploration never pollutes your main conversation. Before cross-boundary code is written, it settles the types and data shapes, then puts together a bite-sized TDD implementation plan with exact file paths, signatures, and verification commands.
+```mermaid
+flowchart LR
+    Start(["1. Session Start<br/>/using-poteto"]) --> Route{"2. Route Task"}
+    Route -->|"Explore"| Research["3. Research<br/>/research · /how · /why"]
+    Route -->|"Design & Plan"| Plan["4. Architect & Plan<br/>/architect · /writing-plans"]
+    Research & Plan --> Build["5. Execute & Prove<br/>/poteto-mode · /sdd · /tdd · /proof"]
+    Build --> Review["6. Review & Clean<br/>/interrogate · /no-comments"]
+    Review --> Ship(["7. Ship<br/>/autopilot · /shipping"])
+```
 
-Once execution begins, your agent loads one of 23 step-by-step playbooks into its todo list—or runs a full subagent-driven development loop where a fresh implementer sub-agent builds each task and a fresh reviewer checks spec compliance and code quality before the next task starts. Along the way, it enforces 24 engineering principles, strips narration comments, pits adversarial models against the diff, and—when tests aren't enough—routes subtle concurrency or state-machine invariants through formal verification.
-
-Because the bootstrap and routing rules load automatically at session start across Claude Code, Cursor, Codex, OpenCode, and Pi, you don't need to do anything special. Your coding agent just has `magic`.
-
-1. **[`using-poteto`](skills/using-poteto/SKILL.md) & [`workflow-routing`](rules/workflow-routing.md)** — Activates at session start. Checks every request before any tool call or clarifying question and routes it to the matching entry-point skill.
-2. **[`research`](skills/research/SKILL.md), [`how`](skills/how/SKILL.md) & [`why`](skills/why/SKILL.md)** — Activates when exploring code, history, or options. Triages complexity (Tier 1 direct, Tier 2 parallel, Tier 3 collector $\to$ planner $\to$ researcher $\to$ synthesizer pipeline) and writes a cited summary to `docs/research/<topic>.md`.
-3. **[`architect`](skills/architect/SKILL.md) & [`writing-plans`](skills/writing-plans/SKILL.md)** — Activates before building across boundaries. Settles module interfaces and data structures first, then breaks the spec into bite-sized TDD tasks with exact file paths, code signatures, and verification steps.
-4. **[`poteto-mode`](skills/poteto-mode/SKILL.md) & [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md)** — Activates during implementation. Matches one of the 23 playbooks (`feature`, `bug-fix`, `refactoring`, `perf-issue`, `hillclimb`, `orchestrate`, etc.) or dispatches a fresh implementer sub-agent per task with a two-stage (spec + code quality) review gate after each.
-5. **[`tdd`](skills/tdd/SKILL.md) & [`proof-driven-development`](skills/proof-driven-development/SKILL.md)** — Activates to prove correctness. Enforces RED-GREEN-REFACTOR failing tests first, and routes high-stakes contracts, concurrency protocols, or state machines to formal verification ([Hoare logic](skills/proving-with-hoare-logic/SKILL.md), [dependent types](skills/proving-with-dependent-types/SKILL.md), [model checking](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), and [proof-spec auditing](skills/auditing-proof-specifications/SKILL.md)).
-6. **[`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md) & [`unslop`](skills/unslop/SKILL.md)** — Activates before review. Dispatches `comment-sicko` to strip narration comments, runs diverse models adversarially against the diff to break it, and cleans AI tells out of docs and PR descriptions.
-7. **[`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md) & [`shipping`](skills/poteto-mode/playbooks/shipping.md)** — Activates when finishing a branch. Structures small ordered commits and reviewer guidance, drives PR checks and review threads to merge-ready under a strict diff budget, and verifies against the real artifact before landing.
-
-**The agent checks for relevant skills before any task.** Mandatory workflows, not suggestions.
+- **1. Route ([`using-poteto`](skills/using-poteto/SKILL.md), [`workflow-routing`](rules/workflow-routing.md))** — Auto-injected at session start on plugin installs (no manual invocation needed; invoke manually only on bare `.agents` directory installs) to load the matching entry-point skill before the first tool call.
+- **2. Understand ([`research`](skills/research/SKILL.md), [`how`](skills/how/SKILL.md), [`why`](skills/why/SKILL.md))** — Dispatches read-only sub-agents to investigate code, history, or options into `docs/research/<topic>.md`.
+- **3. Design ([`architect`](skills/architect/SKILL.md), [`writing-plans`](skills/writing-plans/SKILL.md))** — Settles types and module boundaries, then writes a bite-sized TDD implementation plan.
+- **4. Execute ([`poteto-mode`](skills/poteto-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 23 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
+- **5. Prove ([`tdd`](skills/tdd/SKILL.md), [`proof-driven-development`](skills/proof-driven-development/SKILL.md))** — Enforces RED-GREEN-REFACTOR tests and routes subtle invariants to formal verification ([Hoare/SMT](skills/proving-with-hoare-logic/SKILL.md), [Lean 4](skills/proving-with-dependent-types/SKILL.md), [TLA+/Kani](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), [spec audit](skills/auditing-proof-specifications/SKILL.md)).
+- **6. Review ([`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md), [`unslop`](skills/unslop/SKILL.md))** — Strips narration comments, pits adversarial models against the diff, and cleans AI prose tells.
+- **7. Ship ([`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md), [`shipping`](skills/poteto-mode/playbooks/shipping.md))** — Structures clean commits, resolves CI and review threads, and verifies against the real artifact.
 
 ---
 

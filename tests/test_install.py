@@ -62,7 +62,7 @@ class InstallTests(unittest.TestCase):
             retired += [
                 f"rules/{name}.md" for name in (
                     "code-organization", "comment-style", "git-worktrees",
-                    "minimal-changes", "subagents", "writing-voice",
+                    "minimal-changes", "opencode-config-profiles", "subagents", "writing-voice",
                 )
             ]
             retired += ["skills/code-review", "skills/research"]

@@ -1,3 +1,10 @@
+---
+alwaysApply: true
+description: >-
+  Cap single-call sleeps at 30 seconds or less and poll in short increments when
+  waiting on CI, background jobs, or builds.
+---
+
 # Sleeps and polling
 
 Never hold a `sleep` longer than **30 seconds** in one tool call. When waiting

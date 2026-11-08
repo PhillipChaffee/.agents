@@ -2,7 +2,7 @@
 
 [![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **62 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
+**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **64 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
 
 ---
 
@@ -18,7 +18,7 @@ flowchart LR
 
     subgraph Engine["2. Kit Core (~/.agents)"]
         PB["23 Playbooks<br/>(Step-by-Step Loops)"]
-        SK["37 Situational & Proof Skills<br/>(Design, Debug, Prove, Ship)"]
+        SK["40 Situational, Research & Proof Skills<br/>(Research, Design, Prove, Ship)"]
         PR["24 Principle Skills<br/>(Core, Arch, Verify, Meta)"]
         AG["7 Specialist Sub-Agents<br/>(Delegates & Research Tiers)"]
     end
@@ -56,6 +56,7 @@ flowchart LR
 | Category | Count | Source Path | Installed Target (`~/.agents/`) | Purpose |
 | --- | --- | --- | --- | --- |
 | **pstack Situational Skills** | 31 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Entry mode, architecture, debugging, multi-model review, statecharts, and shipping |
+| **Research & Synthesis Skills** | 2 | `skills/{research,research-summary}/SKILL.md` | `skills/{research,research-summary}/{SKILL.md,skill.md}` | Tiered codebase/web/MCP research orchestrator (`docs/research/<topic>.md`) and structured research summaries |
 | **Proof-Driven Development Skills** | 6 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Orchestrator + 5 formal verification flows (Hoare/SMT, Dependent Types, Model Checking, Abstract Interpretation, Spec Auditing) |
 | **Engineering Principles** | 24 | `skills/principle-*/SKILL.md` | `skills/principle-*/{SKILL.md,skill.md}` | Single-rule design, architecture, verification, delegation, and meta invariants cited by `/poteto-mode` |
 | **Skill Authoring (TDD)** | 1 | `skills/writing-skills/SKILL.md` | `skills/writing-skills/{SKILL.md,skill.md}` | RED-GREEN-REFACTOR TDD workflow for creating and bulletproofing skills ([Superpowers](https://github.com/obra/superpowers)) |
@@ -75,7 +76,7 @@ flowchart TD
     Q1 -->|"No / Unsure"| Help["/poteto-help"]
     Q1 -->|"Yes"| Q2{"Task Type"}
 
-    Q2 -->|"Understand code or history"| Understand["/how · /why · /teach · /recall"]
+    Q2 -->|"Research, code, or history"| Understand["/research · /research-summary · /how · /why · /teach · /recall"]
     Q2 -->|"Design or parallel bakeoff"| Design["/architect · /arena · /swarm · /blast-radius"]
     Q2 -->|"Build, fix, refactor, or ship"| Execute["/poteto-mode<br/>(auto-picks from 23 playbooks)"]
     Q2 -->|"Mathematical proof or model check"| Prove["/proof-driven-development<br/>(routes across 5 proof flows)"]
@@ -160,7 +161,7 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>29 Situational & Authoring Skills</strong> (non-formal-verification)</summary>
+<summary><strong>31 Situational, Research & Authoring Skills</strong> (non-formal-verification)</summary>
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
@@ -170,9 +171,11 @@ flowchart LR
 | **Entry & Routing** | [`/figure-it-out`](skills/figure-it-out/SKILL.md) | No bundled playbook fits; designs a bespoke, auditable playbook |
 | **Alignment & Prompting** | [`/in-your-own-words`](skills/in-your-own-words/SKILL.md) | Having the agent play back your goal and problem before starting |
 | **Alignment & Prompting** | [`/sharpen`](skills/sharpen/SKILL.md) | Rewriting a prompt deeper (not longer) before sending it |
-| **Code & History** | [`/how`](skills/how/SKILL.md) | Getting a cited walkthrough of how a subsystem works |
-| **Code & History** | [`/why`](skills/why/SKILL.md) | Investigating why something was built this way across code, PRs, issues, and docs |
-| **Code & History** | [`/teach`](skills/teach/SKILL.md) | Learning a change or subsystem explained from first principles |
+| **Research, Code & History** | [`/research`](skills/research/SKILL.md) | Running tiered (direct, parallel, or scoped pipeline) research across codebase, web, and MCP tools into `docs/research/<topic>.md` |
+| **Research, Code & History** | [`/research-summary`](skills/research-summary/SKILL.md) | Producing a concise, cited research summary with head-to-head option comparison tables |
+| **Research, Code & History** | [`/how`](skills/how/SKILL.md) | Getting a cited walkthrough of how a subsystem works |
+| **Research, Code & History** | [`/why`](skills/why/SKILL.md) | Investigating why something was built this way across code, PRs, issues, and docs |
+| **Research, Code & History** | [`/teach`](skills/teach/SKILL.md) | Learning a change or subsystem explained from first principles |
 | **Context & Catch-Up** | [`/recall`](skills/recall/SKILL.md) | Rebuilding recent context on a topic when starting or resuming work |
 | **Context & Catch-Up** | [`/ketchup`](skills/ketchup/SKILL.md) | Catching up on what changed in the current chat, with every decision waiting on you |
 | **Context & Catch-Up** | [`/ketchup-video`](skills/ketchup-video/SKILL.md) | Rendering `/ketchup` as a short silent video of slides |
@@ -247,7 +250,7 @@ flowchart LR
 
 | File | Scope | Rule Summary |
 | --- | --- | --- |
-| [`agents.kit.md`](agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (e.g., use `rg` instead of `grep` or `find`) |
+| [`agents.kit.md`](agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution) |
 | [`rules/look-it-up.md`](rules/look-it-up.md) | Always applied | Never answer factual tool/API questions from memory; check official docs and primary sources first |
 | [`rules/new-repo-setup.md`](rules/new-repo-setup.md) | New repo creation | Bootstrap greenfield repos from the strictest-setups reference repo ($\ge 95\%$ coverage + full hygiene gates) |
 | [`rules/sleeps-and-polling.md`](rules/sleeps-and-polling.md) | CI & background waits | Cap single-call sleeps at $\le 30\text{s}$ and return control between polls |

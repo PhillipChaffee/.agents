@@ -50,9 +50,17 @@ agents_dir = Path("agents")
 agents = sorted(d for d in agents_dir.iterdir() if (d / "agent.md").exists()) if agents_dir.is_dir() else []
 agent_ids = {d.name for d in agents}
 rules_dir = Path("rules")
-rule_ids = {p.stem for p in rules_dir.glob("*.md")} if rules_dir.is_dir() else set()
+rule_files = sorted(rules_dir.glob("*.md")) if rules_dir.is_dir() else []
+rule_ids = {p.stem for p in rule_files}
 
-# 1. Skill frontmatter contract
+# 1. Skill entry-point casing & frontmatter contract
+if Path("skills").is_dir():
+    for d in sorted(p for p in Path("skills").iterdir() if p.is_dir()):
+        if not (d / "SKILL.md").exists():
+            fail(f"skills/{d.name}: missing uppercase SKILL.md entry point")
+        for f in d.iterdir():
+            if f.name == "skill.md":
+                fail(f"skills/{d.name}/skill.md: source skill entry point must be uppercase SKILL.md")
 for d in skills:
     rel = f"skills/{d.name}/SKILL.md"
     fm, _ = split_fm(d.joinpath("SKILL.md").read_text(), rel)
@@ -81,6 +89,20 @@ for d in agents:
             fail(f"{rel}: missing frontmatter key '{k}'")
     if keys.get("id", "").split("id:", 1)[-1].strip() != d.name:
         fail(f"{rel}: id does not match directory name")
+    if order != sorted(order):
+        warn(f"{rel}: frontmatter keys not sorted")
+
+# 2b. Rule frontmatter contract
+for p in rule_files:
+    rel = f"rules/{p.name}"
+    fm, _ = split_fm(p.read_text(), rel)
+    if fm is None:
+        fail(f"{rel}: missing or malformed frontmatter")
+        continue
+    keys, order = top_keys(fm)
+    for k in ("alwaysApply", "description"):
+        if k not in keys:
+            fail(f"{rel}: missing frontmatter key '{k}'")
     if order != sorted(order):
         warn(f"{rel}: frontmatter keys not sorted")
 

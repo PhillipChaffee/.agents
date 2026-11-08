@@ -1,8 +1,8 @@
 ---
+alwaysApply: true
 description: >-
   Prefer looking answers up over answering from memory. Official docs first,
   then proven writeups for the exact problem.
-alwaysApply: true
 ---
 
 # Look It Up

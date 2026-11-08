@@ -24,15 +24,15 @@ Register the marketplace and install the plugin:
 
 ### Cursor
 
-In Cursor Agent chat, install the plugin from this repository (`.cursor-plugin/plugin.json`):
-
-```text
-/add-plugin https://github.com/PhillipChaffee/magic
-```
+Import the repository in **Customize → Plugins → From GitHub Repository** (`https://github.com/PhillipChaffee/magic`) or add it as a Team Marketplace in **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**, then install `magic`. For local development without a marketplace, copy this repository to `~/.cursor/plugins/local/magic` and reload Cursor.
 
 ### Codex
 
-Install from `.agents/plugins/marketplace.json` via `/plugins` in the Codex CLI or App.
+Register the repository marketplace and install from **Plugins** (`/plugins` in the Codex CLI or **Plugins Directory** in the Codex App):
+
+```bash
+codex plugin marketplace add PhillipChaffee/magic
+```
 
 ### OpenCode
 

@@ -182,6 +182,14 @@ test("Claude Code, Cursor, and Codex plugin and marketplace manifests satisfy sc
 	assert.equal(cursorPlugin.rules, "./rules/");
 	assert.equal(cursorPlugin.hooks, "./hooks/hooks-cursor.json");
 
+	const cursorMarketplace = JSON.parse(
+		fs.readFileSync(path.join(repoDir, ".cursor-plugin/marketplace.json"), "utf8"),
+	);
+	assert.equal(cursorMarketplace.name, "magic-dev");
+	assert.equal(cursorMarketplace.plugins?.[0]?.name, "magic");
+	assert.equal(cursorMarketplace.plugins?.[0]?.version, "0.2.0");
+	assert.equal(cursorMarketplace.plugins?.[0]?.source, "./");
+
 	const codexPlugin = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".codex-plugin/plugin.json"), "utf8"),
 	);

@@ -13,7 +13,7 @@ function resolveDotField(obj, fieldPath) {
 	}, obj);
 }
 
-test(".version-bump.json lists all 5 plugin/package manifests and locks them to the same semver version (0.2.0)", () => {
+test(".version-bump.json lists all plugin/package manifests and locks them to the same semver version (0.2.0)", () => {
 	const versionBumpPath = path.join(repoDir, ".version-bump.json");
 	const config = JSON.parse(fs.readFileSync(versionBumpPath, "utf8"));
 
@@ -23,6 +23,8 @@ test(".version-bump.json lists all 5 plugin/package manifests and locks them to 
 			{ path: ".claude-plugin/plugin.json", field: "version" },
 			{ path: ".claude-plugin/marketplace.json", field: "plugins.0.version" },
 			{ path: ".cursor-plugin/plugin.json", field: "version" },
+			{ path: ".cursor-plugin/marketplace.json", field: "metadata.version" },
+			{ path: ".cursor-plugin/marketplace.json", field: "plugins.0.version" },
 			{ path: ".codex-plugin/plugin.json", field: "version" },
 		],
 	});
@@ -81,9 +83,9 @@ test("README.md and .gitignore document magic quote, SVG workflow diagram, secti
 		"docs/CATALOG.md",
 		"/plugin marketplace add PhillipChaffee/magic",
 		"/plugin install magic@magic-dev",
-		"/add-plugin https://github.com/PhillipChaffee/magic",
-		".cursor-plugin/plugin.json",
-		".agents/plugins/marketplace.json",
+		"From GitHub Repository",
+		"~/.cursor/plugins/local/magic",
+		"codex plugin marketplace add PhillipChaffee/magic",
 		"magic@git+https://github.com/PhillipChaffee/magic.git",
 		"pi install git:github.com/PhillipChaffee/magic",
 		"./scripts/install.sh --target agents",

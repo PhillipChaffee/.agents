@@ -29,9 +29,11 @@ For a quick ballpark the user asked for, one run is enough. Still check question
 
 ## Report
 
+- Keep every prose block to at most 1-2 sentences; open with 1-2 sentences stating the verdict, then present a Markdown table (`| Metric | Before | After | Delta | Runs & Range | Limiter |`) and short bullets for the checklist items.
 - Lead with the verdict: faster, slower, no measurable difference, or inconclusive.
 - Give the number with its unit, the run count, the range, and the limiter. For example, "p50 41 ms → 33 ms, median of 7 runs per side, range 32 to 35 ms after, bound by JSON parsing on one core."
 - Call the verdict inconclusive when you claim a difference but cannot name the limiter, when a side ran untuned, or when you could not check questions 4 and 7. Name the gap.
+- End the finished turn with a 1-2 sentence `## TL;DR` section at the bottom.
 - Keep a PR body to one primary number, per the **Opening a PR** playbook. Put the runs, range, and limiter evidence in a linked artifact or notes file.
 
 ## Other perf material

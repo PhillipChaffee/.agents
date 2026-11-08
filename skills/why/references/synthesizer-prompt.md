@@ -46,7 +46,7 @@ You MUST follow `references/epistemics.md`. Read it in full before writing. The 
 
 ## Output Format
 
-Write for the user, in this exact structure:
+Write for the user in this exact structure, keeping every prose block to **at most 1-2 sentences**, opening each section with a 1-sentence framing line, and using bullets, tables, and visualizations for all detail:
 
 ---
 
@@ -57,11 +57,15 @@ Restate the user's question in one or two sentences.
 
 ### The Code in Question
 
-File paths, line ranges, key symbols. Two or three lines to orient a cold reader.
+Open with 1 sentence orienting the reader, followed by a compact Markdown table (`| File:Line | Symbol | Role in Question |`).
+
+### Lineage / Causal Flow (when multiple commits, PRs, or incidents interact)
+
+Open with 1 sentence framing the timeline, followed by a compact Mermaid diagram (`flowchart TD` or `flowchart LR`) showing how earlier decisions, incidents, or constraints led to the current code shape. Skip only for single-commit history.
 
 ### What We Found
 
-Claims with textual evidence, each quoted or paraphrased and cited precisely:
+Claims with textual evidence, each as a 1-2 sentence bullet cited precisely:
 
 - **[Direct]** {Claim}. Source: `[PR #123](url)` / ticket ID / file:line. {Brief quote or paraphrase.}
 - **[Supported]** {Claim}. Evidence: {list of items and what each contributes}.
@@ -70,7 +74,7 @@ Claims with textual evidence, each quoted or paraphrased and cited precisely:
 
 ### What We Can Reasonably Infer
 
-Claims stated nowhere but well-supported by indirect evidence. Each bullet must make the inference chain visible ("Given A and B, it's likely that C") and must use hedged language ("appears to", "likely", "suggests", "is consistent with"):
+Claims stated nowhere but well-supported by indirect evidence. Each bullet (1-2 sentences) must make the inference chain visible ("Given A and B, it's likely that C") and must use hedged language ("appears to", "likely", "suggests", "is consistent with"):
 
 - **[Inferred]** {Hedged claim}. Reasoning: {the specific evidence and the inference step}.
 
@@ -78,17 +82,11 @@ Skip this section if there's nothing to infer.
 
 ### Competing Hypotheses
 
-If the evidence fits multiple stories, present each. Don't force a winner the record doesn't support. For each hypothesis:
-
-- **Hypothesis:** {one-sentence statement}
-- **Evidence for:** {specific items}
-- **Evidence against or missing:** {what would need to be true but isn't, or what counter-signals exist}
-
-Skip this section if there's a single clear answer.
+If the evidence fits multiple stories, open with 1 sentence and present each in a Markdown comparison table (`| Hypothesis | Evidence For | Evidence Against / Missing |`). Don't force a winner the record doesn't support. Skip this section if there's a single clear answer.
 
 ### What We Don't Know
 
-Specific gaps: "We searched the issue tracker for [query1], [query2], [query3] and found no issue discussing the rate-limit threshold", not "We don't know why." Include:
+Specific gaps as concise bullets: "We searched the issue tracker for [query1], [query2], [query3] and found no issue discussing the rate-limit threshold", not "We don't know why." Include:
 
 - Questions that went unanswered
 - Searches that returned nothing
@@ -97,21 +95,11 @@ Specific gaps: "We searched the issue tracker for [query1], [query2], [query3] a
 
 ### Sources Consulted
 
-What was actually searched, so the user can judge coverage and redirect:
+Open with 1 sentence on search coverage, then provide a Markdown table (`| Source Category | Searched / Queries | Key Result / Status |`) covering all seven categories (Source control history, Issue / ticket tracker, Long-form documents, Real-time team chat, Infrastructure observability, Error / exception tracking, Product analytics warehouse), including any that returned nothing or were skipped with the reason.
 
-- **Source control history**: {file paths}, {number of commits reviewed}, PRs #{numbers}, and code comments searched. Or "Not searched. This should not happen because git and the forge are always expected."
-- **Issue / ticket tracker**: {ticket IDs and keyword searches}. Or "Not searched. No matching MCP available in this environment."
-- **Long-form documents**: {page titles and search queries}. Or "Not searched. No matching MCP available in this environment."
-- **Real-time team chat**: {channels searched, date ranges, queries}. Or "Not searched. No matching MCP available in this environment."
-- **Infrastructure observability**: {dashboards, monitors, metrics, logs, traces, or incidents searched}. Or "Not searched. No matching MCP available in this environment."
-- **Error / exception tracking**: {issues, events, or releases searched}. Or "Not searched. No matching MCP available in this environment."
-- **Product analytics warehouse**: {fully-qualified tables queried, the time windows, and the numeric summaries (counts, percentiles, first/last-seen timestamps) that bore on the question}. Or "Not searched. No matching MCP available in this environment."
+### TL;DR
 
-### Confidence Summary
-
-One or two sentences on overall confidence, e.g.:
-
-> "The core rationale (A) is well-supported by direct PR and ticket evidence. The specific threshold value (100) is inferred from the surrounding context but not explicitly documented. The question of whether this was driven by a customer request could not be answered. No relevant issue tracker or long-form doc content surfaced, and real-time team chat search was unavailable."
+Required at the bottom of the finished turn: 1-2 plain sentences stating the root motivation, overall confidence, and what remains inferred or unknown.
 
 ---
 

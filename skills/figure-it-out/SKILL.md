@@ -50,4 +50,4 @@ Log the run via the **show-me-your-work** skill. figure-it-out's work is usually
 
 Check the whole against the Phase A predicate on the real product, not just the harness. Encode any recurring correction as a gate, a lint rule, a check, or a script (the **encode-lessons-in-structure** principle skill).
 
-**Reply:** the playbook you designed, the rigor level and why, the decision-trail path, what's verified against the predicate, and what's still open.
+**Reply:** the playbook you designed (with a 1-sentence framing line before a Mermaid phase diagram and unit Markdown table), the rigor level and why (1-2 sentences max per prose block, bullets otherwise), the decision-trail path, what's verified against the predicate, what's still open, and a 1-2 sentence `## TL;DR` section at the bottom.

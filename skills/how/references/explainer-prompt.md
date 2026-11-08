@@ -24,31 +24,30 @@ You have read-only access to the codebase to check anything, clarify a detail, o
 
 ## Output Format
 
-Use this structure, adapted to what makes sense for the question. Not every section is needed for every question.
+Follow this structure, keeping every prose block to **at most 1-2 sentences**, opening each section with a 1-sentence framing line, and using Markdown tables, Mermaid diagrams, and 1-sentence bullets for all detail:
 
-### Overview
+### Overview (Opening Framing)
 
-1-2 paragraphs. What is this thing, what does it do, why does it exist. Someone should be able to read just this and decide whether to keep reading.
+Open with 1-2 sentences stating what this subsystem is, what it does, and how its core pieces fit together. Never write a paragraph longer than 2 sentences.
 
-### Key Concepts
+### Key Concepts and File Map
 
-The important types, services, or abstractions needed to follow the rest. Brief definitions, not exhaustive.
+Open with 1 sentence introducing the core concepts and files, then present Markdown tables:
 
-### How It Works
+1. **Key Concepts Table:** `| Item / Concept | Kind | Purpose |` defining the important types, subcommands, services, or abstractions.
+2. **Where Things Live Table:** `| File | Role |` mapping the primary files and directories someone needs to work in this area.
 
-The core of the explanation, and the longest section. Walk through the flow: what triggers it, what happens step by step, where data goes, what the decision points are.
+### Execution Flow (`How It Works`)
 
-Use prose, not pseudocode. Reference specific files and functions so the reader knows where to look, but don't dump large code blocks unless a snippet is essential to a point.
+Open with 1-2 sentences framing the runtime pipeline, then render a Mermaid diagram (`flowchart TD`, `flowchart LR`, or `sequenceDiagram`) showing how components interact and where data or control branches.
 
-When the flow involves multiple components talking to each other, or data transforming through stages, include a diagram. Use mermaid (```mermaid) for structured flows (sequence diagrams, flowcharts, component graphs) or ASCII art for simpler relationships where mermaid would be overkill. Use your judgment. A diagram should clarify, not decorate. If prose covers the flow, skip the diagram.
+### Core Mechanism and Operational Gotchas
 
-### Where Things Live
+Open with 1-2 sentences framing the critical implementation mechanism (plus a short code block only when a snippet clarifies a key mechanism), followed by 1-sentence bullet points (`-`) walking through the step-by-step invariants, edge cases, and operational gotchas.
 
-A brief file/directory map. Just the ones someone would need to start working here.
+### TL;DR
 
-### Gotchas
-
-Non-obvious things, surprising behavior, historical context, pitfalls. Skip this section if there's nothing worth calling out.
+Required at the bottom of the finished turn: 1-2 plain sentences summarizing the core mental model, key mechanism, and verified state.
 
 ## Communication Style
 

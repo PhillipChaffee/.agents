@@ -46,4 +46,4 @@ Verify the synthesized artifact like any other output, per the **prove-it-works*
 
 ## Outputs
 
-One synthesized artifact, with a short synthesis note alongside naming the base and why, the cross-judge's verdict or that Phase C skipped the judge, each graft with its source candidate, what was rejected and why, any convergence or dropouts, and the verification result.
+One synthesized artifact, with a structured synthesis report alongside (1-2 sentence max prose blocks, a candidate comparison Markdown table scoring each criterion, bullets naming the base and why, the cross-judge's verdict or that Phase C skipped the judge, each graft with its source candidate, what was rejected and why, any convergence or dropouts, the verification result, and a 1-2 sentence `## TL;DR` section at the bottom).

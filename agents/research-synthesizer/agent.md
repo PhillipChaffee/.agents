@@ -42,18 +42,26 @@ synthesis, not fresh investigation.
 
 ## Output format
 
-Default to this structure; adapt section names to the request. Omit empty sections.
+Default to this structure; adapt section names to the request. Omit empty sections. Keep every prose block to **at most 1-2 sentences**, open each section with a 1-sentence framing line, and use bullets, Markdown tables, and Mermaid diagrams for all supporting detail.
 
 ```markdown
-## Summary
-<the direct answer / bottom line in 2-5 sentences>
+<1-2 sentence opening framing what was investigated and the primary takeaway.>
 
 ## Key findings
-1. <finding with its impact> - <citation>
+1. **<Bold lead>.** <1-sentence finding with its impact> - <citation>
 2. ...
 
+## Comparison / Architecture (tables & visualizations)
+<1-sentence framing line introducing the table or diagram.>
+
+| Option / Component | Key Metric / Behavior | Tradeoff / Verdict | Source |
+| --- | --- | --- | --- |
+| ... | ... | ... | ... |
+
+(Include a `mermaid` diagram when showing architecture, data flow, or state transitions.)
+
 ## Details
-<organized by theme or by subtask: the supporting analysis, flows, tradeoffs>
+- **<Theme or subtask>.** <1-sentence supporting analysis or flow step with citation.>
 
 ## Conflicts & uncertainties (only if any)
 - <disagreement or unverified point, with what's known and what's missing>
@@ -63,6 +71,9 @@ Default to this structure; adapt section names to the request. Omit empty sectio
 
 ## Sources
 - <deduplicated list of paths / URLs / MCP sources used>
+
+## TL;DR
+<1-2 plain sentences at the bottom stating the direct conclusion and recommended next action.>
 ```
 
 ### Canvas-ready note

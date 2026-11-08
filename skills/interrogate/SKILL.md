@@ -28,6 +28,9 @@ Skip arena Phases C, D, and E. Adversaries find different failures, so the verdi
 
 ## Output
 
-- **Intent**: the restatement.
-- **Findings**: for each verified finding, the command, its output, how it breaks the intent, and the adversaries that found it. Say "no verified findings" when none survive.
-- **Dropped**: for each adversary, the count of dropped findings and why.
+Keep every prose block to **at most 1-2 sentences**, open each section with a 1-sentence framing line, and use Markdown tables and bullets:
+
+- **Intent**: 1-2 sentences restating the change's intent.
+- **Findings**: a Markdown summary table (`| Finding | Command | Adversaries | How It Breaks Intent |`) plus 1-sentence bullets with the printed output vs. required output for each verified finding. Say "no verified findings" when none survive.
+- **Dropped**: a Markdown table (`| Adversary | Dropped Count | Reason |`) listing each adversary's dropped findings and why.
+- **TL;DR**: a `## TL;DR` section at the bottom with 1-2 plain sentences stating how many verified findings survived and the overall verdict.

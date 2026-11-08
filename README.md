@@ -74,6 +74,7 @@ git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/i
 
 <details>
 <summary><strong><code>.agents</code> directory CLI flags &amp; per-harness behavior</strong></summary>
+<br />
 
 | `./scripts/install.sh` Flag | Behavior | Touches Unmanaged Files in `~/.agents`? |
 | --- | --- | --- |

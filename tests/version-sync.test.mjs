@@ -59,15 +59,14 @@ test("THIRD-PARTY-NOTICES.md documents obra/superpowers plugin and bootstrap fil
 	}
 });
 
-test("README.md and .gitignore document magic quote, section order (Installation -> How to Use It -> Acknowledgments), 74 skills, 4 rules, and node_modules ignores", () => {
+test("README.md and .gitignore document magic quote, badge placement, section order (Installation -> How to Use It -> Acknowledgments), and node_modules ignores", () => {
 	const readme = fs.readFileSync(path.join(repoDir, "README.md"), "utf8");
 	for (const expectedSnippet of [
 		"# magic",
 		"assets/magic-banner.png",
 		"Any sufficiently advanced technology is indistinguishable from magic.",
 		"Arthur C. Clarke",
-		"**74 active skills**",
-		"**4 operational rules**",
+		"[![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml)",
 		"## Installation",
 		"### 1. Native Plugin Installation (Superpowers-Style)",
 		"### 2. Use as a `.agents` Directory (`~/.agents` or `.agents/`)",
@@ -88,6 +87,10 @@ test("README.md and .gitignore document magic quote, section order (Installation
 	}
 
 	assert.ok(
+		!readme.includes("Vendor-neutral AI coding kit"),
+		"Vendor-neutral prose line must be removed",
+	);
+	assert.ok(
 		fs.existsSync(path.join(repoDir, "assets/magic-banner.png")),
 		"assets/magic-banner.png must exist",
 	);
@@ -95,12 +98,14 @@ test("README.md and .gitignore document magic quote, section order (Installation
 	const headingIdx = readme.indexOf("# magic");
 	const bannerIdx = readme.indexOf("assets/magic-banner.png");
 	const quoteIdx = readme.indexOf("Any sufficiently advanced technology is indistinguishable from magic.");
+	const firstHrIdx = readme.indexOf("\n---\n", quoteIdx);
+	const badgeIdx = readme.indexOf("[![validate](");
 	const installIdx = readme.indexOf("## Installation");
 	const howToUseIdx = readme.indexOf("## How to Use It");
 	const ackIdx = readme.indexOf("## Acknowledgments");
 	const archIdx = readme.indexOf("## Architecture & Workflow");
 	assert.ok(headingIdx === 0 && bannerIdx > headingIdx && bannerIdx < quoteIdx, "Banner must appear right under # magic");
-	assert.ok(quoteIdx > 0 && quoteIdx < installIdx, "Quote must appear before ## Installation");
+	assert.ok(quoteIdx < firstHrIdx && firstHrIdx < badgeIdx && badgeIdx < installIdx, "Badges must appear underneath the --- line break right above ## Installation");
 	assert.ok(installIdx < howToUseIdx, "## Installation must appear before ## How to Use It");
 	assert.ok(howToUseIdx < ackIdx, "## How to Use It must appear before ## Acknowledgments");
 	assert.ok(ackIdx < archIdx, "## Acknowledgments must appear before remaining sections");

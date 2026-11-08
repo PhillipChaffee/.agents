@@ -73,11 +73,12 @@ test("README.md and .gitignore document magic quote, SVG workflow diagram, secti
 		"### Codex",
 		"### OpenCode",
 		"### Pi",
-		"### .agents Directory (~/.agents or .agents/)",
+		"### `.agents` Directory (`~/.agents` or `.agents/`)",
 		"<summary><strong><code>.agents</code> directory CLI flags &amp; per-harness behavior</strong></summary>",
 		"You never need to invoke `/using-magic` yourself",
 		"## The Basic Workflow",
 		"## Acknowledgments",
+		"docs/CATALOG.md",
 		"/plugin marketplace add PhillipChaffee/magic",
 		"/plugin install magic@magic-dev",
 		"/add-plugin https://github.com/PhillipChaffee/magic",
@@ -105,6 +106,10 @@ test("README.md and .gitignore document magic quote, SVG workflow diagram, secti
 	assert.ok(
 		fs.existsSync(path.join(repoDir, "assets/workflow-diagram.svg")),
 		"assets/workflow-diagram.svg must exist",
+	);
+	assert.ok(
+		fs.existsSync(path.join(repoDir, "docs/CATALOG.md")),
+		"docs/CATALOG.md must exist",
 	);
 	const svgText = fs.readFileSync(path.join(repoDir, "assets/workflow-diagram.svg"), "utf8");
 	assert.doesNotMatch(

@@ -102,6 +102,12 @@ test("README.md and .gitignore document magic quote, SVG workflow diagram, secti
 		fs.existsSync(path.join(repoDir, "assets/workflow-diagram.svg")),
 		"assets/workflow-diagram.svg must exist",
 	);
+	const svgText = fs.readFileSync(path.join(repoDir, "assets/workflow-diagram.svg"), "utf8");
+	assert.doesNotMatch(
+		svgText,
+		/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/,
+		"assets/workflow-diagram.svg must not contain unescaped '&' XML characters",
+	);
 
 	const headingIdx = readme.indexOf("# magic");
 	const bannerIdx = readme.indexOf("assets/magic-banner.png");

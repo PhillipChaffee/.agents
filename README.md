@@ -67,7 +67,7 @@ When you use `~/.agents` (via `./scripts/install.sh` or `git clone`) **without**
 `magic` intercepts every request at session start, routes it to the right workflow, and verifies the result before shipping.
 
 <p align="center">
-  <img src="assets/workflow-diagram.svg" alt="magic workflow: 1. Session Start -> 2. Route Task -> 3. Research & 4. Architect & Plan -> 5. Execute & Prove -> 6. Review & Clean -> 7. Ship" width="100%" />
+  <img src="assets/workflow-diagram.svg" alt="magic workflow: 1. Session Start to 2. Route Task to 3. Research and 4. Architect and Plan to 5. Execute and Prove to 6. Review and Clean to 7. Ship" width="100%" />
 </p>
 
 - **1. Route ([`using-poteto`](skills/using-poteto/SKILL.md), [`workflow-routing`](rules/workflow-routing.md))** — Auto-injected at session start on plugin installs (no manual invocation needed; invoke manually only on bare `.agents` directory installs) to load the matching entry-point skill before the first tool call.

@@ -24,7 +24,17 @@ Register the marketplace and install the plugin:
 
 ### Cursor
 
-Import the repository in **Customize → Plugins → From GitHub Repository** (`https://github.com/PhillipChaffee/magic`) or add it as a Team Marketplace in **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**, then install `magic`. For local development without a marketplace, copy this repository to `~/.cursor/plugins/local/magic` and reload Cursor.
+- **From GitHub:** Import the repository in **Customize → Plugins → From GitHub Repository** (or in **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**), then install `magic`:
+
+  ```text
+  https://github.com/PhillipChaffee/magic
+  ```
+
+- **Local install:** Clone directly into `~/.cursor/plugins/local/magic` and reload Cursor:
+
+  ```bash
+  git clone https://github.com/PhillipChaffee/magic.git ~/.cursor/plugins/local/magic
+  ```
 
 ### Codex
 

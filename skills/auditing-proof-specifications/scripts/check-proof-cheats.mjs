@@ -9,13 +9,16 @@ const RULES = [
 		checks: [
 			{ id: "verus-external-body", re: /#\s*\[\s*verifier\s*::\s*external_body\s*\]/, msg: "unverified function body (#[verifier::external_body])" },
 			{ id: "verus-external", re: /#\s*\[\s*verifier\s*::\s*external(?:_fn_specification)?\s*\]/, msg: "external verifier bypass (#[verifier::external*])" },
+			{ id: "verus-trusted", re: /#\s*\[\s*verifier\s*::\s*trusted\s*\]/, msg: "trusted verifier bypass (#[verifier::trusted])" },
+			{ id: "verus-no-decreases", re: /#\s*\[\s*verifier\s*::\s*exec_allows_no_decreases_clause\s*\]/, msg: "termination bypass (#[verifier::exec_allows_no_decreases_clause])" },
 			{ id: "verus-admit-attr", re: /#\s*\[\s*verifier\s*::\s*admit\s*\]/, msg: "admitted proof obligation (#[verifier::admit])" },
 			{ id: "verus-truncate", re: /#\s*\[\s*verifier\s*::\s*truncate\s*\]/, msg: "unchecked integer truncation (#[verifier::truncate])" },
 			{ id: "creusot-trusted", re: /#\s*\[\s*trusted\s*\]/, msg: "trusted bypass (#[trusted])" },
 			{ id: "smt-admit-call", re: /\badmit\s*\(\s*\)/, msg: "unproved admit() call" },
 			{ id: "smt-assume-call", re: /(?<!::)\bassume\s*\(/, msg: "unproved assume(...) statement" },
 			{ id: "kani-assume-false", re: /\bkani\s*::\s*assume\s*\(\s*false\s*\)/, msg: "vacuous kani::assume(false)" },
-			{ id: "kani-stub", re: /#\s*\[\s*kani\s*::\s*stub\b/, msg: "unverified Kani stub (#[kani::stub])" },
+			{ id: "kani-stub-verified", re: /#\s*\[\s*kani\s*::\s*stub_verified\b/, msg: "unverified stub replacement (#[kani::stub_verified])" },
+			{ id: "kani-stub", re: /#\s*\[\s*kani\s*::\s*stub(?!_verified)\b/, msg: "unverified Kani stub (#[kani::stub])" },
 		],
 	},
 	{

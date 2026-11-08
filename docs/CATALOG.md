@@ -1,6 +1,6 @@
 # Catalog Reference
 
-Complete reference of the **23 execution playbooks**, **74 active skills** (**50 workflow/domain skills** + **24 engineering principles**), **7 specialist sub-agents**, and **4 operational rules** shipped in `magic`.
+Complete reference of the **23 execution playbooks**, **74 active skills** (**50 workflow/domain skills** + **24 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
 
 ---
 
@@ -136,12 +136,13 @@ Complete reference of the **23 execution playbooks**, **74 active skills** (**50
 
 ---
 
-## 4 Operational Rules (`rules/` & `agents.kit.md`)
+## 5 Operational Rules (`rules/` & `agents.kit.md`)
 
 | File | Scope | Rule Summary |
 | --- | --- | --- |
-| [`agents.kit.md`](../agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution, workflow routing pointer) |
+| [`agents.kit.md`](../agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution, workflow routing pointer, chunked large-file creation) |
 | [`rules/workflow-routing.md`](../rules/workflow-routing.md) | Always applied | Route engineering, research, and formal-proof tasks to `/magic-mode`, `/research`, or `/proof-driven-development` before acting |
 | [`rules/look-it-up.md`](../rules/look-it-up.md) | Always applied | Never answer factual tool/API questions from memory; check official docs and primary sources first |
 | [`rules/new-repo-setup.md`](../rules/new-repo-setup.md) | New repo creation | Bootstrap greenfield repos from the strictest-setups reference repo (`>= 95%` coverage + full hygiene gates) |
 | [`rules/sleeps-and-polling.md`](../rules/sleeps-and-polling.md) | CI & background waits | Cap single-call sleeps at `<= 30s` and return control between polls |
+| [`rules/large-file-creation.md`](../rules/large-file-creation.md) | Files `> 300` lines | Write the header/first section, append `<= 300`-line sections with Edit or `cat >>` heredocs, and verify with `wc -l` |

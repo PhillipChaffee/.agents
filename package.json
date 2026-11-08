@@ -1,0 +1,25 @@
+{
+  "name": "dot-agents",
+  "version": "0.2.0",
+  "description": "Skills, subagent definitions, operational rules, and multi-harness bootstrap for coding agents",
+  "type": "module",
+  "main": ".opencode/plugins/dot-agents.js",
+  "repository": "https://github.com/PhillipChaffee/.agents",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "dot-agents",
+    "skills",
+    "subagents",
+    "rules",
+    "workflow"
+  ],
+  "pi": {
+    "extensions": [
+      "./.pi/extensions/dot-agents.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

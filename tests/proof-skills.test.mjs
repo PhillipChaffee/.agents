@@ -54,7 +54,16 @@ test("check-proof-cheats detects escape hatches across proof languages and passe
 
 	const dirtyDir = path.join(dir, "dirty");
 	fs.mkdirSync(dirtyDir);
-	fs.writeFileSync(path.join(dirtyDir, "bad.rs"), "#[verifier::external_body]\npub fn f() { assume(false); }\n");
+	fs.writeFileSync(
+		path.join(dirtyDir, "bad.rs"),
+		[
+			"#[verifier::external_body]",
+			"#[verifier::trusted]",
+			"#[verifier::exec_allows_no_decreases_clause]",
+			"#[kani::stub_verified(foo)]",
+			"pub fn f() { assume(false); }",
+		].join("\n"),
+	);
 	fs.writeFileSync(path.join(dirtyDir, "Bad.lean"), "axiom fake : False\ntheorem t : False := by sorry\n");
 	fs.writeFileSync(path.join(dirtyDir, "bad.dfy"), "method M() { assume false; }\n");
 	fs.writeFileSync(path.join(dirtyDir, "bad.c"), "/*@ admit foo; */\n");
@@ -64,6 +73,9 @@ test("check-proof-cheats detects escape hatches across proof languages and passe
 	assert.equal(dirtyRes.status, 1);
 	for (const expectedId of [
 		"verus-external-body",
+		"verus-trusted",
+		"verus-no-decreases",
+		"kani-stub-verified",
 		"smt-assume-call",
 		"lean-axiom",
 		"lean-sorry",
@@ -74,6 +86,100 @@ test("check-proof-cheats detects escape hatches across proof languages and passe
 	]) {
 		assert.match(dirtyRes.stderr, new RegExp(`\\[${expectedId}\\]`), `missing ${expectedId} in ${dirtyRes.stderr}`);
 	}
+});
+
+test("verify-spec-lock allows exec body synthesis but rejects contract or unwhitelisted unsafe edits", (t) => {
+	const verifySpecLock = path.join(root, "skills/auditing-proof-specifications/scripts/verify-spec-lock.mjs");
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "spec-lock-"));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+	fs.mkdirSync(path.join(dir, "specs/tla"), { recursive: true });
+	fs.mkdirSync(path.join(dir, "specs/lean"), { recursive: true });
+	fs.mkdirSync(path.join(dir, "crates/core/src"), { recursive: true });
+
+	fs.writeFileSync(path.join(dir, "specs/tla/Proc.tla"), "---- MODULE Proc ----\nInit == TRUE\n====\n");
+	fs.writeFileSync(path.join(dir, "specs/lean/Model.lean"), "theorem t1 (n : Nat) : n = n := rfl\n");
+	const rsFile = path.join(dir, "crates/core/src/lib.rs");
+	fs.writeFileSync(
+		rsFile,
+		[
+			"#![forbid(unsafe_code)]",
+			"pub struct Counter { pub val: u64 }",
+			"pub open spec fn inv_val(v: u64) -> bool { v <= 100 }",
+			"pub proof fn verify_spec_not_vacuous() ensures inv_val(0) {}",
+			"pub fn inc(c: &mut Counter) -> (res: u64)",
+			"    requires old(c).val < 100,",
+			"    ensures c.val == old(c).val + 1, res == c.val,",
+			"{",
+			"    todo!()",
+			"}",
+		].join("\n"),
+	);
+
+	const genRes = spawnSync(process.execPath, [verifySpecLock, "--generate", dir], { encoding: "utf8" });
+	assert.equal(genRes.status, 0, genRes.stderr);
+	assert.ok(fs.existsSync(path.join(dir, "spec.lock")));
+
+	// 1. Replacing todo!() in the exec body with real code MUST pass --check
+	fs.writeFileSync(
+		rsFile,
+		[
+			"#![forbid(unsafe_code)]",
+			"pub struct Counter { pub val: u64 }",
+			"pub open spec fn inv_val(v: u64) -> bool { v <= 100 }",
+			"pub proof fn verify_spec_not_vacuous() ensures inv_val(0) {}",
+			"pub fn inc(c: &mut Counter) -> (res: u64)",
+			"    requires old(c).val < 100,",
+			"    ensures c.val == old(c).val + 1, res == c.val,",
+			"{",
+			"    c.val = c.val + 1;",
+			"    c.val",
+			"}",
+		].join("\n"),
+	);
+	const okCheck = spawnSync(process.execPath, [verifySpecLock, "--check", dir], { encoding: "utf8" });
+	assert.equal(okCheck.status, 0, okCheck.stderr);
+
+	// 2. Weakening requires/ensures or spec fn MUST fail --check
+	fs.writeFileSync(
+		rsFile,
+		[
+			"#![forbid(unsafe_code)]",
+			"pub struct Counter { pub val: u64 }",
+			"pub open spec fn inv_val(v: u64) -> bool { true }",
+			"pub proof fn verify_spec_not_vacuous() ensures inv_val(0) {}",
+			"pub fn inc(c: &mut Counter) -> (res: u64)",
+			"    requires old(c).val < 10,",
+			"    ensures c.val == old(c).val + 1, res == c.val,",
+			"{",
+			"    c.val = c.val + 1;",
+			"    c.val",
+			"}",
+		].join("\n"),
+	);
+	const badContractCheck = spawnSync(process.execPath, [verifySpecLock, "--check", dir], { encoding: "utf8" });
+	assert.equal(badContractCheck.status, 1);
+	assert.match(badContractCheck.stderr, /contract AST hash modified/);
+
+	// 3. Adding unwhitelisted unsafe block MUST fail --check
+	fs.writeFileSync(
+		rsFile,
+		[
+			"pub struct Counter { pub val: u64 }",
+			"pub open spec fn inv_val(v: u64) -> bool { v <= 100 }",
+			"pub proof fn verify_spec_not_vacuous() ensures inv_val(0) {}",
+			"pub fn inc(c: &mut Counter) -> (res: u64)",
+			"    requires old(c).val < 100,",
+			"    ensures c.val == old(c).val + 1, res == c.val,",
+			"{",
+			"    unsafe { c.val = c.val + 1; }",
+			"    c.val",
+			"}",
+		].join("\n"),
+	);
+	const badUnsafeCheck = spawnSync(process.execPath, [verifySpecLock, "--check", dir], { encoding: "utf8" });
+	assert.equal(badUnsafeCheck.status, 1);
+	assert.match(badUnsafeCheck.stderr, /Unauthorized `unsafe` block/);
 });
 
 test("graphviz flowcharts in proof skills extract and render cleanly with stub dot", (t) => {

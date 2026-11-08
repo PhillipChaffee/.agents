@@ -1,5 +1,5 @@
 ---
-description: poteto's agent style for concise, detailed responses, deliberate subagents, unslopped prose, simple code, and verified work. Use for poteto, /poteto-mode, or requests to work in this style.
+description: Use when writing, editing, debugging, refactoring, reviewing, or shipping code, tests, docs, or config, or when running multi-step engineering workflows. Applies poteto's style for concise responses, deliberate subagents, unslopped prose, simple code, and verified work.
 enabled: true
 id: poteto-mode
 name: poteto-mode

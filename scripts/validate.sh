@@ -161,11 +161,14 @@ BANNED = re.compile(
 
 md_files = sorted(Path("skills").rglob("*.md")) if Path("skills").is_dir() else []
 md_files += sorted(agents_dir.glob("*/agent.md")) if agents_dir.is_dir() else []
+md_files += rule_files
+if Path("agents.kit.md").exists():
+    md_files.append(Path("agents.kit.md"))
 for md in md_files:
     text = md.read_text()
     rel = str(md)
-    # Byte-preserved upstream examples use plugin-local links and illustrative commands.
-    if rel.startswith(("skills/writing-skills/", "skills/writing-plans/", "skills/subagent-driven-development/")):
+    # Byte-preserved upstream/home copies use external repo links and mirror paths.
+    if rel.startswith(("skills/writing-skills/", "skills/writing-plans/", "skills/subagent-driven-development/")) or rel == "rules/new-repo-setup.md":
         continue
     # 3. Agent references resolve
     for ref in set(AGENT_REF.findall(text)):

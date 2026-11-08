@@ -2,3 +2,4 @@
 - Use `rg` (ripgrep) instead of `grep`, `find`, and other search tools.
 - Tests should always be in their own files. Not in the same file as the code they test.
 - All commit attribution should be in the github users name and email, never the coding agent.
+- Route every task to its entry-point skill before acting; see [workflow-routing.md](rules/workflow-routing.md) for triggers and exceptions.

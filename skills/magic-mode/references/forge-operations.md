@@ -51,7 +51,3 @@ A PR is **merge-ready** when all of these hold on its current head:
 - **view PR** reports it mergeable with no conflict against its base.
 - **list review threads** has no unresolved thread that blocks, where a blocking thread is one from a human reviewer requesting changes, or a review-bot finding triaged as `fix` and not yet fixed.
 - Any approval the forge enforces is present. A missing human approval is a wait, never something to supply or bypass.
-
-## This repository
-
-This repository's own forge configuration is `docs/agents/issue-tracker.md`. It is a worked example for one forge, not part of the kit.

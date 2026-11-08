@@ -24,12 +24,12 @@ Transcripts live at the session transcript store (the harness adapter names the 
 
 ## Output contract
 
-Lead with the capsule, then the thread status, then the problems, then the next move. Deeper detail goes below or gets cut.
+Lead with the capsule, then the thread status table, then the problems, then the next move, and end with a bottom `## TL;DR`. Keep any prose block to at most 1-2 sentences; use bullets and tables otherwise.
 
 - **Capsule.** At most 5 bullets. What this work is and where it stands overall.
-- **Threads.** One line each, prefixed with exactly one status tag: `[merged #N]`, `[open PR #N]`, `[in flight <branch>]`, `[verified, uncommitted]`, `[reverted #N]`, or `[planned, not started]`. A thread with no tag is not done yet, so tag it.
-- **Problems.** At most 5, the recurring ones. Include the symptoms users keep reporting and any fix that shipped and was reverted, so the next attempt starts where the last one failed.
-- **Next move.** The single most useful next action, concrete.
+- **Threads (Table).** Open with 1 sentence and present a Markdown table (`| Status Tag | Thread / Branch | Latest State & Evidence |`) where each row carries one status tag: `[merged #N]`, `[open PR #N]`, `[in flight <branch>]`, `[verified, uncommitted]`, `[reverted #N]`, or `[planned, not started]`.
+- **Problems.** At most 5 bullets, the recurring ones. Include the symptoms users keep reporting and any fix that shipped and was reverted, so the next attempt starts where the last one failed.
+- **Next move & `## TL;DR`.** State the single most useful next action and close at the bottom with a 1-2 sentence `## TL;DR` section.
 
 An adjacent feature or ticket stays out unless it blocks this one. When the capsule and thread lines outgrow a screen, cut detail before you cut threads. Write the brief through the **unslop** skill, cite chat findings by UUID and shared-record findings by their source (PR #, ticket ID, chat permalink, error-tracker issue), and sanitize private context before any public output.
 

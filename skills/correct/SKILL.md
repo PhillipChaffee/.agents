@@ -30,4 +30,4 @@ Then fix the most frequent classes now, one commit each. Prove each new check fa
 
 Last, keep a table in the agent instruction file that pairs each rule with what enforces it. When the operator corrects you, fix the mistake and add the rule. If the rule was already there and nothing enforces it, that's a repeat, so fix it at the highest level in the same change. Drop a rule once its mistake can't happen.
 
-**Reply:** each class with its evidence, the level you picked, and why a higher level didn't work.
+**Reply:** a 1-2 sentence opening framing line, a Markdown table of each mistake class (`| Mistake Class | Evidence | Enforcement Level | Why Higher Level Didn't Work |`), bullet points for verification commands, and a 1-2 sentence `## TL;DR` section at the bottom.

@@ -158,4 +158,5 @@ and source lookups and must stop with exact missing evidence rather than gatheri
 - **Right-size effort**: prefer the lowest tier that fully answers the question.
 - **File output for Tier 2/3**: the deliverable lands at `docs/research/<topic>.md`
   so the main flow can consume it; the chat summary points at the file.
+- **Chat output shape**: keep every prose block to at most 1-2 sentences, open each section with a 1-sentence framing line, use bullet points for supporting facts, use Markdown tables for comparisons/metrics/sources, include a Mermaid diagram when illustrating flows or architectures, and end the finished turn with a 1-2 sentence `## TL;DR` section at the bottom.
 - **Surface gaps**: list what couldn't be confirmed and what would resolve it.

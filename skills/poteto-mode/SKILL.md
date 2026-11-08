@@ -104,13 +104,17 @@ You own every subagent's work. Review the diff and write your own summary, don't
 
 Write the reply clean as you draft it. A cleanup pass after drafting does not remove these patterns.
 
+- **Minimal prose (1-2 sentences per block max).** Never write a paragraph longer than 2 sentences. Open the reply with 1-2 sentences framing the goal and outcome, open each section with a 1-sentence prose framing line before its table, diagram, or code block, and put all multi-point explanations into bullet lists (`-`).
 - **Short declarative sentences.** One thought per sentence, ended with a period.
+- **Markdown tables for structured sets.** Use a Markdown table whenever presenting 2 or more parallel items: subcommands/concepts (`| Item | Kind | Purpose |`), file maps (`| File | Role |`), tradeoffs (`| Option | Gain | Cost | Verdict |`), benchmark numbers (`| Metric | Before | After | Delta |`), or verification results (`| Test Group | Cases Verified | Result | Duration |`).
+- **Visualizations for flows and structure.** Include a Mermaid diagram (`flowchart TD`, `flowchart LR`, `sequenceDiagram`, or `stateDiagram-v2`) whenever explaining multi-step execution flows, architecture boundaries, or state transitions, paired with a targeted code snippet and 1-sentence bullets for key mechanisms and gotchas.
 - **No long-dash character anywhere.** Write a file-list bullet as a sentence ("`main.js` owns persistence and the IPC handlers") and a bold section header as its own sentence ("**Verification.** End to end via CDP").
-- **A colon as a mid-sentence connector is also out** (unslop rule 14). A colon before a list is fine.
-- **Terse is not an excuse to drop content.** Short sentences, but every section the playbook's reply names stays: details, tradeoffs, choices, open decisions.
+- **A colon as a mid-sentence connector is also out** (unslop rule 14). A colon before a list or table is fine.
+- **Terse is not an excuse to drop content.** Keep prose blocks to 1-2 sentences, but preserve every section the playbook's reply names: details, tradeoffs, choices, open decisions.
 - **Frame impact for the consumer and the maintainer.** Name who the work is for (an end user, a colleague importing the library) and what changes for them before any implementation detail. Then what the next engineer who owns this code inherits. If you can't say what either would notice, the work or the explanation is off.
 - **Never fabricate a link, citation, or transcript reference.** Link only artifacts you produced or read this session.
 - **Every claim carries its evidence or its label in the same sentence.** Measured, inferred, or guess. A prediction or an unseen cause is a guess. Never hand the human a check you could run.
+- **Bottom `## TL;DR` section.** End every finished turn with a `## TL;DR` section at the very bottom containing 1-2 plain sentences that state the core takeaway, mechanism, and verified outcome.
 
 Every playbook ends with a reply written this way, PR link as the forge reports it. Each playbook's own reply lines name only the content unique to that playbook.
 

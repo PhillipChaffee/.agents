@@ -92,9 +92,9 @@ Present the synthesizer's output to the user. You may lightly edit for clarity o
 
 ## Output Format
 
-The structure is the one in `references/synthesizer-prompt.md`: The Question, The Code in Question, What We Found, What We Can Reasonably Infer, Competing Hypotheses, What We Don't Know, Sources Consulted, Confidence Summary. Adapt as needed, but keep the confidence separation intact, and keep Sources Consulted as one line per investigator, including the ones that returned nothing or were skipped, with the reason.
+The structure is the one in `references/synthesizer-prompt.md`: The Question (1-2 sentences), The Code in Question (1-sentence framing + Markdown table), Causal / Timeline Visualization (1-sentence framing + Mermaid diagram when multi-step history exists), What We Found (cited bullets), What We Can Reasonably Infer (hedged bullets), Competing Hypotheses (Markdown table), What We Don't Know (bullets), Sources Consulted (Markdown table), and a 1-2 sentence `### TL;DR` section at the bottom. Keep every prose block to at most 1-2 sentences, preserve the confidence separation, and include every investigator in the Sources Consulted table.
 
-After Sources Consulted, if the user's `why` question is a precursor to changing this code, convert the lineage findings into a Preserve / Change / Avoid / Risk constraint set for planning the change.
+After Sources Consulted, if the user's `why` question is a precursor to changing this code, convert the lineage findings into a Preserve / Change / Avoid / Risk Markdown table before the bottom `### TL;DR`.
 
 ## Common Failure Modes to Avoid
 

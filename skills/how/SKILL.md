@@ -34,4 +34,4 @@ Present the explainer's output. Light edits for clarity or context from the conv
 
 ## Output format
 
-The explanation uses the sections defined in `references/explainer-prompt.md`, dropping any that do not apply: Overview, Key Concepts, How It Works, Where Things Live, Gotchas.
+The explanation uses the sections defined in `references/explainer-prompt.md`, dropping any that do not apply: a 1-2 sentence opening overview, Key Concepts & Where Things Live (1-sentence prose framing + Markdown tables), Execution Flow (1-sentence prose framing + Mermaid `flowchart TD` diagram), Mechanism & Gotchas (1-sentence prose framing + targeted code snippet + 1-sentence bullets), and a 1-2 sentence `## TL;DR` section at the bottom. Keep every prose block to at most 1-2 sentences.

@@ -204,9 +204,9 @@ output the next single step needs verbatim, and even then say so first.
 
 ## Output Format When Presenting Rule Changes
 
-Keep every prose block to **at most 1-2 sentences**; use bullet points, Markdown tables, and a `## Summary (TL;DR)` block at the bottom of the finished turn:
+Keep every prose block to **at most 1-2 sentences**, open each section with a 1-sentence framing line, and use bullet points, Markdown tables, and a `## TL;DR` section at the bottom of the finished turn:
 
 1. **Four-Gate Triage Table:** `| Candidate | Gate Verdict (Structure / No-Op / Skill / Project Rule / Kit Rule) | Target Path | Why |`
 2. **Rule Artifact(s) & Word Count:** Exact Markdown content with sorted frontmatter and measured word count against the budget ($<150$ words operational, $<250$ words boundary table, $\le 25$ words `agents.kit.md` bullet).
 3. **TDD & Validation Evidence:** Bullet list of RED baseline failure, GREEN pressure compliance, and `./scripts/validate.sh` output.
-4. **Summary (TL;DR) at the bottom:** 1-2 sentences stating what was created, rejected, or routed elsewhere, and verification status.
+4. **`## TL;DR` at the bottom:** 1-2 plain sentences stating what was created, rejected, or routed elsewhere, and verification status.

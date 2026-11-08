@@ -17,17 +17,28 @@ name: research-summary
 
 ## Output shape
 
-```markdown
+````markdown
 # <Topic>: research summary
 
-> **TL;DR:** <One or two sentences: the conclusion and what to do next.>
+<1-2 sentence opening framing what was researched and why.>
 
 ## Key takeaways
 
 - **<Bold 2-5 word lead-in>.** <One-line finding with its key number.> [1]
 - (3 to 5 bullets total, most important first)
 
+## Visualization (when comparing flows, architectures, or timelines)
+
+<1-sentence framing line introducing the diagram.>
+
+```mermaid
+flowchart TD
+  ...
+```
+
 ## Head-to-head
+
+<1-sentence framing line introducing the comparison.>
 
 | Metric | <Option 1> | <Option 2> | <Option 3> |
 |---|---|---|---|
@@ -59,7 +70,11 @@ name: research-summary
 ## Sources
 
 1. `<path>:<line>` or <link>
-```
+
+## TL;DR
+
+<One or two plain sentences at the bottom of the finished turn stating the conclusion and what to do next.>
+````
 
 ## Head-to-head table
 
@@ -88,8 +103,8 @@ Include `## Head-to-head` only when the research compares 2 or more options on 2
 
 ## Self-check
 
-- A reader who stops after the TL;DR knows the conclusion and the next action.
-- Every section except the TL;DR is bullets, a table, or a checklist.
+- A reader who jumps to the bottom `## TL;DR` section knows the conclusion and the next action in 1-2 plain sentences.
+- Every prose block is at most 1-2 sentences; every other section is bullets, a table, a diagram, or a checklist.
 - No number before Sources sits inside backticks.
 - Head-to-head is present exactly when 2 or more options share 2 or more metrics. When present, every row uses one test set, the best value is bold only in rows with 2 or more values, and gaps say "not measured".
 - Lines before Sources, counting blanks, are 60 or fewer. If over, cut Findings bullets first.

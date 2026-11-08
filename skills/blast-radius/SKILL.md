@@ -40,12 +40,14 @@ Step 4 is usually one small script that imports the same library the app ships a
 
 ## What to hand back
 
-- **What it does.** What changed, including the part that isn't obvious.
-- **The one fact it's safe because of.** State it, say which step you got it to, and show the proof. If you couldn't prove it, write unproven.
-- **Risks.** Each names how it breaks, the `file:line`, how likely and how bad, and how to check. Paste the proof for the ones that matter.
-- **Cleared.** What you checked and why it's fine.
-- **Before you merge.** The cheapest test or repro that catches the real bug, including the script you wrote.
+Keep every prose block to **at most 1-2 sentences**, open each section with a 1-sentence framing line, and use bullets, Markdown tables, and a Mermaid diagram when the change crosses multiple callers, services, or schemas:
+
+- **What it does.** 1-2 sentences on what changed, plus bullets for non-obvious behavior changes. Include a compact Mermaid dependency/propagation diagram when 3+ hops or boundaries are involved.
+- **The one fact it's safe because of.** State it in 1-2 sentences, name the verification level (1 to 5), and show the runnable proof output. If you couldn't prove it, write `unproven`.
+- **Risks & Cleared Surfaces (Table).** Open with 1 sentence and present a Markdown table (`| Surface / Caller | File:Line | Status (Risk / Cleared) | Likelihood & Impact | Proof / Check |`) covering every confirmed risk and cleared path.
+- **Before you merge.** Bullet list of the cheapest test or repro that catches the real bug, including the script you wrote.
+- **TL;DR.** Required at the bottom of the turn: a `## TL;DR` section with 1-2 plain sentences stating whether the safety fact is proven, any remaining risk, and merge readiness.
 
 Write it through `unslop`, cite real code, and strip anything private before it goes anywhere public.
 
-**Reply:** the writeup above, with the one safety fact either proven or marked unproven.
+**Reply:** the writeup above (1-2 sentence max prose blocks, Risk/Cleared table, propagation visual when multi-hop, and bottom `## TL;DR`), with the one safety fact either proven or marked unproven.

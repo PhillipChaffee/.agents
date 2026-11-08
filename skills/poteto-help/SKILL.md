@@ -175,4 +175,4 @@ For a run that drifts, [`references/prompting.md`](references/prompting.md) has 
 
 ## Reply
 
-Lead with the answer. Give at most one example prompt in a code block, adapted from [`references/recipes.md`](references/recipes.md) when one fits, then the link to that file. Keep it short unless the user asked for the whole map.
+Lead with a 1-2 sentence answer, use a Markdown table or bullets when comparing options, give at most one example prompt in a code block (adapted from [`references/recipes.md`](references/recipes.md) when one fits) with the link to that file, and end with a 1-2 sentence `## TL;DR` section at the bottom when the reply has multiple sections. Keep it short unless the user asked for the whole map.

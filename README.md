@@ -2,7 +2,7 @@
 
 [![validate](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml/badge.svg)](https://github.com/PhillipChaffee/.agents/actions/workflows/validate.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **69 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
+**Vendor-neutral AI coding kit** for `.agents`-compatible harnesses (Cursor, Claude Code, OpenCode, Codex): **72 active skills**, **23 execution playbooks**, **24 engineering principles**, **9 formal-verification & proof flows**, **7 sub-agents**, and **3 operational rules**.
 
 ---
 
@@ -18,7 +18,7 @@ flowchart LR
 
     subgraph Engine["2. Kit Core (~/.agents)"]
         PB["23 Playbooks<br/>(Step-by-Step Loops)"]
-        SK["45 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
+        SK["48 Situational, PR, Research & Proof Skills<br/>(Research, Design, Prove, Review, Ship)"]
         PR["24 Principle Skills<br/>(Core, Arch, Verify, Meta)"]
         AG["7 Specialist Sub-Agents<br/>(Delegates & Research Tiers)"]
     end
@@ -55,7 +55,7 @@ flowchart LR
 
 | Category | Count | Source Path | Installed Target (`~/.agents/`) | Purpose |
 | --- | --- | --- | --- | --- |
-| **pstack Situational Skills** | 31 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Entry mode, architecture, debugging, multi-model review, statecharts, and shipping |
+| **pstack Situational Skills** | 34 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Entry mode, architecture, debugging, TDD, TypeScript practices, bot UIs, multi-model review, statecharts, and shipping |
 | **PR Review & Merge-Ready Skills** | 3 | `skills/{autopilot,make-pr-easy-to-review,thermo-nuclear-code-quality-review}/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Budget-disciplined PR autopilot, history/description review prep, and strict maintainability audit |
 | **Research & Synthesis Skills** | 2 | `skills/{research,research-summary}/SKILL.md` | `skills/{research,research-summary}/{SKILL.md,skill.md}` | Tiered codebase/web/MCP research orchestrator (`docs/research/<topic>.md`) and structured research summaries |
 | **Proof-Driven Development Skills** | 6 | `skills/<name>/SKILL.md` | `skills/<name>/{SKILL.md,skill.md}` | Orchestrator + 5 formal verification flows (Hoare/SMT, Dependent Types, Model Checking, Abstract Interpretation, Spec Auditing) |
@@ -95,8 +95,8 @@ flowchart TD
 | **Model Roles** | Hard-coded vendor model slugs (`claude-*`, `gpt-*`, `gemini-*`, `grok-*`) | Resolves named roles (`judgment and prose`, `swarm workers`, `arena runners`) to your local `fast` / `main` / `deep` tiers or `/setup-pstack` overrides | [`model-roles.md`](skills/poteto-mode/references/model-roles.md) |
 | **Forge Operations** | Hard-coded `gh`, `glab`, Graphite, or Origin CLI calls | Translates named forge actions (`open PR`, `list checks`, `resolve thread`) via the target repo's `docs/agents/issue-tracker.md` | [`forge-operations.md`](skills/poteto-mode/references/forge-operations.md) |
 
-- **External companion skills (install separately if used):** `/tdd` and `/create-skill`.
-- **Intentionally excluded from upstream pstack:** language-specific rules (`typescript-best-practices`), vendor-bound bots (`make-bot-ui`, `benny`), and GitHub-only binaries (`watch-pr`, `orch` — replaced by forge-agnostic `babysit` and `orchestrate` playbooks).
+- **External companion skills (install separately if used):** `/create-skill`.
+- **Intentionally excluded from upstream pstack:** the `benny` automation pack (Cursor Automations only) and GitHub-only binaries (`watch-pr` — replaced by the forge-agnostic `babysit` playbook).
 
 ---
 
@@ -162,7 +162,7 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>36 Situational, PR, Research, Planning & Authoring Skills</strong> (non-formal-verification)</summary>
+<summary><strong>39 Situational, PR, Research, Planning & Authoring Skills</strong> (non-formal-verification)</summary>
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
@@ -181,11 +181,14 @@ flowchart LR
 | **Research, Code & History** | [`/teach`](skills/teach/SKILL.md) | Learning a change or subsystem explained from first principles |
 | **Context & Catch-Up** | [`/recall`](skills/recall/SKILL.md) | Rebuilding recent context on a topic when starting or resuming work |
 | **Context & Catch-Up** | [`/ketchup`](skills/ketchup/SKILL.md) | Catching up on what changed in the current chat, with every decision waiting on you |
-| **Context & Catch-Up** | [`/ketchup-video`](skills/ketchup-video/SKILL.md) | Rendering `/ketchup` as a short silent video of slides |
+| **Context & Catch-Up** | [`/ketchup-video`](skills/ketchup-video/SKILL.md) | Rendering `/ketchup` as a short subtitled video of slides |
 | **Design & Parallelism** | [`/architect`](skills/architect/SKILL.md) | Settling types and module boundaries before writing cross-boundary code |
 | **Design & Parallelism** | [`/arena`](skills/arena/SKILL.md) | Running $N$ parallel attempts at the same brief and grafting the best parts |
 | **Design & Parallelism** | [`/swarm`](skills/swarm/SKILL.md) | Dispatching $N$ parallel workers across slices or races into one report |
 | **Design & Parallelism** | [`/blast-radius`](skills/blast-radius/SKILL.md) | Checking what else a small-looking change could break outside the diff |
+| **Build & Implementation** | [`/tdd`](skills/tdd/SKILL.md) | Fixing a bug test-first with a focused failing regression test when a cheap local test path exists |
+| **Build & Implementation** | [`/typescript-best-practices`](skills/typescript-best-practices/SKILL.md) | Applying TypeScript discriminated-union, branded-type, and boundary-validation patterns on `.ts`/`.tsx` files |
+| **Build & Implementation** | [`/make-bot-ui`](skills/make-bot-ui/SKILL.md) | Building a custom UI that wakes a bot over a webhook and exposes the page on Tailscale |
 | **Review & Verification** | [`/autopilot`](skills/autopilot/SKILL.md) | Driving a PR to merge-ready (conflicts, triaged review/bot threads, in-scope CI) under a strict diff size budget |
 | **Review & Verification** | [`/make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md) | Preparing PRs for review by cleaning commit history, improving PR descriptions, and adding reviewer guidance |
 | **Review & Verification** | [`/thermo-nuclear-code-quality-review`](skills/thermo-nuclear-code-quality-review/SKILL.md) | Running a strict maintainability audit for abstraction quality, >1k-line files, spaghetti branching, and code-judo simplifications |

@@ -69,6 +69,8 @@ test("README.md and .gitignore document magic quote, section order (Installation
 		"**74 active skills**",
 		"**4 operational rules**",
 		"## Installation",
+		"### 1. Native Plugin Installation (Superpowers-Style)",
+		"### 2. Use as a `.agents` Directory (`~/.agents` or `.agents/`)",
 		"## How to Use It",
 		"## Acknowledgments",
 		"Native Plugin Installation (Superpowers-Style)",

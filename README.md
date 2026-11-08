@@ -15,9 +15,11 @@
 
 ## Installation
 
-Install `magic` natively through your harness's plugin or package manager, or sync it directly into `~/.agents`.
+You can use `magic` in two ways: **install it as a native plugin/package** in your coding harness, or **use it directly as a `.agents` directory** (`~/.agents` globally or `.agents/` inside a project).
 
-### Native Plugin Installation (Superpowers-Style)
+### 1. Native Plugin Installation (Superpowers-Style)
+
+Install `magic` through your harness's plugin or package manager to register skills, sub-agents, rules, and the session-start bootstrap automatically:
 
 | Harness | Installation Command / Configuration |
 | --- | --- |
@@ -26,17 +28,20 @@ Install `magic` natively through your harness's plugin or package manager, or sy
 | **Codex CLI / App** | `/plugins` via `.agents/plugins/marketplace.json` (or `~/.agents/skills`) |
 | **OpenCode (V1 & V2)** | `"plugins": ["magic@git+https://github.com/PhillipChaffee/magic.git"]` in `opencode.json` (or `"plugin"` in V1) |
 | **Pi** | `pi install git:github.com/PhillipChaffee/magic` (or `pi -e /path/to/magic`) |
-| **Raw `.agents` Protocol Home** | `git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/install.sh --target agents` |
 
-### Installation & Sync CLI (`./scripts/install.sh`)
+### 2. Use as a `.agents` Directory (`~/.agents` or `.agents/`)
 
-For harnesses or local setups that consume `~/.agents` directly:
+Because this repository's root layout (`skills/`, `agents/`, `rules/`, `agents.kit.md`) follows the `.agents` directory standard, you can either clone it directly as `~/.agents` (or a project's `.agents/` folder) or sync it non-destructively into an existing `~/.agents` directory with `./scripts/install.sh`:
 
 ```sh
-./scripts/install.sh --target agents [flags]
+# Option A: Non-destructive sync into ~/.agents (writes both SKILL.md and skill.md + prompts for models.json)
+git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/install.sh --target agents
+
+# Option B: Clone directly as ~/.agents (for harnesses that auto-discover ~/.agents/skills/)
+git clone https://github.com/PhillipChaffee/magic.git ~/.agents
 ```
 
-| Flag | Behavior | Touches Unmanaged Files in `~/.agents`? |
+| `./scripts/install.sh` Flag | Behavior | Touches Unmanaged Files in `~/.agents`? |
 | --- | --- | --- |
 | *(default)* | Copies managed skills (both `SKILL.md` and `skill.md`), assets, scripts, agents, rules, `agents.md`, and notices into `~/.agents`; records `.kit-stamp` | No (skips differing unstamped files) |
 | `--dry-run` | Prints every `ADD`, `UPDATE`, `SKIP`, or `PRUNE` action without writing to disk | No |

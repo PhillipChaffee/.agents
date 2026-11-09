@@ -18,5 +18,5 @@
   },
   "globs": ["**/*.md"],
   // Home and upstream copies retain their source bytes, including formatting.
-  "ignores": ["agents.kit.md", "rules/new-repo-setup.md", "skills/writing-skills/**", "skills/writing-plans/**", "skills/subagent-driven-development/**", "skills-disabled/**"]
+  "ignores": ["agents.kit.md", "skills/writing-skills/**", "skills/writing-plans/**", "skills/subagent-driven-development/**", "skills-disabled/**"]
 }

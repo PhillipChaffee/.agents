@@ -120,7 +120,6 @@ test("verify-spec-lock allows exec body synthesis but rejects contract or unwhit
 	assert.equal(genRes.status, 0, genRes.stderr);
 	assert.ok(fs.existsSync(path.join(dir, "spec.lock")));
 
-	// 1. Replacing todo!() in the exec body with real code MUST pass --check
 	fs.writeFileSync(
 		rsFile,
 		[
@@ -140,7 +139,6 @@ test("verify-spec-lock allows exec body synthesis but rejects contract or unwhit
 	const okCheck = spawnSync(process.execPath, [verifySpecLock, "--check", dir], { encoding: "utf8" });
 	assert.equal(okCheck.status, 0, okCheck.stderr);
 
-	// 2. Weakening requires/ensures or spec fn MUST fail --check
 	fs.writeFileSync(
 		rsFile,
 		[
@@ -161,7 +159,6 @@ test("verify-spec-lock allows exec body synthesis but rejects contract or unwhit
 	assert.equal(badContractCheck.status, 1);
 	assert.match(badContractCheck.stderr, /contract AST hash modified/);
 
-	// 3. Adding unwhitelisted unsafe block MUST fail --check
 	fs.writeFileSync(
 		rsFile,
 		[
@@ -195,6 +192,7 @@ test("graphviz flowcharts in proof skills extract and render cleanly with stub d
 		["model-checking-protocols-and-code", "mc_choice"],
 		["analyzing-with-abstract-interpretation", "abstract_alarm"],
 		["autopilot", "autopilot_loop"],
+		["principle-take-a-step-back", "take_a_step_back"],
 	]) {
 		const targetSkillDir = path.join(dir, skill);
 		fs.mkdirSync(targetSkillDir);

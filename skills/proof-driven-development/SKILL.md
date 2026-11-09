@@ -85,6 +85,7 @@ digraph proof_orchestrator {
 Whenever you use this skill to advise on, select, or orchestrate proof-driven development, output all five sections below in order:
 
 1. **Guarantee & Problem Classification:**
+   - First apply [`/principle-take-a-step-back`](../principle-take-a-step-back/SKILL.md): check whether proving the user's requested function or property actually guards the failure mode they care about, and if they targeted the wrong layer (such as proving a single-process pure function when the failure is a multi-pod race), flag the mismatch up front and redirect the target.
    - For each target component, identify which of the three guarantees (Positive, Negative, Exhaustiveness) is needed and why unit testing or fuzzing cannot cover the state space.
 2. **Selected Skill(s), Mathematical Mechanism, and Tool:**
    - Name the exact primary skill (`/proving-with-hoare-logic`, `/proving-with-dependent-types`, `/model-checking-protocols-and-code`, or `/analyzing-with-abstract-interpretation`), the mathematical mechanism, and the concrete verifier tool.

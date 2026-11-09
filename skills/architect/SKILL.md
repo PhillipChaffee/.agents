@@ -21,7 +21,7 @@ Open a todolist with one entry per phase before starting.
 
 ## Phase A: Ground the problem
 
-Build a real mental model of every system the new code touches. Run the **how** skill over the relevant subsystems. Naming a file isn't grounding. Produce the architectural explanation `how` prescribes. If the design redefines ownership or layering, also run the **why** skill on the existing shape so the rationale becomes a constraint, not a guess.
+Build a real mental model of every system the new code touches. Run the **how** skill over the relevant subsystems. Naming a file isn't grounding. Produce the architectural explanation `how` prescribes. If the design redefines ownership or layering, also run the **why** skill on the existing shape so the rationale becomes a constraint, not a guess. After grounding, apply the **take-a-step-back** principle skill before sketching: verify that the requested design actually serves the user's goal and does not optimize the wrong layer or ignore an existing mechanism. If grounding shows the premise is off track, flag what the user missed with evidence and redirect before Phase B.
 
 Skip Phase A only when the work is genuinely greenfield with no surrounding system to integrate.
 

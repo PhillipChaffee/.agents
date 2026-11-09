@@ -1,6 +1,6 @@
 # Catalog Reference
 
-Complete reference of the **23 execution playbooks**, **74 active skills** (**50 workflow/domain skills** + **24 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
+Complete reference of the **23 execution playbooks**, **75 active skills** (**50 workflow/domain skills** + **25 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
 
 ---
 
@@ -91,10 +91,11 @@ Complete reference of the **23 execution playbooks**, **74 active skills** (**50
 
 ---
 
-## 24 Engineering Principles (`/principle-<name>`)
+## 25 Engineering Principles (`/principle-<name>`)
 
 | Group | Principle | Core Rule |
 | --- | --- | --- |
+| `core` | [take-a-step-back](../skills/principle-take-a-step-back/SKILL.md) | Question why the user is asking, check whether the current path serves their real goal, and flag hidden constraints or misconceptions with evidence |
 | `core` | [laziness-protocol](../skills/principle-laziness-protocol/SKILL.md) | Bias toward deletion and the smallest change that solves the problem |
 | `core` | [foundational-thinking](../skills/principle-foundational-thinking/SKILL.md) | Get the data structures right so downstream logic becomes obvious |
 | `core` | [redesign-from-first-principles](../skills/principle-redesign-from-first-principles/SKILL.md) | Redesign as if the new requirement had been foundational from day one |

@@ -1,6 +1,6 @@
 # Steer with principle names
 
-magic ships 24 principles as individual skills. `/magic-mode` reads their index at the start of every multi-step task, applies the ones the task triggers, and names each applied principle in its reply along with the decision it changed.
+magic ships 25 principles as individual skills. `/magic-mode` reads their index at the start of every multi-step task, applies the ones the task triggers, and names each applied principle in its reply along with the decision it changed.
 
 You don't invoke principles. You use their names to steer. Each name points at a complete rule the agent has already read, so one phrase redirects the work more precisely than a paragraph of instructions.
 
@@ -26,10 +26,11 @@ separate before serializing shared state. give each attempt its own worktree, no
 
 Each phrase lands because the rule behind it is specific. The agent still has to say, in its reply, which decision the rule changed. A principle citation with no decision behind it means the agent named the rule without applying it.
 
-## The 24, briefly
+## The 25, briefly
 
 The core principles decide how much to build and when to rethink the design:
 
+- [Take a Step Back](../../skills/principle-take-a-step-back/SKILL.md) checks why the user is asking, whether they or you are off track, whether the current work serves their real goal, and flags any hidden constraint or misconception before going further.
 - [Laziness Protocol](../../skills/principle-laziness-protocol/SKILL.md) prefers deletion and the smallest change that solves the problem.
 - [Foundational Thinking](../../skills/principle-foundational-thinking/SKILL.md) chooses the core data structures before writing logic.
 - [Redesign from First Principles](../../skills/principle-redesign-from-first-principles/SKILL.md) integrates a new requirement as if it had been there from day one.

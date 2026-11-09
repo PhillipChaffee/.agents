@@ -119,15 +119,13 @@ SKILL_CMD = re.compile(r"`/([a-z][a-z0-9-]*)`")
 SLASH_REF = re.compile(r"(?<![`\w:./>~=$-])/([a-z](?:[a-z0-9-]*[a-z0-9])?)(?![a-z0-9/<-])")
 SKILL_PATH = re.compile(r"skills/([a-z][a-z0-9-]*)/SKILL\.md")
 RULE_REF = re.compile(r"rules/([a-z][a-z0-9-]*)\.md")
-# Matt Pocock skills and authoring tools are external environment the kit
-# legitimately points at; they resolve outside this repo.
-EXTERNAL = {
+EXTERNAL_SKILL_IDS = {
+    "add-language",
     "canvas", "create-rule", "create-skill",
     "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs",
     "grilling", "handoff", "implement", "improve-codebase-architecture",
     "setup-matt-pocock-skills", "tdd", "to-spec", "to-tickets", "triage",
     "wayfinder",
-    # /loop is a harness built-in (Cursor and Claude Code both ship one).
     "loop",
 }
 # Consumer-local rules the magic skills read but the kit never ships:
@@ -167,8 +165,7 @@ if Path("agents.kit.md").exists():
 for md in md_files:
     text = md.read_text()
     rel = str(md)
-    # Byte-preserved upstream/home copies use external repo links and mirror paths.
-    if rel.startswith(("skills/writing-skills/", "skills/writing-plans/", "skills/subagent-driven-development/")) or rel == "rules/new-repo-setup.md":
+    if rel.startswith(("skills/writing-skills/", "skills/writing-plans/", "skills/subagent-driven-development/")):
         continue
     # 3. Agent references resolve
     for ref in set(AGENT_REF.findall(text)):
@@ -176,16 +173,18 @@ for md in md_files:
             fail(f"{rel}: references unknown agent '{ref}'")
     # 4. Skill references resolve
     for ref in set(SKILL_CMD.findall(text)):
-        if ref in EXTERNAL:
+        if ref in EXTERNAL_SKILL_IDS:
             continue
         if skill_ids and ref not in skill_ids:
             fail(f"{rel}: references unknown skill '/{ref}'")
     for ref in set(SLASH_REF.findall(text)):
-        if ref in EXTERNAL:
+        if ref in EXTERNAL_SKILL_IDS:
             continue
         if skill_ids and ref not in skill_ids:
             fail(f"{rel}: references unknown skill '/{ref}'")
     for ref in set(SKILL_PATH.findall(text)):
+        if ref in EXTERNAL_SKILL_IDS:
+            continue
         if skill_ids and ref not in skill_ids:
             fail(f"{rel}: references unknown skill path 'skills/{ref}/SKILL.md'")
     # 5. Rule references resolve; no stale Cursor-era paths in skills

@@ -134,3 +134,36 @@ test("synced magic skill updates and local customizations are preserved", () => 
 		assert.ok(magicHelp.includes(customSkill), `magic-help missing ${customSkill}`);
 	}
 });
+
+test("magic-mode and PR playbooks wire /make-pr-easy-to-review when opening or updating a PR/MR while preserving upstream make-pr-easy-to-review bytes", () => {
+	const magicMode = fs.readFileSync(path.join(repoDir, "skills/magic-mode/SKILL.md"), "utf8");
+	assert.match(magicMode, /\/make-pr-easy-to-review/);
+
+	const openingPr = fs.readFileSync(
+		path.join(repoDir, "skills/magic-mode/playbooks/opening-a-pr.md"),
+		"utf8",
+	);
+	assert.match(openingPr, /\/make-pr-easy-to-review/);
+	assert.match(openingPr, /right after opening|when updating an open PR/i);
+
+	const autopilotFull = fs.readFileSync(
+		path.join(repoDir, "skills/magic-mode/playbooks/autopilot-full.md"),
+		"utf8",
+	);
+	assert.match(autopilotFull, /\/make-pr-easy-to-review/);
+
+	const multiPhasePlan = fs.readFileSync(
+		path.join(repoDir, "skills/magic-mode/playbooks/multi-phase-plan.md"),
+		"utf8",
+	);
+	assert.match(multiPhasePlan, /make-pr-easy-to-review/);
+	for (const line of multiPhasePlan.split(/\r?\n/)) {
+		if (line.includes("make-pr-easy-to-review")) {
+			assert.doesNotMatch(line, /[\u2013\u2014]/, `long dash in multi-phase-plan.md: ${line}`);
+			assert.doesNotMatch(line, /: \S/, `mid-sentence colon in multi-phase-plan.md: ${line}`);
+		}
+	}
+
+	const verbatimList = fs.readFileSync(path.join(repoDir, "scripts/magic-verbatim.txt"), "utf8");
+	assert.match(verbatimList, /^skills\/make-pr-easy-to-review\/SKILL\.md$/m);
+});

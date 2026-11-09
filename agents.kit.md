@@ -3,3 +3,4 @@
 - Tests should always be in their own files. Not in the same file as the code they test.
 - All commit attribution should be in the github users name and email, never the coding agent.
 - Route every task to its entry-point skill before acting; see [workflow-routing.md](rules/workflow-routing.md) for triggers and exceptions.
+- Create files larger than ~300 lines in <=300-line chunks and verify with `wc -l`; see [large-file-creation.md](rules/large-file-creation.md).

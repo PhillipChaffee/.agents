@@ -26,7 +26,9 @@ thinking-only, complete evidence packet, tools forbidden.
 
 ## Step 0 - Complexity triage (always)
 
-Score the request across four axes, then pick a tier:
+First, apply [`/principle-take-a-step-back`](../principle-take-a-step-back/SKILL.md): ask why the user is asking this question, what goal or decision it serves, whether the premise is off track (such as an XY problem, wrong architectural layer, or unstated system constraint), and whether there is a misconception you must flag before answering literally. If the premise is flawed or the requested mechanism would break the system, lead with that finding and redirect the research to what actually serves the user's goal instead of writing ready-to-paste configurations for a broken approach.
+
+Then score the request across four axes and pick a tier:
 
 - **Breadth** - how many distinct areas / files / sources are involved?
 - **Depth** - how much reasoning, domain knowledge, or synthesis is required?
@@ -65,7 +67,7 @@ tier. When genuinely on the fence between two tiers, pick the lower one but say 
    parallel. For dependent subtasks, wait for the dependency to return, then launch the next
    researcher with the prior findings included in its self-contained prompt.
 4. Collect the findings and **synthesize them yourself** (no synthesizer subagent
-   at this tier). Deduplicate overlaps; resolve contradictions or flag them.
+   at this tier). Deduplicate overlaps; resolve contradictions or flag them. Re-apply [`/principle-take-a-step-back`](../principle-take-a-step-back/SKILL.md): if the findings show the user's premise is off track, lead with the mismatch and redirect to what serves their goal.
 5. **Write the output file**: save the synthesized, cited summary to
    `docs/research/<topic>.md` in the repo (create the directory if needed). The
    file — not a chat dump — is what later steps consume. Also give a short
@@ -121,7 +123,7 @@ and source lookups and must stop with exact missing evidence rather than gatheri
    - If it reports missing evidence, send that exact gap to a collector, then resume
      with the completed packet. Never let it gather the missing evidence.
 4. **Review the plan** briefly. Adjust tiers, merge redundant subtasks, or drop
-   out-of-scope ones. Resolve blocking user choices before spending more research
+   out-of-scope ones. Apply [`/principle-take-a-step-back`](../principle-take-a-step-back/SKILL.md) to verify the planned subtasks and synthesis will actually serve the user's underlying goal and flag any flawed premise discovered during scoping. Resolve blocking user choices before spending more research
    effort.
 5. **Dispatch dependency-aware research (MANDATORY subagents)**: launch all
    subtasks with no unmet dependencies in parallel. After each wave returns, launch

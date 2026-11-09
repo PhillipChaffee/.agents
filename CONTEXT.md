@@ -38,7 +38,7 @@ full-lint — the strictest-setups repo that owns per-language lint, type, docst
 A step list under `skills/magic-mode/playbooks/` that `/magic-mode` matches a task to and copies into the todo list verbatim. _Avoid_: recipe, workflow (when meaning the file)
 
 **Principle skill**:
-One of the 24 `principle-*` skills, each a single engineering rule that `magic-mode` indexes and cites by name. _Avoid_: guideline, value
+One of the 25 `principle-*` skills, each a single engineering rule that `magic-mode` indexes and cites by name. _Avoid_: guideline, value
 
 **Role**:
 A named model slot a magic skill spawns a subagent on (`judgment and prose`, `arena runners`, ...), resolved through the consumer's `magic-models` role file and then the kit's fast/main/deep tiers; defined in `skills/magic-mode/references/model-roles.md`. _Avoid_: model slug, preset

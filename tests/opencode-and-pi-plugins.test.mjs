@@ -144,10 +144,9 @@ test("OpenCode V1: MagicPlugin registers skills path, injects V1 bootstrap idemp
 	assert.equal(flakySecond.messages[0].parts.length, 1, "subsequent lookup should recover and skip child session");
 });
 
-test("OpenCode V2: default.setup registers all 74 skills, survives hostile draft.add, registers context/compaction/generate, and skips child sessions", async () => {
+test("OpenCode V2: default.setup registers all 75 skills, survives hostile draft.add, registers context/compaction/generate, and skips child sessions", async () => {
 	const mod = await importFresh(pluginPath);
 
-	// V1-shaped ctx without skill/session domains is a safe no-op.
 	await mod.default.setup({});
 
 	const expectedSkillDirs = fs
@@ -155,7 +154,7 @@ test("OpenCode V2: default.setup registers all 74 skills, survives hostile draft
 		.filter((e) => e.isDirectory() && !e.name.startsWith(".") && fs.existsSync(path.join(skillsDir, e.name, "SKILL.md")))
 		.map((e) => e.name)
 		.sort();
-	assert.equal(expectedSkillDirs.length, 74, "expected 74 skills in skills/*/SKILL.md");
+	assert.equal(expectedSkillDirs.length, 75, "expected 75 skills in skills/*/SKILL.md");
 
 	const addedSkills = [];
 	const hooks = new Map();
@@ -179,7 +178,7 @@ test("OpenCode V2: default.setup registers all 74 skills, survives hostile draft
 		},
 	});
 
-	assert.equal(addedSkills.length, 74);
+	assert.equal(addedSkills.length, 75);
 	assert.deepEqual(
 		addedSkills.map((s) => s.id).sort(),
 		expectedSkillDirs,
@@ -220,7 +219,6 @@ test("OpenCode V2: default.setup registers all 74 skills, survives hostile draft
 		assert.equal(childEv.messages[0].content.length, 1, `${hookName} handler must skip child sessions`);
 	}
 
-	// Compaction checkpoint with no user message appends a synthetic user bootstrap message.
 	const compactedEv = {
 		sessionID: "v2-compacted",
 		messages: [{ role: "assistant", content: [{ type: "compaction", encrypted: "checkpoint" }] }],
@@ -230,7 +228,6 @@ test("OpenCode V2: default.setup registers all 74 skills, survives hostile draft
 	assert.equal(compactedEv.messages[1].role, "user");
 	assert.ok(compactedEv.messages[1].content[0].text.startsWith(expectedMarker));
 
-	// Survives a single rejected skill inside draft.add without aborting remaining skills or hook registration.
 	const survived = [];
 	const survivingHooks = new Map();
 	const rejectedId = expectedSkillDirs[10];
@@ -258,7 +255,7 @@ test("OpenCode V2: default.setup registers all 74 skills, survives hostile draft
 	} finally {
 		console.error = origError;
 	}
-	assert.equal(survived.length, 73);
+	assert.equal(survived.length, 74);
 	assert.ok(!survived.includes(rejectedId));
 	assert.equal(survivingHooks.size, 3);
 });

@@ -78,7 +78,6 @@ test("all 58 core magic skills are present including make-bot-ui, tdd, and types
 });
 
 test("synced magic skill updates and local customizations are preserved", () => {
-	// 1. interrogate updated to run-proven adversaries & retired references removed
 	const interrogate = fs.readFileSync(path.join(repoDir, "skills/interrogate/SKILL.md"), "utf8");
 	assert.match(interrogate, /Adversaries try to break a change or a design/);
 	for (const retired of ["code-quality-review.md", "lead-judgment.md", "reviewer-prompt.md", "rubric.md"]) {
@@ -88,18 +87,15 @@ test("synced magic skill updates and local customizations are preserved", () => 
 		);
 	}
 
-	// 2. ketchup-video has Subtitles section
 	const ketchupVideo = fs.readFileSync(path.join(repoDir, "skills/ketchup-video/SKILL.md"), "utf8");
 	assert.match(ketchupVideo, /## Subtitles/);
 
-	// 3. principle-explain-the-number has Write the decision before you run
 	const explainNum = fs.readFileSync(
 		path.join(repoDir, "skills/principle-explain-the-number/SKILL.md"),
 		"utf8",
 	);
 	assert.match(explainNum, /Write the decision before you run\./);
 
-	// 4. orchestrate has agentic Topology & Supervision sections with neutral vocabulary
 	const orchestrate = fs.readFileSync(
 		path.join(repoDir, "skills/magic-mode/playbooks/orchestrate.md"),
 		"utf8",
@@ -108,12 +104,10 @@ test("synced magic skill updates and local customizations are preserved", () => 
 	assert.match(orchestrate, /## Supervision/);
 	assert.match(orchestrate, /isolated-worktree subagents/);
 
-	// 5. statechart has both the new TS compiler + render.md and the preserved statechart.mjs
 	assert.ok(fs.existsSync(path.join(repoDir, "skills/statechart/references/render.md")));
 	assert.ok(fs.existsSync(path.join(repoDir, "skills/statechart/scripts/statechart.ts")));
 	assert.ok(fs.existsSync(path.join(repoDir, "skills/statechart/scripts/statechart.mjs")));
 
-	// 6. magic-help preserves local custom skill rows while adding synced updates
 	const magicHelp = fs.readFileSync(path.join(repoDir, "skills/magic-help/SKILL.md"), "utf8");
 	for (const customSkill of [
 		"/proof-driven-development",
@@ -132,5 +126,31 @@ test("synced magic skill updates and local customizations are preserved", () => 
 		"/make-bot-ui",
 	]) {
 		assert.ok(magicHelp.includes(customSkill), `magic-help missing ${customSkill}`);
+	}
+});
+
+test("principle-take-a-step-back satisfies skill contract and is wired into Layer 2 checkpoints", () => {
+	const skillPath = path.join(repoDir, "skills/principle-take-a-step-back/SKILL.md");
+	assert.ok(fs.existsSync(skillPath), "missing skills/principle-take-a-step-back/SKILL.md");
+	const text = fs.readFileSync(skillPath, "utf8");
+	assert.match(text, /^description: "Use when /m);
+	assert.match(text, /Why is the user asking this\?/);
+	assert.match(text, /Is there something they do not understand that I should flag\?/);
+
+	for (const rel of [
+		"skills/magic-mode/SKILL.md",
+		"skills/research/SKILL.md",
+		"skills/architect/SKILL.md",
+		"skills/figure-it-out/SKILL.md",
+		"skills/proof-driven-development/SKILL.md",
+		"skills/magic-mode/playbooks/feature.md",
+		"skills/magic-mode/playbooks/bug-fix.md",
+		"skills/magic-mode/playbooks/investigation.md",
+		"skills/magic-mode/playbooks/refactoring.md",
+		"skills/magic-mode/playbooks/autonomous-run.md",
+		"skills/magic-mode/playbooks/multi-phase-plan.md",
+	]) {
+		const targetText = fs.readFileSync(path.join(repoDir, rel), "utf8");
+		assert.match(targetText, /take-a-step-back/, `${rel} should reference take-a-step-back`);
 	}
 });

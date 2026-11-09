@@ -133,7 +133,7 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 
 ## Catalog Reference
 
-Browse the full inventory of **23 playbooks**, **74 active skills** (**50 workflow/domain skills** + **24 engineering principles**), **7 sub-agents**, and **5 operational rules** in **[`docs/CATALOG.md`](docs/CATALOG.md)**.
+Browse the full inventory of **23 playbooks**, **75 active skills** (**50 workflow/domain skills** + **25 engineering principles**), **7 sub-agents**, and **5 operational rules** in **[`docs/CATALOG.md`](docs/CATALOG.md)**.
 
 ---
 

@@ -129,7 +129,7 @@ A counterexample in model terms convinces you. The PM or designer who owns the b
 /magic-mode open the pr. small ordered commits, evidence in the description.
 ```
 
-The [Opening a PR playbook](../../skills/magic-mode/playbooks/opening-a-pr.md) works from a worktree, rebases the work into small ordered commits, cleans the diff, unslops the prose, and returns the PR link. Five narrow PRs beat one fat one, and stacked follow-ups beat a growing branch.
+The [Opening a PR playbook](../../skills/magic-mode/playbooks/opening-a-pr.md) works from a worktree, rebases the work into small ordered commits, cleans the diff, runs [`/make-pr-easy-to-review`](../../skills/make-pr-easy-to-review/SKILL.md) when opening the PR (or right after opening an early PR to update its description and reviewer guidance), unslops the prose, and returns the PR link. Five narrow PRs beat one fat one, and stacked follow-ups beat a growing branch.
 
 ## Drive the PR to merge-ready with Babysit
 

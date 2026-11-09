@@ -37,6 +37,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] `<kit>/skills/swarm/skill.md`
   - [ ] `git show origin/main:<control skill path>`
   - [ ] `<kit>/skills/magic-mode/playbooks/opening-a-pr.md`
+  - [ ] `<kit>/skills/make-pr-easy-to-review/skill.md`
   - [ ] `<kit>/skills/<each other leaf skill the program uses>`
 - [ ] On the operator's go, arm the audit tick as the loop command (`/loop 1h` where the harness has one, a scheduled hourly re-prompt elsewhere) with the tick prompt below. Never leave the cadence to memory.
 - [ ] Use this tick prompt, verbatim. "Re-read the execution playbook from the installed kit. Audit the operation against it and fix drift in this tick. Probe every active lane and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then post a short status message to the operator in chat only when the audit found a tracked change that no earlier status message reported, such as a PR opened, a code-ready head, a round launched or closed, a verdict, a merge, a stuck agent and the action taken, a blocker added or cleared, or a decision only the operator can make. Name every such change and nothing else. Do not repeat a table, the merged list, or an unchanged blocker. If the audit found none, end the turn with no reply text. Either way, log this tick's row in your decision trail. The row names the items reported, or none."
@@ -56,7 +57,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 - [ ] Resolve the forge once from the repo's `docs/agents/issue-tracker.md` (or from `git remote -v` when that file is absent, and say which) and keep it for every PR operation.
 - [ ] Open the PR ready, never draft, per **Opening a PR**. Open it against `<base-branch>` (forge operation **open PR**). A stack child targets its parent branch.
 - [ ] Run the repo's lint and typecheck once before the PR-facing push. Push with hooks on.
-- [ ] Run a slop pass over the diff (delete dead code, defensive noise, and narration, per the **laziness-protocol** principle skill) before each commit and `/no-comments` before review.
+- [ ] Run a slop pass over the diff (delete dead code, defensive noise, and narration, per the **laziness-protocol** principle skill) before each commit, `/no-comments` before review, and `/make-pr-easy-to-review` when opening the PR or right after reaching code-ready on an early-opened PR.
 - [ ] Triage every review-bot and security-reviewer comment per `../references/review-bot-triage.md`.
 - [ ] Rebase onto current trunk before the code-ready report and babysit. Keep that merge base in fix rounds. Rebase again only at merge prep, on a `git merge-tree` conflict with trunk, on a CI failure that comes from a change on trunk, or when a known concurrent change to the same files lands.
 

@@ -59,7 +59,7 @@ flowchart TD
     SC["statechart + 50 scripts<br/>(2e05d34c, dda30344)"]
   end
 
-  subgraph GroupB["Group B: 6 Technique Skills & Scripts (Nov 7–8, 2026 — Coupled)"]
+  subgraph GroupB["Group B: 6 Technique Skills & Scripts (Nov 7, 2026 PST — Coupled)"]
     PDD["proof-driven-development<br/>(Orchestrator)"]
     Hoare["proving-with-hoare-logic<br/>(48.8% Rust/Verus)"]
     Dep["proving-with-dependent-types<br/>(59.8% Lean 4 + Python->Rust port)"]
@@ -70,8 +70,8 @@ flowchart TD
   end
 
   subgraph LeakSource["Git Provenance of Lock-in"]
-    C1["f6744a19 & 35e91b23 (Nov 7, 2026)<br/>Initial 6 PROOF_SKILLS with Rust/Lean/C examples"]
-    C2["f0e90ec9 & 138e4edc (Nov 8, 2026)<br/>Baked Python-to-Rust async media port into mandatory contracts"]
+    C1["f6744a19 & 35e91b23 (Nov 7, 2026, 1:59 PM PST)<br/>Initial 6 PROOF_SKILLS with Rust/Lean/C examples"]
+    C2["f0e90ec9 & 138e4edc (Nov 7, 2026, 6:50 PM PST)<br/>Baked Python-to-Rust async media port into mandatory contracts"]
   end
 
   ADR0002 -->|"Complies"| GroupA

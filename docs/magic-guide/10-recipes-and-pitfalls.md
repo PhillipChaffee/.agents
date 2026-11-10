@@ -164,7 +164,7 @@ To watch the catch-up instead, run [`/ketchup-video`](../../skills/ketchup-video
 /one-at-a-time
 ```
 
-When a review, investigation, or catch-up turn hands back several findings or decisions at once, [`/one-at-a-time`](../../skills/one-at-a-time/SKILL.md) locks them into a numbered queue and presents only one item per turn, advancing to the next only after you decide the current one.
+When a review, investigation, or catch-up turn hands back several findings or decisions at once, [`/one-at-a-time`](../../skills/one-at-a-time/SKILL.md) starts a `decisions-<topic-slug>.md` file, presents only one item per turn, records each decision as you make it, and applies all the decisions together once you finish the queue.
 
 ## The pitfalls
 

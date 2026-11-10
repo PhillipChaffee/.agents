@@ -20,7 +20,7 @@ flowchart TD
     IsAuto -->|Yes| SkipWire["Do not interrupt loop\nor edit locked bytes"]
     IsAuto -->|No| SuggestSkill["Suggest /one-at-a-time\nat end of turn"]
     SuggestSkill --> UserInvokes["User runs /one-at-a-time"]
-    UserInvokes --> QueueLock["Lock numbered queue (1..N)\nand present Item 1 only"]
+    UserInvokes --> QueueLock["Create decisions-<slug>.md,\nrecord each decision per turn,\nand apply all together at the end"]
 ```
 
 ## Tier 1 strong-fit wiring targets

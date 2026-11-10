@@ -194,6 +194,8 @@ test("one-at-a-time skill satisfies contract and is wired into multi-finding ski
 	assert.ok(fs.existsSync(skillPath), "missing skills/one-at-a-time/SKILL.md");
 	const text = fs.readFileSync(skillPath, "utf8");
 	assert.match(text, /^description: "Use when /m);
+	assert.match(text, /## The Markdown decision file \(`decisions-<topic-slug>\.md`\)/);
+	assert.match(text, /## Recorded decisions/);
 	assert.match(text, /## Turn contract \(positive recipe\)/);
 	assert.match(text, /## State transition rules/);
 	assert.match(text, /## Rationalization table/);

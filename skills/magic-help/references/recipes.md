@@ -48,5 +48,5 @@ Swap in the real paths, skills, and done checks. Informal wording works.
 - `/magic-mode full autopilot on this queue. each item is independent.`
 - `/magic-mode autopilot these changes, but don't merge. i'll land them.`
 - `/reflect capture what we learned so the next run doesn't repeat it.` Approve only edits that change a future decision.
-- `/one-at-a-time` walks through multiple findings, options, or waiting decisions one item per turn until you decide each one.
+- `/one-at-a-time` walks through multiple findings, options, or waiting decisions one item per turn, recording each call in a Markdown file and applying them all together at the end.
 - `/bro` restates the last reply in plain words.

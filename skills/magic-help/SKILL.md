@@ -69,7 +69,7 @@ The default answer is `/magic-mode`, which runs most of the others when its step
 | Do any non-trivial task with rigor | [`/magic-mode`](../magic-mode/SKILL.md) |
 | Check that the agent understood their goal and the problem before it starts | [`/in-your-own-words`](../in-your-own-words/SKILL.md) |
 | Get a prompt rewritten deeper, not bigger, before sending it: what a top professional would add, their raw material and methods, and an outside check. It returns the prompt and doesn't do the task | [`/sharpen`](../sharpen/SKILL.md) |
-| Walk through a list of findings, trade-offs, or open questions one item per turn until each item has an explicit decision | [`/one-at-a-time`](../one-at-a-time/SKILL.md) |
+| Walk through a list of findings, trade-offs, or open questions one item per turn, recording each decision in a Markdown file so they are all applied together at the end | [`/one-at-a-time`](../one-at-a-time/SKILL.md) |
 | Know how code works now, or where new code should live | [`/how`](../how/SKILL.md) |
 | Know why code is shaped this way, or where a number came from | [`/why`](../why/SKILL.md) |
 | Research, investigate, or compare options across the codebase, web, or MCP tools using tiered delegation (`docs/research/<topic>.md`) | [`/research`](../research/SKILL.md) |

@@ -47,7 +47,7 @@ Complete reference of the **23 execution playbooks**, **76 active skills** (**51
 | **Planning & Execution** | [`/subagent-driven-development`](../skills/subagent-driven-development/SKILL.md) | Executing an implementation plan with a fresh implementer and two-stage reviewer sub-agent per task |
 | **Alignment & Prompting** | [`/in-your-own-words`](../skills/in-your-own-words/SKILL.md) | Having the agent play back your goal and problem before starting |
 | **Alignment & Prompting** | [`/sharpen`](../skills/sharpen/SKILL.md) | Rewriting a prompt deeper (not longer) before sending it |
-| **Alignment & Prompting** | [`/one-at-a-time`](../skills/one-at-a-time/SKILL.md) | Walking through multiple findings, trade-offs, or open decisions one item per turn until each is decided |
+| **Alignment & Prompting** | [`/one-at-a-time`](../skills/one-at-a-time/SKILL.md) | Walking through multiple findings, trade-offs, or open decisions one item per turn, recording each decision in a Markdown file and applying them all together at the end |
 | **Research, Code & History** | [`/research`](../skills/research/SKILL.md) | Running tiered (direct, parallel, or scoped pipeline) research across codebase, web, and MCP tools into `docs/research/<topic>.md` |
 | **Research, Code & History** | [`/research-summary`](../skills/research-summary/SKILL.md) | Producing a concise, cited research summary with head-to-head option comparison tables |
 | **Research, Code & History** | [`/how`](../skills/how/SKILL.md) | Getting a cited walkthrough of how a subsystem works |

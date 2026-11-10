@@ -158,6 +158,14 @@ That's the whole prompt. [`/bro`](../../skills/bro/SKILL.md) restates the last m
 
 To watch the catch-up instead, run [`/ketchup-video`](../../skills/ketchup-video/SKILL.md). It shows what happened in a short subtitled video of slides, and lists the calls waiting on you as text under it.
 
+## Walk through findings one at a time
+
+```text
+/one-at-a-time
+```
+
+When a review, investigation, or catch-up turn hands back several findings or decisions at once, [`/one-at-a-time`](../../skills/one-at-a-time/SKILL.md) locks them into a numbered queue and presents only one item per turn, advancing to the next only after you decide the current one.
+
 ## The pitfalls
 
 - **Enumerating skills in the prompt.** "use /how then /architect then /arena" reorders steps the playbook already sequences. State the goal and constraints. Name a skill only to override a default.

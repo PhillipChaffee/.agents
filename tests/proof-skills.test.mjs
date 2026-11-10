@@ -193,6 +193,7 @@ test("graphviz flowcharts in proof skills extract and render cleanly with stub d
 		["analyzing-with-abstract-interpretation", "abstract_alarm"],
 		["autopilot", "autopilot_loop"],
 		["principle-take-a-step-back", "take_a_step_back"],
+		["one-at-a-time", "one_at_a_time_loop"],
 	]) {
 		const targetSkillDir = path.join(dir, skill);
 		fs.mkdirSync(targetSkillDir);

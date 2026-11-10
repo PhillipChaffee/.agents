@@ -124,6 +124,7 @@ test("synced magic skill updates and local customizations are preserved", () => 
 		"/tdd",
 		"/typescript-best-practices",
 		"/make-bot-ui",
+		"/one-at-a-time",
 	]) {
 		assert.ok(magicHelp.includes(customSkill), `magic-help missing ${customSkill}`);
 	}
@@ -185,5 +186,44 @@ test("principle-take-a-step-back satisfies skill contract and is wired into Laye
 	]) {
 		const targetText = fs.readFileSync(path.join(repoDir, rel), "utf8");
 		assert.match(targetText, /take-a-step-back/, `${rel} should reference take-a-step-back`);
+	}
+});
+
+test("one-at-a-time skill satisfies contract and is wired into multi-finding skills and playbooks", () => {
+	const skillPath = path.join(repoDir, "skills/one-at-a-time/SKILL.md");
+	assert.ok(fs.existsSync(skillPath), "missing skills/one-at-a-time/SKILL.md");
+	const text = fs.readFileSync(skillPath, "utf8");
+	assert.match(text, /^description: "Use when /m);
+	assert.match(text, /## Turn contract \(positive recipe\)/);
+	assert.match(text, /## State transition rules/);
+	assert.match(text, /## Rationalization table/);
+	assert.match(text, /## Red flags - STOP/);
+
+	for (const rel of [
+		"skills/magic-mode/SKILL.md",
+		"skills/interrogate/SKILL.md",
+		"skills/blast-radius/SKILL.md",
+		"skills/reflect/SKILL.md",
+		"skills/reflect/references/synthesizer.md",
+		"skills/ketchup/SKILL.md",
+		"skills/ketchup-video/SKILL.md",
+		"skills/autopilot/SKILL.md",
+		"skills/research/SKILL.md",
+		"skills/research-summary/SKILL.md",
+		"skills/architect/SKILL.md",
+		"skills/architect/references/rationale-template.md",
+		"skills/swarm/SKILL.md",
+		"skills/writing-rules/SKILL.md",
+		"skills/auditing-proof-specifications/SKILL.md",
+		"skills/show-me-your-work/SKILL.md",
+		"skills/figure-it-out/SKILL.md",
+		"skills/magic-mode/playbooks/investigation.md",
+		"skills/magic-mode/playbooks/prototype.md",
+		"skills/magic-mode/playbooks/babysit.md",
+		"skills/magic-mode/references/review-bot-triage.md",
+		"agents/research-synthesizer/agent.md",
+	]) {
+		const targetText = fs.readFileSync(path.join(repoDir, rel), "utf8");
+		assert.match(targetText, /one-at-a-time/, `${rel} should reference one-at-a-time`);
 	}
 });

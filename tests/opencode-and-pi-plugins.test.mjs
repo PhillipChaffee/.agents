@@ -144,7 +144,7 @@ test("OpenCode V1: MagicPlugin registers skills path, injects V1 bootstrap idemp
 	assert.equal(flakySecond.messages[0].parts.length, 1, "subsequent lookup should recover and skip child session");
 });
 
-test("OpenCode V2: default.setup registers all 75 skills, survives hostile draft.add, registers context/compaction/generate, and skips child sessions", async () => {
+test("OpenCode V2: default.setup registers all 76 skills, survives hostile draft.add, registers context/compaction/generate, and skips child sessions", async () => {
 	const mod = await importFresh(pluginPath);
 
 	await mod.default.setup({});
@@ -154,7 +154,7 @@ test("OpenCode V2: default.setup registers all 75 skills, survives hostile draft
 		.filter((e) => e.isDirectory() && !e.name.startsWith(".") && fs.existsSync(path.join(skillsDir, e.name, "SKILL.md")))
 		.map((e) => e.name)
 		.sort();
-	assert.equal(expectedSkillDirs.length, 75, "expected 75 skills in skills/*/SKILL.md");
+	assert.equal(expectedSkillDirs.length, 76, "expected 76 skills in skills/*/SKILL.md");
 
 	const addedSkills = [];
 	const hooks = new Map();
@@ -178,7 +178,7 @@ test("OpenCode V2: default.setup registers all 75 skills, survives hostile draft
 		},
 	});
 
-	assert.equal(addedSkills.length, 75);
+	assert.equal(addedSkills.length, 76);
 	assert.deepEqual(
 		addedSkills.map((s) => s.id).sort(),
 		expectedSkillDirs,
@@ -255,7 +255,7 @@ test("OpenCode V2: default.setup registers all 75 skills, survives hostile draft
 	} finally {
 		console.error = origError;
 	}
-	assert.equal(survived.length, 74);
+	assert.equal(survived.length, 75);
 	assert.ok(!survived.includes(rejectedId));
 	assert.equal(survivingHooks.size, 3);
 });

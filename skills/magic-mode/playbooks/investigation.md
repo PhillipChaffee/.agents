@@ -11,4 +11,4 @@ Investigation requests are read-only. They produce a cited explanation or a reco
 
 No PR, no babysit, no `architect` unless the investigation precedes a code change. If it does, hand back to the user and re-route to Bug fix or Feature.
 
-**Reply:** the investigation output. For "are we sure?" answers, include your real judgment with reasons. Push back if the premise is wrong (see Autonomy).
+**Reply:** the investigation output. For "are we sure?" answers, include your real judgment with reasons. Push back if the premise is wrong (see Autonomy). When the investigation surfaces 2 or more findings, alternatives, or open questions for the user to decide on, mention `/one-at-a-time` so they can step through them one by one.

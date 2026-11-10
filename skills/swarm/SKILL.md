@@ -39,4 +39,4 @@ Read the terminal results. Drop a result that does not record the SHAs and metho
 
 ## Phase D: Report
 
-Return one consolidated in-chat report (1-2 sentence max prose blocks) with a result Markdown table, issue one-liner bullets, gaps or dropouts, the race rule when used, and a 1-2 sentence `## TL;DR` section at the bottom.
+Return one consolidated in-chat report (1-2 sentence max prose blocks) with a result Markdown table, issue one-liner bullets, gaps or dropouts, the race rule when used, and a 1-2 sentence `## TL;DR` section at the bottom. When 2 or more issues or gaps require user triage, mention [`/one-at-a-time`](../one-at-a-time/SKILL.md) so the user can step through them one by one.

@@ -41,7 +41,7 @@ Move any Accepted item that a lint rule, script, metadata flag, or runtime check
 
 ## 5. Apply
 
-Present the synthesizer's full Accepted / Rejected / Backlog output and wait for explicit approval before applying any Accepted edit. The user picks the subset and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
+Present the synthesizer's full Accepted / Rejected / Backlog output and wait for explicit approval before applying any Accepted edit. The user picks the subset and may redirect routings. When 2 or more Accepted rows or routings need review, offer [`/one-at-a-time`](../one-at-a-time/SKILL.md) so the user can approve or redirect each row one by one. Skill changes affect every future agent in the org. Do not auto-apply.
 
 File each Backlog item to your team's devex or backlog tracker without waiting. Only the Accepted list waits for approval.
 

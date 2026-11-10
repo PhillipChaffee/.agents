@@ -33,4 +33,4 @@ Keep every prose block to **at most 1-2 sentences**, open each section with a 1-
 - **Intent**: 1-2 sentences restating the change's intent.
 - **Findings**: a Markdown summary table (`| Finding | Command | Adversaries | How It Breaks Intent |`) plus 1-sentence bullets with the printed output vs. required output for each verified finding. Say "no verified findings" when none survive.
 - **Dropped**: a Markdown table (`| Adversary | Dropped Count | Reason |`) listing each adversary's dropped findings and why.
-- **TL;DR**: a `## TL;DR` section at the bottom with 1-2 plain sentences stating how many verified findings survived and the overall verdict.
+- **TL;DR**: a `## TL;DR` section at the bottom with 1-2 plain sentences stating how many verified findings survived and the overall verdict. When 2 or more verified findings survive, mention that the user can run [`/one-at-a-time`](../one-at-a-time/SKILL.md) to step through and decide on each finding one by one.

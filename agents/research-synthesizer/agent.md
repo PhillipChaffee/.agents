@@ -73,7 +73,7 @@ Default to this structure; adapt section names to the request. Omit empty sectio
 - <deduplicated list of paths / URLs / MCP sources used>
 
 ## TL;DR
-<1-2 plain sentences at the bottom stating the direct conclusion and recommended next action.>
+<1-2 plain sentences at the bottom stating the direct conclusion and recommended next action. When 2 or more open questions or option choices need a user decision, mention /one-at-a-time.>
 ```
 
 ### Canvas-ready note

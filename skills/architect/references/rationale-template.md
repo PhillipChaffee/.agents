@@ -28,7 +28,7 @@ The prose that ships alongside the type sketch. One page. Sentence-case headings
 
 ## Open questions and risks
 
-*Things you noticed during the sketch that the human needs to weigh in on, and risks worth flagging before implementation starts. Phrase as questions, not assertions, so the human's answer is the resolution rather than a comment.*
+*Things you noticed during the sketch that the human needs to weigh in on, and risks worth flagging before implementation starts. Phrase as questions, not assertions, so the human's answer is the resolution rather than a comment. When 2 or more open questions or risks are listed, note that the human can run `/one-at-a-time` to resolve them one by one.*
 
 ## Next implementation step
 

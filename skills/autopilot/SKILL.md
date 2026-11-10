@@ -161,7 +161,7 @@ Every autopilot exit report **must** keep prose blocks to at most 1-2 sentences,
    - `fix-now` items implemented (with commit SHA and minimal change summary)
    - `reject` / `defer` / `nit-skip` items (with concrete reasons and named follow-ups for `defer`)
 3. **Paused Plan Asks / Escalations:**
-   - Any `pause-plan`, over-budget, or 2-pass anti-stall blockers awaiting user decision.
+   - Any `pause-plan`, over-budget, or 2-pass anti-stall blockers awaiting user decision. When 2 or more escalations or `pause-plan` items await a call, mention that the user can run [`/one-at-a-time`](../one-at-a-time/SKILL.md) to resolve them one by one.
 4. **`## TL;DR` at the bottom:**
    - 1-2 plain sentences stating PR mergeability, CI status, budget used, and any action waiting on the user.
 

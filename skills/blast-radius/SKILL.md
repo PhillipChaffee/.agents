@@ -46,7 +46,7 @@ Keep every prose block to **at most 1-2 sentences**, open each section with a 1-
 - **The one fact it's safe because of.** State it in 1-2 sentences, name the verification level (1 to 5), and show the runnable proof output. If you couldn't prove it, write `unproven`.
 - **Risks & Cleared Surfaces (Table).** Open with 1 sentence and present a Markdown table (`| Surface / Caller | File:Line | Status (Risk / Cleared) | Likelihood & Impact | Proof / Check |`) covering every confirmed risk and cleared path.
 - **Before you merge.** Bullet list of the cheapest test or repro that catches the real bug, including the script you wrote.
-- **TL;DR.** Required at the bottom of the turn: a `## TL;DR` section with 1-2 plain sentences stating whether the safety fact is proven, any remaining risk, and merge readiness.
+- **TL;DR.** Required at the bottom of the turn: a `## TL;DR` section with 1-2 plain sentences stating whether the safety fact is proven, any remaining risk, and merge readiness. When 2 or more confirmed risks or pre-merge actions need a user decision, mention [`/one-at-a-time`](../one-at-a-time/SKILL.md) so the user can step through them one by one.
 
 Write it through `unslop`, cite real code, and strip anything private before it goes anywhere public.
 

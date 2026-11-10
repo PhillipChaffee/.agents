@@ -47,7 +47,7 @@ Output exactly the format below. No preamble, no narration. One sentence per cel
 | <skill existed but didn't trigger> | <tune the skill's description so it fires next time> | <tune description: <skill path>> |
 | <new pattern, no existing skill is a real home> | <draft a new skill via create-skill> | <new skill via create-skill: <kebab-name>> |
 
-One row per finding. The user approves row by row.
+One row per finding. The user approves row by row, or runs `/one-at-a-time` to walk through each row one by one.
 
 # Rejected
 

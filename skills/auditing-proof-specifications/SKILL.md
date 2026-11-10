@@ -104,4 +104,4 @@ Reject any theorem whose `#print axioms` output includes `sorryAx`, a custom `ax
 - Standalone Lean 4 / Rocq / TLA+ models of existing or target code that have not passed Gate A (trace validation), Gate B (persistent oracle differential fuzzing), and Gate C ($N$-mutant kill gate)
 - Secret/MAC/key comparisons proved only for functional value equality while using secret-dependent branches or early returns
 
-**All of these mean: Block the merge, report the exact gap(s) violated, and require the specification, contract lock, conformance bridge, or constant-time implementation to be fixed.**
+**All of these mean: Block the merge, report the exact gap(s) violated, and require the specification, contract lock, conformance bridge, or constant-time implementation to be fixed. When 2 or more gaps or remediation choices require user decisions, mention [`/one-at-a-time`](../one-at-a-time/SKILL.md) so they can step through them one by one.**

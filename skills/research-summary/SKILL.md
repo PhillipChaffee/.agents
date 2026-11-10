@@ -73,7 +73,7 @@ flowchart TD
 
 ## TL;DR
 
-<One or two plain sentences at the bottom of the finished turn stating the conclusion and what to do next.>
+<One or two plain sentences at the bottom of the finished turn stating the conclusion and what to do next. When 2 or more open questions, options, or next steps need a user call, mention `/one-at-a-time`.>
 ````
 
 ## Head-to-head table

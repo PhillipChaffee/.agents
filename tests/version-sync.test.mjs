@@ -149,3 +149,17 @@ test("README.md and .gitignore document magic quote, SVG workflow diagram, secti
 	assert.ok(!gitignoreLines.includes("package.json"), ".gitignore must not ignore root package.json");
 });
 
+test("README.md and docs/CATALOG.md report 76 active skills (51 workflow/domain + 25 principles) and list /simple-english", () => {
+	const readme = fs.readFileSync(path.join(repoDir, "README.md"), "utf8");
+	const catalog = fs.readFileSync(path.join(repoDir, "docs/CATALOG.md"), "utf8");
+
+	assert.match(readme, /\*\*76 active skills\*\* \(\*\*51 workflow\/domain skills\*\* \+ \*\*25 engineering principles\*\*\)/);
+	assert.match(catalog, /\*\*76 active skills\*\* \(\*\*51 workflow\/domain skills\*\* \+ \*\*25 engineering principles\*\*\)/);
+	assert.match(catalog, /^## 51 Situational, PR, Research, Formal Verification, Planning & Authoring Skills$/m);
+	assert.ok(
+		catalog.includes(
+			"| **Prose & Code Hygiene** | [`/simple-english`](../skills/simple-english/SKILL.md) | Writing and rewriting docs, runbooks, and replies in plain, layman-readable English in the spirit of ASD-STE100 |",
+		),
+	);
+});
+

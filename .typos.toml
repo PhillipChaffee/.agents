@@ -1,6 +1,7 @@
-# Public upstream copies retain their original spelling and examples.
+# Public upstream copies retain their original spelling and examples; the
+# magic skills are adapted and spell-checked like the rest of the kit.
 [files]
-extend-exclude = ["skills/writing-skills", "skills/writing-plans", "skills/subagent-driven-development", "skills-disabled"]
+extend-exclude = ["skills-disabled"]
 
 # Spell-check configuration. Default dictionary on; every non-default entry
 # carries its reason. The root file is the union this repo needs (it scans

@@ -11,9 +11,18 @@ name: research-summary
 ## Process
 
 1. Infer the topic from the request and session. Load and run `research` first. Follow its file-output rules.
-2. Use `simple-english` for word choice only. Layout, bullets, bold, and paragraph length come from this skill.
+2. Use `/technical-writing` for structure and `/unslop` for word choice. Layout, bullets, bold, and paragraph length come from this skill.
 3. Decide whether the summary gets a Head-to-head table (see below).
-4. Write the summary in the exact shape below, then run the self-check.
+4. Dispatch the formatting wave below with the research findings and this skill's contract. Do not format the summary on the main chat.
+5. Check the returned summary against the self-check, then relay it with its path.
+
+## Synthesis wave
+
+Spawn `research-synthesizer` on the `researcher-deep, planner, synthesizer` role in the `magic-models` role file (see `model-roles.md`), whose default is `deep`. Its brief carries the research findings, the topic, this skill's Output shape, the Head-to-head rules, the 60-line budget, the self-check list, and the `/technical-writing` and `/unslop` references.
+
+It returns the formatted summary and the deduplicated source list. The parent checks every self-check item, writes the returned text to `docs/research/<topic>.md` byte for byte, and relays it. The synthesizer's frontmatter denies `Write`, so the parent owns the file write and never rewords the content.
+
+When the harness exposes no subagent tool, run the same brief inline and say so in the reply.
 
 ## Output shape
 
@@ -92,7 +101,7 @@ Include `## Head-to-head` only when the research compares 2 or more options on 2
 
 ## Typography
 
-- Write numbers, money, and percentages as plain text: 9.08% WER, $11.7k/month, 1.18 s.
+- Write numbers, money, and percentages as plain text, such as 9.08% WER, $11.7k/month, 1.18 s.
 - Use backticks only for file paths, commands, code identifiers, and model IDs.
 - Each bullet is one line of about 25 words or fewer.
 - Tables other than Head-to-head have at most 4 columns. Cells hold a few words or a number.

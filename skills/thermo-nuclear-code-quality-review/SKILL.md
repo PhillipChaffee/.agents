@@ -1,7 +1,7 @@
 ---
-name: thermo-nuclear-code-quality-review
 description: Run an extremely strict maintainability review for abstraction quality, giant files, and spaghetti-condition growth. Use for a thermo-nuclear code quality review, thermonuclear review, deep code quality audit, or especially harsh maintainability review.
 disable-model-invocation: true
+name: thermo-nuclear-code-quality-review
 ---
 
 # Thermo-Nuclear Code Quality Review
@@ -9,6 +9,12 @@ disable-model-invocation: true
 Use this skill for an unusually strict review focused on implementation quality, maintainability, abstraction quality, and codebase health.
 
 Above all, this skill should push the reviewer to be **ambitious** about code structure. Do not merely identify local cleanup opportunities. Actively search for "code judo" moves: restructurings that preserve behavior while making the implementation dramatically simpler, smaller, more direct, and more elegant.
+
+## Who runs the review
+
+- **Already inside a depth-1 leaf subagent**: run the audit and write the structured report in this session. A leaf never spawns a subagent, and the report is the deliverable.
+- **No subagent tool exposed**, or `orchestrator: standard`: run the audit in this session.
+- **Root chat under `orchestrator: thin` with a subagent tool exposed**: dispatch one depth-1 `magic-agent` that runs this audit and returns the structured report. Take its model from the `hardest tasks` role in the `magic-models` role file (see [model-roles.md](../magic-mode/references/model-roles.md)), or `judgment and prose` when the review is mostly about intent and naming. On a wide branch, or one whose risk spans several subsystems, run the audit as an `interrogate reviewers` panel instead, one reviewer per entry in that role's list, and merge their reports into one structured report.
 
 ## Core Prompt
 

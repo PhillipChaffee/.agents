@@ -1,5 +1,5 @@
 ---
-description: Configure which models magic uses per role and at what reasoning budget. Detects your available models and writes an always-applied rule that overrides the skill defaults. Use for /setup-magic, "configure magic models", "magic budget", or changing magic's model choices.
+description: "Use when configuring magic globally or onboarding a repository, including /setup-magic, model roles, reasoning budget, harness doctor checks, and docs/agents/issue-tracker.md scaffolding."
 enabled: true
 id: setup-magic
 name: setup-magic
@@ -7,70 +7,154 @@ name: setup-magic
 
 # Setup magic
 
-Write the `magic-models` role file (see [`model-roles.md`](../magic-mode/references/model-roles.md)), an always-applied rule that sets magic's model per role.
+This skill has two scopes. Scope 1 configures the user's global model roles and harness. Scope 2 onboards one repository. Run one scope or both.
 
-## Steps
+## Step 0. Select scope
 
-### 1. Detect available models
+Ask one multiple-choice question. Offer these three choices with these exact labels.
 
-Enumerate the model identifiers you can pass to a subagent in this session (the [harness adapter](../magic-mode/references/harness-adapter.md) says how each harness takes a model for a subagent). That is the dependable source. If the harness also exposes a models API or CLI that lists the user's entitled models, prefer it for completeness. If you cannot detect any, offer the tier names `fast`, `main`, and `deep` plus `inherit-parent` and `auto`, or ask the user to paste the model identifiers they have access to. Never write a real model identifier you have not confirmed is available. The tier names and the aliases `inherit-parent` and `auto` are always valid even though they are not detected models.
+- Both global harness setup and repository onboarding. Default when neither a global `magic-models` file nor `docs/agents/issue-tracker.md` exists.
+- Scope 1 only (User and harness global models and doctor).
+- Scope 2 only (Repository onboarding). Default when a global `magic-models` file exists and the repository has no `docs/agents/issue-tracker.md`.
 
-### 2. Load current state
+Run the Scope 1 steps when the answer includes Scope 1. Run the Scope 2 steps when it includes Scope 2. Scope 2 runs standalone in a new repository without prompting Scope 1 again.
 
-The default role-to-model mapping is the rule shape shown in step 5 below. If the role file already exists at the location the harness adapter names, read it and treat its `# budget` line and its role values as the current choices. Otherwise start from those defaults. A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.
+## Scope 1. User and harness global
 
-### 3. Budget, map, and confirm
+### Step 1. Detect the harness, models, and current state
 
-**(a) Ask for a budget.** Prefer a multiple-choice question over free text (plain text where the harness has no question tool). Offer these four options with these exact labels, and name the current budget when the rule records one. With no rule, say that `large` matches the skill defaults.
+Read [`harness-adapter.md`](../magic-mode/references/harness-adapter.md) to learn where this harness loads an always-applied rule and how it passes a model to a subagent. Detect the active harness, the models you can pass to a subagent, an existing `magic-models` file, and an existing `~/.agents/models.json`.
 
-- `unlimited — max reasoning`
-- `large — xhigh reasoning`
-- `medium — high reasoning`
-- `small — medium reasoning`
+On OpenCode, write one shared `~/.config/opencode/rules/magic-models.md` by default. When OpenCode profile overlays (`personal`, `work-dev`, `work-prod`) have distinct provider entitlements, write one `magic-models-<profile>.md` per profile instead. When you write a per-profile file, also register it. Add its path to the profile overlay JSON's `"instructions"` array, such as `~/.config/opencode/profiles/<profile>.json`, or set `MAGIC_MODELS_PATH` in that profile's environment. Without one of those, OpenCode never loads the file.
 
-**(b) Apply it.** Build the working table from the skill defaults, and on a re-run keep any role you changed by tier, model, list, or alias (`inherit-parent`, `auto`). `unlimited`, `large`, `medium`, and `small` set the starting reasoning level of every role, panel entries included, to `max`, `xhigh`, `high`, or `medium`, on the ladder `max` > `xhigh` > `high` > `medium` > `low`. Where the harness exposes a reasoning-effort setting, the `# budget` line sets that level. Where it does not, the `# budget` line records the label only. A model that tops out below the target stays at its highest level. `inherit-parent` and `auto` do not change. `large` keeps the defaults.
+### Step 2. Ask the five core choices
 
-**(c) Show the roles and confirm.** Show every role with its model, marking any real model identifier not in the detected set as needing a choice. Also list each line step 2 dropped. Ask whether to accept as-is or change specific roles, offering the tier names and the detected models plus `inherit-parent` and `auto` (both mean: this role runs on the parent chat model, which is how users of the harness's automatic model selection stay on it) as the options. Prefer a multiple-choice question over free text. For panel roles (arena runners, architect runners, interrogate reviewers) the value is a list, and one subagent runs per entry, alias entries included, so the list length sets the count. `arena cross-judge pool` is also a list, but Arena runs one judge. It tries only values from a family other than the parent's, in list order, so order it by preference. An `inherit-parent` or `auto` value never judges. `swarm workers` is the default model for every worker unless a race or comparison assigns another model per arm.
+Ask these in order. Prefer a multiple-choice question over free text.
 
-### 4. Validate
+(a) Orchestrator mode. Offer `thin` as the recommended default and `standard` as the alternative. `thin` keeps the parent chat as a depth-1 wave dispatcher and delegates scoping, planning, coding, grafting, verification, diff review, and PR prose to role-routed subagents. `standard` lets a strong parent chat handle scoping, diff review, and leaf prose itself.
 
-Every real model identifier written must be in the detected set. The tier names `fast`, `main`, and `deep` and the aliases `inherit-parent` and `auto` always pass. If a chosen real model identifier is not available, stop and ask again.
+(b) Reasoning budget. Offer these four labels and name the current budget when the role file records one. With no rule, say that `large` matches the skill defaults.
 
-### 5. Write the rule
+- `unlimited (max reasoning)`
+- `large (xhigh reasoning)`
+- `medium (high reasoning)`
+- `small (medium reasoning)`
 
-Write the role file at the location the harness adapter names, with any header that harness needs for an always-applied rule, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels magic-mode uses. Overwrite the whole file so re-runs stay idempotent. Never write `CLAUDE.md`, `AGENTS.md`, or `agents.md`. Shape:
+(c) Core tier models. Ask for one model per tier slot, meaning `orchestrator` (the parent chat model), `fast`, `main`, and `deep`.
+
+(d) Optional cross-family secondary model. Offer a model from a family other than the primary tiers. Use it for panel seats and for `arena cross-judge pool`.
+
+(e) Role table. Show the auto-populated role table from Step 4 and ask whether to accept it or customize individual roles. On a re-run, keep every role the user changed by tier, model, or alias.
+
+### Step 3. Validate model identifiers
+
+A real model identifier must be available in this session. Keep every suffix the harness accepts.
+
+- OpenCode `#<variant>`
+- Cursor `[effort=...]`
+- Claude Code family aliases plus `effort`
+- Codex `reasoning_effort`
+
+The tier names `orchestrator`, `fast`, `main`, and `deep`, plus the aliases `inherit-parent` and `auto`, always pass. When `# orchestrator: thin` is set, warn if any role whose default tier is `main` or `deep` still resolves to `inherit-parent` or `auto`. Such a role runs on the parent chat model, which is the weak-parent failure thin mode exists to avoid.
+
+### Step 4. Write the role file
+
+Write `magic-models` at the path `harness-adapter.md` names. Add the always-applied YAML frontmatter where the harness requires it.
+
+```yaml
+---
+alwaysApply: true
+description: magic model and orchestrator role configuration
+---
+```
+
+Then write the directives, the four tier lines, and all 24 role lines from [`model-roles.md`](../magic-mode/references/model-roles.md). Overwrite the whole file so re-runs stay idempotent. Never overwrite `CLAUDE.md`, `AGENTS.md`, or `agents.md`. The block below shows the recommended defaults, with the chosen mode and budget substituted on a real run.
 
 ```text
 # magic model configuration. One line per role. Delete a line to fall back to the default tier.
-# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit the model field). Alias entries in a panel list still count toward its fan-out.
+# `inherit-parent` or `auto` leaves the model field out, so the role runs on the parent chat model.
+# orchestrator: thin
 # budget: large (xhigh)
+orchestrator: <the parent chat model>
+fast: <a fast model>
+main: <a main model>
+deep: <a deep model>
 feature, refactoring: main
 bug-fix: main
 perf-issue: main
 hillclimb: main
-judgment and prose: deep
 hardest tasks: deep
+judgment and prose: deep
 how explorer: main
 how explainer: deep
 why investigators: main
 why synthesizer: deep
 reflect tooling: main
 reflect judgment, divergent, synthesizer: deep
-arena runners: deep, main
-arena cross-judge pool: deep, main
 swarm workers: main
+arena runners: deep, <a model from another family>
+arena cross-judge pool: deep, <a model from another family>
 architect runners: deep, main
 interrogate reviewers: deep, main
+fast, mechanical, miners: fast
+researcher-lite, collectors: fast
+researcher-mid: main
+researcher-deep, planner, synthesizer: deep
+arena synthesizer: deep
+sdd reviewer: main
+comment-sicko: main
 ```
 
-### 6. Confirm
+### Step 5. Sync models.json and run the Harness Doctor
 
-Tell the user the rule was written and that it applies to new sessions. Re-running this skill updates it.
+Write `~/.agents/models.json` with `orchestrator`, `fast`, `main`, and `deep` under `presets`. This keeps the tier fallback working on a plugin-only install that never ran `scripts/install.sh`.
 
-### 7. Offer a verification skill (optional)
+Then run the harness checks named in [`harness-adapter.md`](../magic-mode/references/harness-adapter.md).
 
-Check whether the project has a way to drive the real app for proof (a `verify-*` skill, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with /create-verification-skill." On yes, invoke `/create-verification-skill` (resolves wherever the kit is installed). On no, move on without pushing.
+- Codex needs `multi_agent = true` and `default_subagent_model` in `~/.codex/config.toml`, plus one `~/.codex/agents/<id>.toml` per registered agent role.
+- Claude Code treats `CLAUDE_CODE_SUBAGENT_MODEL` as an optional backstop for a spawn that carries no model field.
+- Pi needs `pi-subagents` installed, or every spawn runs sequentially in the current session.
 
-### 8. Offer a formal verification skill (optional)
+## Scope 2. Repository onboarding
 
-Check whether the project already has a formal verification skill (a project skill that runs a model checker, a proof, or another verifier against the code). If not, offer once: "want a formal verification skill, so agents can prove a key property of your code holds in every case in scope, not only the cases tests reach? I can generate one with /create-formal-verification-skill." On yes, invoke `/create-formal-verification-skill` (resolves wherever the kit is installed). On no, move on without pushing.
+Scope 2 is idempotent. A re-run changes only the files that are missing or that the user asks to update.
+
+### Step 6. Check and scaffold the issue tracker
+
+Check `docs/agents/issue-tracker.md`. When it exists, show its forge and go to Step 7.
+
+When it is absent, inspect `git remote -v` and the CLIs and MCP servers this session exposes. Ask one multiple-choice question with these choices.
+
+- GitHub
+- GitLab
+- Linear plus GitLab or GitHub for code
+- Local Markdown
+- Skip
+
+For GitHub, GitLab, or Linear, write `docs/agents/issue-tracker.md` from [`references/issue-tracker-templates.md`](./references/issue-tracker-templates.md). Cover both the issue operations and all 16 PR and MR operations listed in [`forge-operations.md`](../magic-mode/references/forge-operations.md). For Local Markdown, use the Local Markdown template and keep issue files under `docs/issues/`. On Skip, leave the file absent and go to Step 7.
+
+### Step 7. Check the domain docs and bootstrap gates
+
+Check `CONTEXT.md` and `docs/adr/`. When either is absent, offer once to scaffold a minimal domain glossary and an ADR directory stub. Write only on a yes.
+
+On a greenfield repository with no commits or no lint setup, read [`new-repo-setup.md`](../../rules/new-repo-setup.md) and confirm that the matching `init-<lang>-repo` skill ran and its gates pass.
+
+### Step 8. Offer the verification skills
+
+Run both offers once each, and skip an offer when the project already has that skill.
+
+(a) Check for a `verify-*` skill or another way to drive the real app. If absent, offer once:
+
+"want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with /create-verification-skill."
+
+On yes, invoke `/create-verification-skill`. On no, move on without pushing.
+
+(b) Check for a formal verification skill that runs a model checker, a proof, or another verifier against the code. If absent, offer once:
+
+"want a formal verification skill, so agents can prove a key property of your code holds in every case in scope, not only the cases tests reach? I can generate one with /create-formal-verification-skill."
+
+On yes, invoke `/create-formal-verification-skill`. On no, move on without pushing.
+
+## Report
+
+Tell the user which scopes ran, the role file path written, the tracker file written or skipped, and any harness check that still needs a manual change.

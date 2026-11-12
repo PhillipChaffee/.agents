@@ -1,6 +1,6 @@
 ---
-name: writing-skills
 description: Use when creating new skills, editing existing skills, or verifying skills work before deployment
+name: writing-skills
 ---
 
 # Writing Skills
@@ -9,13 +9,13 @@ description: Use when creating new skills, editing existing skills, or verifying
 
 **Writing skills IS Test-Driven Development applied to process documentation.**
 
-**Personal skills live in your runtime's skills directory** (`~/.claude/skills/` on Claude Code) — see [codex-tools.md](../using-superpowers/references/codex-tools.md) or [gemini-tools.md](../using-superpowers/references/gemini-tools.md) for the path on those runtimes. Codex, Copilot CLI, and Gemini CLI all also recognize `~/.agents/skills/` as a cross-runtime alias.
+**Personal skills live in your runtime's skills directory.** Codex, Copilot CLI, Gemini CLI, and the `.agents` protocol all recognize `~/.agents/skills/` as a cross-runtime alias; the other harnesses use their own path. The user-skills row of [harness-adapter.md](../magic-mode/references/harness-adapter.md) names the directory for your harness.
 
 You write test cases (pressure scenarios with subagents), watch them fail (baseline behavior), write the skill (documentation), watch tests pass (agents comply), and refactor (close loopholes).
 
 **Core principle:** If you didn't watch an agent fail without the skill, you don't know if the skill teaches the right thing.
 
-**REQUIRED BACKGROUND:** You MUST understand superpowers:test-driven-development before using this skill. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This skill adapts TDD to documentation.
+**REQUIRED BACKGROUND:** You MUST understand the `/tdd` skill ([tdd](../tdd/SKILL.md)) before using this skill. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This skill adapts TDD to documentation.
 
 **Official guidance:** For Anthropic's official skill authoring best practices, see references/anthropic-best-practices.md. This document provides additional patterns and guidelines that complement the TDD-focused approach in this skill.
 
@@ -30,7 +30,7 @@ A **skill** is a reference guide for proven techniques, patterns, or tools. Skil
 ## TDD Mapping for Skills
 
 | TDD Concept | Skill Creation |
-|-------------|----------------|
+| ------------- | ---------------- |
 | **Test case** | Pressure scenario with subagent |
 | **Production code** | Skill document (SKILL.md) |
 | **Test fails (RED)** | Agent violates rule without skill (baseline) |
@@ -47,12 +47,14 @@ The entire skill creation process follows RED-GREEN-REFACTOR.
 ## When to Create a Skill
 
 **Create when:**
+
 - Technique wasn't intuitively obvious to you
 - You'd reference this again across projects
 - Pattern applies broadly (not project-specific)
 - Others would benefit
 
 **Don't create for:**
+
 - One-off solutions
 - Standard practices well-documented elsewhere
 - Project-specific conventions (put in your instructions file)
@@ -61,18 +63,20 @@ The entire skill creation process follows RED-GREEN-REFACTOR.
 ## Skill Types
 
 ### Technique
+
 Concrete method with steps to follow (condition-based-waiting, root-cause-tracing)
 
 ### Pattern
+
 Way of thinking about problems (flatten-with-flags, test-invariants)
 
 ### Reference
+
 API docs, syntax guides, tool documentation (office docs)
 
 ## Directory Structure
 
-
-```
+```text
 skills/
   skill-name/
     SKILL.md              # Main reference (required)
@@ -82,10 +86,12 @@ skills/
 **Flat namespace** - all skills in one searchable namespace
 
 **Separate files for:**
+
 1. **Heavy reference** (100+ lines) - API docs, comprehensive syntax
 2. **Reusable tools** - Scripts, utilities, templates
 
 **Keep inline:**
+
 - Principles and concepts
 - Code patterns (< 50 lines)
 - Everything else
@@ -113,11 +119,13 @@ earns its place, the graphviz conventions, and how to render one.
 **One excellent example beats many mediocre ones**
 
 Choose most relevant language:
+
 - Testing techniques → TypeScript/JavaScript
 - System debugging → Shell/Python
 - Data processing → Python
 
 **Good example:**
+
 - Complete and runnable
 - Well-commented explaining WHY
 - From real scenario
@@ -125,6 +133,7 @@ Choose most relevant language:
 - Ready to adapt (not generic template)
 
 **Don't:**
+
 - Implement in 5+ languages
 - Create fill-in-the-blank templates
 - Write contrived examples
@@ -134,35 +143,41 @@ You're good at porting - one great example is enough.
 ## File Organization
 
 ### Self-Contained Skill
-```
+
+```text
 defense-in-depth/
   SKILL.md    # Everything inline
 ```
+
 When: All content fits, no heavy reference needed
 
 ### Skill with Reusable Tool
-```
+
+```text
 condition-based-waiting/
   SKILL.md    # Overview + patterns
   example.ts  # Working helpers to adapt
 ```
+
 When: Tool is reusable code, not just narrative
 
 ### Skill with Heavy Reference
-```
+
+```text
 pptx/
   SKILL.md       # Overview + workflows
   pptxgenjs.md   # 600 lines API reference
   ooxml.md       # 500 lines XML structure
   scripts/       # Executable tools
 ```
+
 When: Reference material too large for inline
 
 Invoke bundled scripts through their interpreter in the prose (`bash scripts/tool.sh`, `node scripts/tool.js`), never by bare path: some harness plugin packagers strip executable bits, and a bare `scripts/tool.sh` fails there with `Permission denied`.
 
 ## The Iron Law (Same as TDD)
 
-```
+```text
 NO SKILL WITHOUT A FAILING TEST FIRST
 ```
 
@@ -172,6 +187,7 @@ Write skill before testing? Delete it. Start over.
 Edit skill without testing? Same violation.
 
 **No exceptions:**
+
 - Not for "simple additions"
 - Not for "just adding a section"
 - Not for "documentation updates"
@@ -179,7 +195,26 @@ Edit skill without testing? Same violation.
 - Don't "adapt" while running tests
 - Delete means delete
 
-**REQUIRED BACKGROUND:** The superpowers:test-driven-development skill explains why this matters. Same principles apply to documentation.
+**REQUIRED BACKGROUND:** The `/tdd` skill ([tdd](../tdd/SKILL.md)) explains why this matters. Same principles apply to documentation.
+
+## Wave Delegation
+
+The RED baseline and its pressure tests are subagent seats. Take them from the
+`arena cross-judge pool` role in the `magic-models` role file (see
+[model-roles.md](../magic-mode/references/model-roles.md)), which already
+covers this skill's pressure testers; when the target skill is itself
+discipline-enforcing, use its configured role instead. One fresh-context seat
+per variant, and one no-guidance control beside it.
+
+The drafting step is one wave too. Under `orchestrator: thin`, when the
+harness exposes a subagent tool (see
+[harness-adapter.md](../magic-mode/references/harness-adapter.md)), the root
+chat runs the RED baseline, then dispatches one depth-1 `magic-agent` on the
+`judgment and prose` role (default `deep`) to draft the GREEN and REFACTOR
+`SKILL.md` text from the documented rationalizations, then reruns the same
+scenarios itself. Do the drafting directly in this session when you are
+already inside a depth-1 leaf subagent or the harness exposes no subagent
+tool.
 
 ## Testing All Skill Types
 
@@ -190,6 +225,7 @@ Different skill types need different test approaches:
 **Examples:** TDD, verification-before-completion, designing-before-coding
 
 **Test with:**
+
 - Academic questions: Do they understand the rules?
 - Pressure scenarios: Do they comply under stress?
 - Multiple pressures combined: time + sunk cost + exhaustion
@@ -202,6 +238,7 @@ Different skill types need different test approaches:
 **Examples:** condition-based-waiting, root-cause-tracing, defensive-programming
 
 **Test with:**
+
 - Application scenarios: Can they apply the technique correctly?
 - Variation scenarios: Do they handle edge cases?
 - Missing information tests: Do instructions have gaps?
@@ -213,6 +250,7 @@ Different skill types need different test approaches:
 **Examples:** reducing-complexity, information-hiding concepts
 
 **Test with:**
+
 - Recognition scenarios: Do they recognize when pattern applies?
 - Application scenarios: Can they use the mental model?
 - Counter-examples: Do they know when NOT to apply?
@@ -224,6 +262,7 @@ Different skill types need different test approaches:
 **Examples:** API documentation, command references, library guides
 
 **Test with:**
+
 - Retrieval scenarios: Can they find the right information?
 - Application scenarios: Can they use what they found correctly?
 - Gap testing: Are common use cases covered?
@@ -233,7 +272,7 @@ Different skill types need different test approaches:
 ## Common Rationalizations for Skipping Testing
 
 | Excuse | Reality |
-|--------|---------|
+| -------- | --------- |
 | "Skill is obviously clear" | Clear to you ≠ clear to other agents. Test it. |
 | "It's just a reference" | References can have gaps, unclear sections. Test retrieval. |
 | "Testing is overkill" | Untested skills have issues. Always. 15 min testing saves hours. |
@@ -250,7 +289,7 @@ Different skill types need different test approaches:
 Before writing guidance, classify the baseline failure. The form that bulletproofs one failure type measurably backfires on another.
 
 | Baseline failure | Right form | Wrong form |
-|---|---|---|
+| --- | --- | --- |
 | Skips/violates a rule under pressure (knows better, does it anyway) | Prohibition + rationalization table + red flags (see references/bulletproofing.md) | Soft guidance ("prefer...", "consider...") |
 | Complies, but output has the wrong shape (bloated prompt, buried verdict, restated spec) | Positive recipe or contract: state what the output IS — its parts, in order | Prohibition list ("don't restate", "never narrate") |
 | Omits a required element from something they already produce | Structural: REQUIRED field or slot in the template they fill in | Prose reminders near the template |
@@ -259,6 +298,7 @@ Before writing guidance, classify the baseline failure. The form that bulletproo
 **Why prohibitions backfire on shaping problems:** under a competing incentive ("make the prompt self-contained"), agents negotiate with "don't X". In head-to-head wording tests on dispatch-prompt guidance, the prohibition arm produced clearly more of the unwanted content than the recipe arm (fully separated distributions), and trended worse than even the no-guidance control — micro-test your own case rather than assuming, but never reach for the prohibition by default. A recipe leaves nothing to negotiate: the output matches the stated shape or it doesn't.
 
 **Rules for whichever form you pick:**
+
 - **No nuance clauses.** "Don't X unless it matters" reopens the negotiation — appending a single nuance clause to a winning recipe degraded it from consistent to noisy in the same wording tests. Express a real exception as its own conditional on an observable predicate.
 - **Exemption clauses don't scope.** "This limit doesn't apply to code blocks" still suppresses code blocks. If part of the output must be exempt, restructure so the rule can't reach it.
 
@@ -275,7 +315,10 @@ Follow the TDD cycle:
 
 ### RED: Write Failing Test (Baseline)
 
-Run pressure scenario with subagent WITHOUT the skill. Document exact behavior:
+Run pressure scenario with subagent WITHOUT the skill. Take the seat from the
+`arena cross-judge pool` role (see `## Wave Delegation`), one fresh-context
+subagent per scenario. Document exact behavior:
+
 - What choices did they make?
 - What rationalizations did they use (verbatim)?
 - Which pressures triggered violations?
@@ -296,7 +339,7 @@ Agent found new rationalization? Add explicit counter. Re-test until bulletproof
 
 Full pressure-scenario runs are the final gate, but they are slow and expensive per iteration. Verify the wording itself first with micro-tests:
 
-1. **One fresh-context sample per call** — a raw API call, or a single-shot subagent if you don't have API access. System prompt = the realistic context the guidance will live in (the full skill or prompt template, not the guidance in isolation); user message = a task that tempts the failure.
+1. **One fresh-context sample per call** — a raw API call, or a single-shot subagent on the `arena cross-judge pool` role if you don't have API access. System prompt = the realistic context the guidance will live in (the full skill or prompt template, not the guidance in isolation); user message = a task that tempts the failure.
 2. **Always include a no-guidance control.** If the control doesn't exhibit the failure, there is nothing to fix — stop, don't author the guidance.
 3. **5+ reps per variant.** Single samples lie.
 4. **Manually read every flagged match.** Score programmatically if you like, but template echoes and quoted counter-examples masquerade as hits; automated counts alone overstate both failure and success.
@@ -305,6 +348,7 @@ Full pressure-scenario runs are the final gate, but they are slow and expensive 
 Micro-tests verify wording; they do not replace pressure scenarios for discipline skills.
 
 **Testing methodology:** See [references/testing-skills-with-subagents.md](references/testing-skills-with-subagents.md) for the complete testing methodology:
+
 - How to write pressure scenarios
 - Pressure types (time, sunk cost, authority, exhaustion)
 - Plugging holes systematically
@@ -313,21 +357,26 @@ Micro-tests verify wording; they do not replace pressure scenarios for disciplin
 ## Anti-Patterns
 
 ### ❌ Narrative Example
+
 "In session 2025-10-03, we found empty projectDir caused..."
 **Why bad:** Too specific, not reusable
 
 ### ❌ Multi-Language Dilution
+
 example-js.js, example-py.py, example-go.go
 **Why bad:** Mediocre quality, maintenance burden
 
 ### ❌ Code in Flowcharts
+
 ```dot
 step1 [label="import fs"];
 step2 [label="read file"];
 ```
+
 **Why bad:** Can't copy-paste, hard to read
 
 ### ❌ Generic Labels
+
 helper1, helper2, step3, pattern4
 **Why bad:** Labels should have semantic meaning
 
@@ -336,6 +385,7 @@ helper1, helper2, step3, pattern4
 **After writing ANY skill, you MUST STOP and complete the deployment process.**
 
 **Do NOT:**
+
 - Create multiple skills in batch without testing each
 - Move to next skill before current one is verified
 - Skip testing because "batching is more efficient"
@@ -349,11 +399,13 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 **IMPORTANT: Create a todo for EACH checklist item below.**
 
 **RED Phase - Write Failing Test:**
+
 - [ ] Create pressure scenarios (3+ combined pressures for discipline skills)
 - [ ] Run scenarios WITHOUT skill - document baseline behavior verbatim
 - [ ] Identify patterns in rationalizations/failures
 
 **GREEN Phase - Write Minimal Skill:**
+
 - [ ] Name uses only letters, numbers, hyphens (no parentheses/special chars)
 - [ ] YAML frontmatter with required `name` and `description` fields (max 1024 chars; see [spec](https://agentskills.io/specification))
 - [ ] Description starts with "Use when..." and includes specific triggers/symptoms
@@ -368,6 +420,7 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 - [ ] Run scenarios WITH skill - verify agents now comply
 
 **REFACTOR Phase - Close Loopholes:**
+
 - [ ] Identify NEW rationalizations from testing
 - [ ] Add explicit counters (if discipline skill)
 - [ ] Build rationalization table from all test iterations
@@ -375,6 +428,7 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 - [ ] Re-test until bulletproof
 
 **Quality Checks:**
+
 - [ ] Small flowchart only if decision non-obvious
 - [ ] Quick reference table
 - [ ] Common mistakes section
@@ -382,6 +436,7 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 - [ ] Supporting files only for tools or heavy reference
 
 **Deployment:**
+
 - [ ] Commit skill to git and push to your fork (if configured)
 - [ ] Consider contributing back via PR (if broadly useful)
 

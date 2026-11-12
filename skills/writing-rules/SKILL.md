@@ -9,7 +9,7 @@ name: writing-rules
 
 ## Overview
 
-**Writing rules IS Test-Driven Development applied to always-on agent constraints—governed by a strict context-window tax budget.**
+**Writing rules IS Test-Driven Development applied to always-on agent constraints, governed by a strict context-window tax budget.**
 
 Unlike a skill (which costs ~30 tokens of metadata until triggered) or a plan (which guides one feature), an `alwaysApply: true` rule or root `agents.md` bullet sits in the context window on **every turn of every session**. Every unnecessary rule, no-op platitude, or multi-step workflow stuffed into a rule permanently taxes attention across all tasks.
 
@@ -17,7 +17,13 @@ Unlike a skill (which costs ~30 tokens of metadata until triggered) or a plan (w
 
 **Announce at start:** "I'm using the writing-rules skill to triage, author, and test this rule."
 
-**REQUIRED BACKGROUND:** Understand [`/writing-skills`](../writing-skills/SKILL.md) (RED-GREEN-REFACTOR pressure testing), [`/correct`](../correct/SKILL.md) (the structural enforcement hierarchy), and [`/principle-encode-lessons-in-structure`](../principle-encode-lessons-in-structure/SKILL.md).
+**REQUIRED BACKGROUND.** Understand [`/writing-skills`](../writing-skills/SKILL.md) (RED-GREEN-REFACTOR pressure testing), [`/correct`](../correct/SKILL.md) (the structural enforcement hierarchy), and [`/principle-encode-lessons-in-structure`](../principle-encode-lessons-in-structure/SKILL.md).
+
+## Dispatch model
+
+Wave 2 and Wave 3 are subagent runs, never self-assessment. The RED baseline goes to a fresh subagent on the `arena cross-judge pool` role, which selects a family different from the one that wrote the rule, so the grader is not the author. When the rule targets a cheap mechanical task, the same wave can use the `fast, mechanical, miners` role, and the GREEN fix loop runs on `feature, refactoring` at the target agent's tier.
+
+Under `orchestrator: thin`, when the harness exposes a subagent tool, drafting the rule and running `./scripts/validate.sh` on the result happen inside one depth-1 `magic-agent` on the `judgment and prose` role (`deep`). The root chat only relays the drafted rule and the validator output to the user, which keeps the multi-round pressure transcripts out of the root context. When the harness exposes no subagent tool, draft and validate inline in this session.
 
 ## Triage First: Structure vs. Skill vs. Rule
 
@@ -139,34 +145,34 @@ NO RULE WITHOUT A FAILING BASELINE AND A STRUCTURAL-ENFORCEMENT CHECK FIRST
 
 Follow the five-step RED-GREEN-REFACTOR loop for every new or edited rule:
 
-- [ ] **Step 1 — Structural & Triage Gate:** Verify the rule cannot be enforced by a linter/hook/script ([`/correct`](../correct/SKILL.md)), is not a multi-step workflow ([`/writing-skills`](../writing-skills/SKILL.md)), and is placed in the right scope (global kit `rules/` vs. project-local rules per ADR-0002).
-- [ ] **Step 2 — RED (Baseline Without Rule):** Run a fresh subagent on a realistic task **without** the rule present (combining 3+ pressures: time deadline, authority override, sunk cost, or "keep it simple").
+- [ ] **Step 1 (Gate Placement).** Verify the rule cannot be enforced by a linter/hook/script ([`/correct`](../correct/SKILL.md)), is not a multi-step workflow ([`/writing-skills`](../writing-skills/SKILL.md)), and is placed in the right scope (global kit `rules/` vs. project-local rules per ADR-0002).
+- [ ] **Step 2 (RED, Baseline Without the Rule).** Run a fresh subagent on a realistic task **without** the rule present, on the `arena cross-judge pool` role, combining 3+ pressures (time deadline, authority override, sunk cost, or "keep it simple").
   - If the subagent already complies without the rule $\to$ **STOP and delete the rule** (it is a no-op).
   - If the subagent violates the invariant $\to$ record the exact choice and rationalizations verbatim.
-- [ ] **Step 3 — GREEN (Write Minimal Rule & Verify):** Author the rule under the word budget with sorted frontmatter (`alwaysApply`, `description`) and zero nuance loopholes. Re-run the subagent **with** the rule loaded under the same pressures and confirm compliance.
-- [ ] **Step 4 — REFACTOR (Close Loopholes):** If the subagent invents a new rationalization or hybrid workaround, add an explicit counter in `## Never` or narrow `## Exceptions` to an observable predicate, then re-test.
-- [ ] **Step 5 — Validate Kit Contract:** Run `./scripts/validate.sh` (plus `markdownlint-cli2` and `typos`) and confirm 0 errors and 0 frontmatter sort warnings.
+- [ ] **Step 3 (GREEN, Write the Minimal Rule and Verify).** Author the rule under the word budget with sorted frontmatter (`alwaysApply`, `description`) and zero nuance loopholes. Re-run the subagent **with** the rule loaded under the same pressures and confirm compliance. The fix loop runs on `feature, refactoring` at the target agent's tier.
+- [ ] **Step 4 (REFACTOR, Close Loopholes).** If the subagent invents a new rationalization or hybrid workaround, add an explicit counter in `## Never` or narrow `## Exceptions` to an observable predicate, then re-test.
+- [ ] **Step 5 (Validate the Kit Contract).** Run `./scripts/validate.sh` (plus `markdownlint-cli2` and `typos`) and confirm 0 errors and 0 frontmatter sort warnings.
 
 ## Worked Examples from This Kit
 
-**Good operational rule ([`rules/sleeps-and-polling.md`](../../rules/sleeps-and-polling.md), 66 words):**
+**Good operational rule ([`rules/large-file-creation.md`](../../rules/large-file-creation.md), 49 body words, quoted verbatim):**
 
 ```markdown
 ---
 alwaysApply: true
 description: >-
-  Cap single-call sleeps at 30 seconds or less and poll in short increments when
-  waiting on CI, background jobs, or builds.
+  Write files larger than 300 lines in chunks of 300 lines or fewer and verify
+  the final line count with wc -l.
 ---
 
-# Sleeps and polling
+# Large file creation
 
-Never hold a `sleep` longer than **30 seconds** in one tool call. When waiting
-on CI, background jobs, or builds, poll in ≤30s increments (or use whatever
-poll primitive the tool offers) and return control between polls so the user
-can steer. Prefer announcing the check ("polling CI, back in a moment") over
-blocking silently; only one long wait is ever justified — a final gate whose
-output the next single step needs verbatim, and even then say so first.
+When creating files larger than ~300 lines:
+
+- Never emit the full content in one Write/heredoc call.
+- Write the header/first section, then append successive sections
+  with Edit or `cat >>` heredocs of <=300 lines each.
+- Verify with `wc -l` after the final append.
 ```
 
 **Good root instruction entry ([`agents.kit.md`](../../agents.kit.md), 1 bullet per rule):**

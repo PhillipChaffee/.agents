@@ -9,7 +9,7 @@ name: auditing-proof-specifications
 
 ## Overview
 
-Even when a theorem prover or model checker prints `VERIFICATION SUCCESSFUL` (exit code `0`), a system can still fail in production. A proof checker verifies that the proof term or code satisfies the stated specification under the stated axioms and bounds—it **never** verifies that you stated the right theorem, that your model matches production code, that bounded checks hold above bound $K$, or that side-channels outside the mathematical semantics are absent.
+Even when a theorem prover or model checker prints `VERIFICATION SUCCESSFUL` (exit code `0`), a system can still fail in production. A proof checker verifies that the proof term or code satisfies the stated specification under the stated axioms and bounds, and it **never** verifies that you stated the right theorem, that your model matches production code, that bounded checks hold above bound $K$, or that side-channels outside the mathematical semantics are absent.
 
 **A passing verifier with a weak spec, an escape hatch, or an unlinked model is a false proof.** Never approve or claim completion on a formal verification change without auditing all four remaining gaps, locking the contract AST (`verify-spec-lock.mjs`), and running the escape-hatch detector (`check-proof-cheats.mjs`).
 
@@ -20,6 +20,10 @@ Even when a theorem prover or model checker prints `VERIFICATION SUCCESSFUL` (ex
 - Reviewing AI-generated or human-authored PRs containing Verus, Dafny, SPARK, Lean 4, Rocq, Kani, CBMC, TLA+, or Frama-C proofs.
 - Designing CI gates to prevent AI specification gaming (`sorry`, `admit`, `assume`, `external_body`, `trusted`, weakened `ensures`, strengthened `requires`).
 - Bridging a formal model (Lean 4, TLA+, P, Alloy) to a production implementation in Rust, Go, TypeScript, C, or Python.
+
+## Wave Assignment
+
+This skill is a depth-1 leaf and the **Wave 4** auditor in the `/proof-driven-development` pipeline. Under `orchestrator: thin`, the root chat dispatches it on a seat from the `arena cross-judge pool` (`deep`), preferring a family different from both the chat's `orchestrator:` line and the family that wrote the proof. It executes directly in this session and spawns no subagent, because a second wave inside a leaf would nest a wave inside a wave. When the harness exposes no subagent tool, run it inline in this session as well. The verdict goes back to the parent as the 4-Gap report plus the commands it ran.
 
 ## The Four Remaining Gaps Audit Contract (REQUIRED in Every Audit)
 
@@ -34,7 +38,7 @@ A proof only guarantees the specification you wrote. Check **completeness**, **m
   - *Protocol/serialization trap:* Proving memory safety and cipher primitives while omitting wire-protocol field ordering (e.g., swapping `shared_secret` and `exchange_hash` in SSH key derivation).
   - *Policy trap:* Proving positive authorization (`permit` grants access) without negative dominance (`forbid` always overrides `permit`).
 - **Mechanized Non-Vacuity Lemmas (`verify_spec_not_vacuous`):** Did the author strengthen `requires` or `kani::assume` (e.g., `requires msg.len() == 0` or contradictory invariants) so valid runtime inputs are excluded and $P \implies Q$ passes vacuously? Require a mechanized `proof fn verify_spec_not_vacuous` lemma (proving $\exists s.\; \text{inv}(s) \land P(s) \land Q(s)$ on contract skeletons) or `kani::cover!` statements proving non-trivial paths are reachable.
-- **The $N$-Mutant Specification Kill Gate (Gate C):** To prove the specifications themselves have zero logical gaps, plant $N$ single-line semantic mutations (one per theorem ID, such as inverting a priority tie-breaker, dropping an uninterruptible item on `reset()`, or skipping a guard) in a scratch copy of the reference or target codebase and verify that the spec probes/oracles kill **100% ($N/N$) of planted mutants** while passing on the unmutated code. Every mutant probe must execute behavioral code—source-text regex checks (`inspect.getsource`) do not count.
+- **The $N$-Mutant Specification Kill Gate (Gate C):** To prove the specifications themselves have zero logical gaps, plant $N$ single-line semantic mutations (one per theorem ID, such as inverting a priority tie-breaker, dropping an uninterruptible item on `reset()`, or skipping a guard) in a scratch copy of the reference or target codebase and verify that the spec probes/oracles kill **100% ($N/N$) of planted mutants** while passing on the unmutated code. Every mutant probe must execute behavioral code, since source-text regex checks (`inspect.getsource`) do not count.
 - **AST-Extracted Contract Locking (`spec.lock`):** Raw `git diff --exit-code` fails when specifications (`spec fn`, `requires`, `ensures`) and executable implementation bodies (`{ ... }` + loop invariants) live in the same source file (Verus, Dafny, SPARK, Frama-C). Before AI proof/code synthesis begins, extract and hash only the specification AST (`.tla`, `.cfg`, `.lean`, type definitions, `spec fn`, `verify_spec_not_vacuous`, `requires`/`ensures` headers, and `#[kani::proof]` harnesses) into `spec.lock`, then verify `spec.lock` after synthesis so executable bodies can be filled in while contract modifications fail CI.
 
 ### Gap 2: The Model-to-Implementation Gap
@@ -43,13 +47,13 @@ Design-level specifications (TLA+, Alloy, P) and standalone proof-assistant mode
 
 - **Atomicity mismatch:** Did the model treat a database read-modify-write or two network RPCs as one atomic step while production performs them without a lock or epoch fence?
 - **3-Gate Pre-Synthesis Spec Validation (When Reference Code Exists):** Before trusting a new TLA+ or Lean 4 specification to drive a rewrite or port, validate the specification against the existing reference implementation:
-  1. **Gate A — Forward Runtime Trace Validation (`*Trace.tla`):** Attach a non-invasive trace observer to the reference test suite (`pytest` / `vitest` / `cargo test`), record NDJSON state/event traces, and run `TLC` on trace validation specs (`TraceAcceptedProperty == <>(pc > Len(TraceData))`) to prove the TLA+ model accepts 100% of real system traces.
-  2. **Gate B — Persistent Spec Oracle Differential Fuzzing:** Compile the functional specification (e.g., Lean 4) into a persistent `stdin`/`stdout` JSON-lines oracle binary and run $50{,}000$+ property-based examples (`Hypothesis` / `proptest` / `fast-check`) per module comparing the reference code against the Spec Oracle (`0` discrepancies).
-  3. **Gate C — $N$-Mutant Spec Kill Gate:** Verify that the Gate A/B spec checks kill 100% ($N/N$) of planted single-line semantic mutations in the reference code.
+  1. **Gate A (Forward Runtime Trace Validation in `*Trace.tla`).** Attach a non-invasive trace observer to the reference test suite (`pytest` / `vitest` / `cargo test`), record NDJSON state/event traces, and run `TLC` on trace validation specs (`TraceAcceptedProperty == <>(pc > Len(TraceData))`) to prove the TLA+ model accepts 100% of real system traces.
+  2. **Gate B (Persistent Spec Oracle Differential Fuzzing).** Compile the functional specification (e.g., Lean 4) into a persistent `stdin`/`stdout` JSON-lines oracle binary and run $50{,}000$+ property-based examples (`Hypothesis` / `proptest` / `fast-check`) per module comparing the reference code against the Spec Oracle (`0` discrepancies).
+  3. **Gate C ($N$-Mutant Spec Kill Gate).** Verify that the Gate A/B spec checks kill 100% ($N/N$) of planted single-line semantic mutations in the reference code.
 - **Post-Synthesis Implementation Conformance Bridge:** If the proof does not run directly on the compiled source code, require at least one automated bridge in CI:
   1. **Verified code extraction / translation:** Aeneas (Rust $\to$ Lean 4), Fiat Cryptography (Rocq $\to$ C/Rust), KaRaMeL (F\* $\to$ C).
   2. **Refinement proof:** Proving every concrete implementation transition maps to a valid abstract state-machine step (e.g., Anvil, TLA-Verus).
-  3. **High-volume differential harness ($10^5$–$10^6$ traces) + Black-Box Wire Evals:** Running multi-threaded `proptest` / `Hypothesis` differential traces comparing the new implementation against the persistent Spec Oracle and reference engine, plus running end-to-end black-box protocol evaluation suites against the compiled binary.
+  3. **High-volume differential harness ($10^5$ to $10^6$ traces) + Black-Box Wire Evals:** Running multi-threaded `proptest` / `Hypothesis` differential traces comparing the new implementation against the persistent Spec Oracle and reference engine, plus running end-to-end black-box protocol evaluation suites against the compiled binary.
 
 ### Gap 3: Bounded vs. Unbounded Guarantees
 

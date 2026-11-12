@@ -1,11 +1,12 @@
 # Writing SKILL.md for Discovery
 
-Part of superpowers:writing-skills: the SKILL.md template and how to name,
+Part of `/writing-skills`: the SKILL.md template and how to name,
 describe and size a skill so agents find it and read it.
 
 ## SKILL.md Structure
 
 **Frontmatter (YAML):**
+
 - Two required fields: `name` and `description` (see [agentskills.io/specification](https://agentskills.io/specification) for all supported fields)
 - Max 1024 characters total
 - `name`: Use letters, numbers, and hyphens only (no parentheses, special chars)
@@ -49,7 +50,6 @@ What goes wrong + fixes
 Concrete results
 ```
 
-
 ## Skill Discovery Optimization (SDO)
 
 **Critical for discovery:** Future agents need to FIND your skill
@@ -85,6 +85,7 @@ description: Use when implementing any feature or bugfix, before writing impleme
 ```
 
 **Content:**
+
 - Use concrete triggers, symptoms, and situations that signal this skill applies
 - Describe the *problem* (race conditions, inconsistent behavior) not *language-specific symptoms* (setTimeout, sleep)
 - Keep triggers technology-agnostic unless the skill itself is technology-specific
@@ -112,6 +113,7 @@ description: Use when using React Router and handling authentication redirects
 ### 2. Keyword Coverage
 
 Use words an agent would search for:
+
 - Error messages: "Hook timed out", "ENOTEMPTY", "race condition"
 - Symptoms: "flaky", "hanging", "zombie", "pollution"
 - Synonyms: "timeout/hang/freeze", "cleanup/teardown/afterEach"
@@ -120,6 +122,7 @@ Use words an agent would search for:
 ### 3. Descriptive Naming
 
 **Use active voice, verb-first:**
+
 - ✅ `creating-skills` not `skill-creation`
 - ✅ `condition-based-waiting` not `async-test-helpers`
 
@@ -128,6 +131,7 @@ Use words an agent would search for:
 **Problem:** getting-started and frequently-referenced skills load into EVERY conversation. Every token counts.
 
 **Target word counts:**
+
 - getting-started workflows: <150 words each
 - Frequently-loaded skills: <200 words total
 - Other skills: <500 words (still be concise)
@@ -135,6 +139,7 @@ Use words an agent would search for:
 **Techniques:**
 
 **Move details to tool help:**
+
 ```bash
 # ❌ BAD: Document all flags in SKILL.md
 search-conversations supports --text, --both, --after DATE, --before DATE, --limit N
@@ -144,6 +149,7 @@ search-conversations supports multiple modes and filters. Run --help for details
 ```
 
 **Use cross-references:**
+
 ```markdown
 # ❌ BAD: Repeat workflow details
 When searching, dispatch subagent with template...
@@ -154,6 +160,7 @@ Always use subagents (50-100x context savings). REQUIRED: Use [other-skill-name]
 ```
 
 **Compress examples:**
+
 ```markdown
 # ❌ BAD: Verbose example (42 words)
 your human partner: "How did we handle authentication errors in React Router before?"
@@ -167,24 +174,28 @@ You: Searching...
 ```
 
 **Eliminate redundancy:**
+
 - Don't repeat what's in cross-referenced skills
 - Don't explain what's obvious from command
 - Don't include multiple examples of same pattern
 
 **Verification:**
+
 ```bash
-wc -w skills/path/SKILL.md
+wc -w <skill>/SKILL.md
 # getting-started workflows: aim for <150 each
 # Other frequently-loaded: aim for <200 total
 ```
 
 **Name by what you DO or core insight:**
+
 - ✅ `condition-based-waiting` > `async-test-helpers`
 - ✅ `using-skills` not `skill-usage`
 - ✅ `flatten-with-flags` > `data-structure-refactoring`
 - ✅ `root-cause-tracing` > `debugging-techniques`
 
 **Gerunds (-ing) work well for processes:**
+
 - `creating-skills`, `testing-skills`, `debugging-with-logs`
 - Active, describes the action you're taking
 
@@ -193,9 +204,10 @@ wc -w skills/path/SKILL.md
 **When writing documentation that references other skills:**
 
 Use skill name only, with explicit requirement markers:
-- ✅ Good: `**REQUIRED SUB-SKILL:** Use superpowers:test-driven-development`
-- ✅ Good: `**REQUIRED BACKGROUND:** You MUST understand superpowers:systematic-debugging`
-- ❌ Bad: `See skills/testing/test-driven-development` (unclear if required)
-- ❌ Bad: `@skills/testing/test-driven-development/SKILL.md` (force-loads, burns context)
+
+- ✅ Good: `**REQUIRED SUB-SKILL:** Use /tdd`
+- ✅ Good: `**REQUIRED BACKGROUND:** You MUST understand /diagnosing-bugs`
+- ❌ Bad: `See the tdd skill` (unclear if required)
+- ❌ Bad: `@skills/tdd/SKILL.md` (force-loads, burns context)
 
 **Why no @ links:** `@` syntax force-loads files immediately, consuming 200k+ context before you need them.

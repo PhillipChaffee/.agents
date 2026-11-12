@@ -15,6 +15,10 @@ Under the **Curry-Howard correspondence**, mathematical logic and static type sy
 
 **REQUIRED SUB-SKILL:** Use `auditing-proof-specifications` before claiming any proof is complete.
 
+## Wave Assignment
+
+This skill is a depth-1 leaf. Under `orchestrator: thin`, the root chat either dispatches it as a **Wave 3** worker from the `/proof-driven-development` pipeline or wraps it as a heavy leaf, and it runs on the `hardest tasks` role (`deep`). It executes directly in this session and spawns no subagent, because a second wave inside a leaf would nest a wave inside a wave. When the harness exposes no subagent tool, run it inline in this session as well. The hand-off back to the parent is the report plus the exact commands it must run, and the spec audit stays with `/auditing-proof-specifications`.
+
 ## When to Use
 
 - Proving deep mathematical laws that defeat automated SMT solvers: compiler optimization equivalence, cryptographic primitives, recursive AST evaluators, or authorization policy lattices (e.g., "`forbid` always overrides `permit`").
@@ -49,7 +53,7 @@ Under the **Curry-Howard correspondence**, mathematical logic and static type sy
 Whenever you write or review a dependent-type proof (or pair it with a mainstream type encoding), include all four parts below in order, even when asked for a quick shortcut:
 
 1. **Universal Specification & Multi-Step Reachability:**
-   - State theorems with universal quantification ($\forall$) over arbitrary inputs, lists, or ASTs—never finite sample fixtures.
+   - State theorems with universal quantification ($\forall$) over arbitrary inputs, lists, or ASTs, never finite sample fixtures.
    - Keep all domain types and state-transition functions in the specification modules 100% total (`def`, never `partial def` or `noncomputable`).
    - When proving state-machine safety or impossibility, define an inductive **multi-step reachability relation** (`Reachable : State -> Prop` with `init` and step constructors), not merely a single-step negation (`¬ Step s s'`).
 2. **Complete Constructive Proof Strategy:**
@@ -65,7 +69,7 @@ Whenever you write or review a dependent-type proof (or pair it with a mainstrea
      2. Implement a **Persistent `stdin`/`stdout` JSON-Lines Server (`OracleMain.lean`)** spawned once per test worker: read one JSON trace line from `stdin`, evaluate the pure total Lean model function, write one JSON result line to `stdout`, and call `stdout.flush`. (Only the outer `IO` stream loop in `OracleMain.lean` may use `partial def loop`; all model functions remain total.)
    - **Two-Stage (Three-Way) Differential Conformance (`Reference == Lean Oracle == Target`):**
      - **Stage 1 (Spec-vs-Reference Gate):** When porting or replacing an existing system (e.g., Python), run $50{,}000$+ property-based traces (`Hypothesis` / `fast-check`) per module comparing the *existing reference implementation* against the persistent Lean 4 oracle binary to prove the spec itself has zero unintended divergence from reality.
-     - **Stage 2 (Target-vs-Oracle & Reference Gate):** Run $10^5$–$10^6$ multi-threaded property-based traces (`proptest`) comparing the *new implementation* against the Lean 4 oracle and reference implementation.
+     - **Stage 2 (Target-vs-Oracle & Reference Gate):** Run $10^5$ to $10^6$ multi-threaded property-based traces (`proptest`) comparing the *new implementation* against the Lean 4 oracle and reference implementation.
 
 ## Core Pattern: Multi-Step Reachability Proof + Persistent `stdin`/`stdout` JSON-Lines Spec Oracle in Lean 4
 

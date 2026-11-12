@@ -74,7 +74,7 @@ for d in skills:
     if "id" in keys and keys["id"].split("id:", 1)[-1].strip() != d.name:
         fail(f"{rel}: id does not match directory name")
     if order != sorted(order):
-        warn(f"{rel}: frontmatter keys not sorted")
+        fail(f"{rel}: frontmatter keys not sorted")
 
 # 2. Agent frontmatter contract
 for d in agents:
@@ -90,7 +90,7 @@ for d in agents:
     if keys.get("id", "").split("id:", 1)[-1].strip() != d.name:
         fail(f"{rel}: id does not match directory name")
     if order != sorted(order):
-        warn(f"{rel}: frontmatter keys not sorted")
+        fail(f"{rel}: frontmatter keys not sorted")
 
 # 2b. Rule frontmatter contract
 for p in rule_files:
@@ -104,7 +104,7 @@ for p in rule_files:
         if k not in keys:
             fail(f"{rel}: missing frontmatter key '{k}'")
     if order != sorted(order):
-        warn(f"{rel}: frontmatter keys not sorted")
+        fail(f"{rel}: frontmatter keys not sorted")
 
 if not agents:
     warn("agents/ tree absent — agent-reference checks skipped")
@@ -115,16 +115,17 @@ AGENT_REF = re.compile(
 )
 SKILL_CMD = re.compile(r"`/([a-z][a-z0-9-]*)`")
 # A /name followed by "/" or "<" is a path or a placeholder such as
-# /verify-<app>, not a skill; "=" or "$" before it is a shell assignment.
-SLASH_REF = re.compile(r"(?<![`\w:./>~=$-])/([a-z](?:[a-z0-9-]*[a-z0-9])?)(?![a-z0-9/<-])")
+# /verify-<app>, not a skill; "=" or "$" before it is a shell assignment,
+# and "<" before it opens an XML-style tag list rather than naming a skill.
+SLASH_REF = re.compile(r"(?<![`\w:./<>~=$-])/([a-z](?:[a-z0-9-]*[a-z0-9])?)(?![a-z0-9/<-])")
 SKILL_PATH = re.compile(r"skills/([a-z][a-z0-9-]*)/SKILL\.md")
 RULE_REF = re.compile(r"rules/([a-z][a-z0-9-]*)\.md")
 EXTERNAL_SKILL_IDS = {
     "add-language",
-    "canvas", "create-rule", "create-skill",
+    "canvas", "create-rule",
     "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs",
     "grilling", "handoff", "implement", "improve-codebase-architecture",
-    "setup-matt-pocock-skills", "tdd", "to-spec", "to-tickets", "triage",
+    "setup-matt-pocock-skills", "to-spec", "to-tickets", "triage",
     "wayfinder",
     "loop",
 }
@@ -139,6 +140,7 @@ MAPPING_DOCS = {
     "skills/magic-mode/references/harness-adapter.md",
     "skills/magic-mode/references/model-roles.md",
     "skills/magic-mode/references/forge-operations.md",
+    "skills/setup-magic/references/issue-tracker-templates.md",
 }
 # Files the owner restored to upstream wording on purpose.
 VERBATIM_LIST = Path("scripts/magic-verbatim.txt")
@@ -147,10 +149,12 @@ if VERBATIM_LIST.exists():
         line = line.strip()
         if line and not line.startswith("#"):
             MAPPING_DOCS.add(line)
-# ADR-0001 and ADR-0007 guard: no vendor model slug, Cursor subagent
-# field, or forge CLI in kit skills and agents.
+# ADR-0001 and ADR-0007 guard: no vendor model slug, capitalized
+# vendor model prose name, Cursor subagent field, or forge CLI in kit skills
+# and agents.
 BANNED = re.compile(
     r"\b(?:grok|composer|gpt|gemini)-[0-9]|\bclaude-[a-z]+-[0-9]|"
+    r"\bClaude (?:Opus|Sonnet|Haiku)\b|\bGPT-[0-9]|\bGemini [0-9]|\bGrok [0-9]|"
     r"subagent_type: generalPurpose|environment: \"(?:cloud|local)\"|"
     r"cloud_base_branch|\bAskQuestion\b|cursor-team-kit|\bBugbot\b|"
     r"~/\.cursor|magic-models\.mdc|\borigin pr\b|\bgh (?:pr|api|issue)\b|"
@@ -165,8 +169,6 @@ if Path("agents.kit.md").exists():
 for md in md_files:
     text = md.read_text()
     rel = str(md)
-    if rel.startswith(("skills/writing-skills/", "skills/writing-plans/", "skills/subagent-driven-development/")):
-        continue
     # 3. Agent references resolve
     for ref in set(AGENT_REF.findall(text)):
         if agents and ref not in agent_ids:
@@ -201,6 +203,46 @@ for md in md_files:
     if rel not in MAPPING_DOCS:
         for hit in sorted(set(BANNED.findall(text))):
             fail(f"{rel}: harness-, model-, or forge-specific term {hit!r} (ADR-0001, ADR-0007)")
+    # 7. Code fence pairing check
+    in_fence = False
+    fence_char = None
+    fence_len = 0
+    fence_line = 0
+    for line_num, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        m = re.match(r"^(`{3,}|~{3,})(.*)$", stripped)
+        if m:
+            chars = m.group(1)
+            info = m.group(2).strip()
+            ch = chars[0]
+            length = len(chars)
+            if not in_fence:
+                in_fence = True
+                fence_char = ch
+                fence_len = length
+                fence_line = line_num
+            elif ch == fence_char and length >= fence_len:
+                if info:
+                    fail(f"{rel}:{line_num}: closing code fence has unexpected info string {info!r}")
+                in_fence = False
+    if in_fence:
+        fail(f"{rel}:{fence_line}: unclosed code fence at end of file")
+    # 8. Relative markdown links resolve
+    clean_text = re.sub(r"```[\s\S]*?```", "", text)
+    clean_text = re.sub(r"~~~[\s\S]*?~~~", "", clean_text)
+    clean_text = re.sub(r"`[^`\n]+`", "", clean_text)
+    for m in re.finditer(r"(?<!!)(?<!`)\[([^\]]+)\]\(([^)\s]+)\)", clean_text):
+        target = m.group(2).strip()
+        if re.match(r"^(?:https?://|mailto:|#|data:|<)", target) or "<" in target or ">" in target:
+            continue
+        if target in ("url", "URI", "link"):
+            continue
+        target_path = target.split("#")[0].split("?")[0].strip()
+        if not target_path:
+            continue
+        resolved = (md.parent / target_path).resolve()
+        if not resolved.exists():
+            fail(f"{rel}: relative link to non-existent target '{target}'")
 
 for w in warns:
     print(f"WARN {w}")

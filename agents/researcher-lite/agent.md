@@ -5,6 +5,7 @@ description: >-
   investigation. Use for mechanical subtasks: locating a definition or call sites,
   reading a specific file, extracting config values, confirming a single fact.
   Reads the codebase, the web, and MCP tools; never edits files.
+disallowedTools: ["Agent", "Edit", "MultiEdit", "NotebookEdit", "Write"]
 enabled: true
 id: researcher-lite
 name: researcher-lite

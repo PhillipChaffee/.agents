@@ -11,13 +11,17 @@ name: model-checking-protocols-and-code
 
 Model checking explores every reachable state transition, thread/message schedule interleaving, or bit pattern within a stated scope across three complementary tiers:
 
-1. **Tier A — Design-level temporal model checking (TLA+, P, Alloy):** Verifies state machines (`Init`, `Next`) against **Safety** invariants ($\Box I$, "nothing bad ever happens") and **Liveness** properties ($\Box(P \implies \Diamond Q)$, "something good eventually happens" under fairness), plus forward trace validation (`*Trace.tla`) against recorded execution logs.
-2. **Tier B — Code-level stateless concurrency model checking / DPOR (Loom, Shuttle, GenMC):** Exhaustively permutes thread interleavings, `Mutex` locks, and C11/Rust atomic memory orderings (`Acquire`/`Release`/`SeqCst`) directly on the implementation's concurrent wrapper.
-3. **Tier C — Code-level bounded symbolic execution & operational memory safety (Kani, CBMC, ESBMC + Miri):** Compiles real source code (Rust MIR or C) with symbolic inputs (`kani::any()`) into bit-precise SAT/SMT formulas up to loop unwind bound $K$, paired with operational memory-model UB and leak checking (`cargo +nightly miri test`) on any whitelisted `unsafe` code.
+1. **Tier A (Design-Level Temporal Model Checking in TLA+, P, and Alloy).** Verifies state machines (`Init`, `Next`) against **Safety** invariants ($\Box I$, "nothing bad ever happens") and **Liveness** properties ($\Box(P \implies \Diamond Q)$, "something good eventually happens" under fairness), plus forward trace validation (`*Trace.tla`) against recorded execution logs.
+2. **Tier B (Code-Level Stateless Concurrency Model Checking and DPOR in Loom, Shuttle, and GenMC).** Exhaustively permutes thread interleavings, `Mutex` locks, and C11/Rust atomic memory orderings (`Acquire`/`Release`/`SeqCst`) directly on the implementation's concurrent wrapper.
+3. **Tier C (Code-Level Bounded Symbolic Execution and Operational Memory Safety in Kani, CBMC, ESBMC, and Miri).** Compiles real source code (Rust MIR or C) with symbolic inputs (`kani::any()`) into bit-precise SAT/SMT formulas up to loop unwind bound $K$, paired with operational memory-model UB and leak checking (`cargo +nightly miri test`) on any whitelisted `unsafe` code.
 
 **Violating the fidelity of the model or the input space is violating the proof.** Never collapse separate network RPCs or lock acquisitions into a single atomic step in TLA+, never use `kani::assume` to constrain untrusted payload bytes or parsed header fields, and never rely on a single-threaded Kani harness alone to prove multi-threaded `Mutex`/`Atomic` or `UnsafeCell` safety.
 
 **REQUIRED SUB-SKILL:** Use `auditing-proof-specifications` before claiming any model check is complete, and use `/statechart` to visualize and inspect TLA+ models and counterexamples.
+
+## Wave Assignment
+
+This skill is a depth-1 leaf. Under `orchestrator: thin`, the root chat either dispatches it as a **Wave 3** worker from the `/proof-driven-development` pipeline or wraps it as a heavy leaf, and it runs on the `hardest tasks` role (`deep`). It executes directly in this session and spawns no subagent, because a second wave inside a leaf would nest a wave inside a wave. When the harness exposes no subagent tool, run it inline in this session as well. The hand-off back to the parent is the report plus the exact commands it must run, and the spec audit stays with `/auditing-proof-specifications`.
 
 ## When to Use
 
@@ -148,7 +152,7 @@ TraceAcceptedProperty == <>(pc > Len(TraceData))
 
 | Excuse | Reality |
 | --- | --- |
-| "Collapse `CheckEpoch` and `WriteShard` into one atomic TLA+ action—TLA+ is a high-level abstraction" | If two steps are separate RPCs or unlocked operations in code, making them one atomic action in TLA+ deletes the exact interleaving window where race conditions happen. |
+| "Collapse `CheckEpoch` and `WriteShard` into one atomic TLA+ action, since TLA+ is a high-level abstraction" | If two steps are separate RPCs or unlocked operations in code, making them one atomic action in TLA+ deletes the exact interleaving window where race conditions happen. |
 | "`TLC` exited 0 on `Processor.tla`, so we know the TLA+ spec matches our existing Python implementation" | `TLC` exiting 0 only proves `Processor.tla` is internally consistent! If `Processor.tla` omitted a transition or idealized a guard, it could disagree with 100% of real Python runs. Validate recorded test traces against `*Trace.tla` (`TraceAcceptedProperty`). |
 | "We ran a single-threaded `#[kani::proof]` harness on `SpscRingBuffer` and `ConcurrentProcessorHandle`, so concurrency and `unsafe` are proved" | Single-threaded Kani never tests concurrent thread schedules, `Relaxed`/`Acquire`/`Release` memory orderings, or Tree/Stacked Borrows aliasing UB. Pair Kani with `cargo +nightly miri test` on `unsafe` code and `RUSTFLAGS="--cfg loom" cargo test --release` for multi-threaded interleavings. |
 | "Add `kani::assume(buf[0] <= 4)` or `kani::assume(header.tlv_count <= 4)` so the loop unwinds in 1 second" | `buf[0]` and `header.tlv_count` are untrusted wire data! Assuming they are $\le 4$ in the harness masks out-of-bounds reads and unbounded-loop DoS bugs when a 4-byte buffer carries `buf[0] == 255`. Bound the buffer length (`len <= MAX_LEN`) and make the parser reject invalid counts. |

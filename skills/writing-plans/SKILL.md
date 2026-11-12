@@ -1,6 +1,6 @@
 ---
-name: writing-plans
 description: Use when you have a spec or requirements for a multi-step task, before touching code
+name: writing-plans
 ---
 
 # Writing Plans
@@ -11,10 +11,42 @@ Write implementation plans for an engineer who has not seen this codebase or thi
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
-**Context:** If working in an isolated worktree, it should have been created via the `superpowers:using-git-worktrees` skill at execution time.
+**Context:** If working in an isolated worktree, it should have been created
+through the isolation row of
+[harness-adapter.md](../magic-mode/references/harness-adapter.md) at execution
+time.
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+**Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
+
 - (User preferences for plan location override this default)
+
+## Wave Delegation
+
+Under `orchestrator: thin`, when the harness exposes a subagent tool, writing
+the plan is one flat set of depth-1 waves. Read the tier slots and roles from
+[model-roles.md](../magic-mode/references/model-roles.md).
+
+1. **Scope.** Run the `## Scope Check` below in this chat. One spec, one
+   subsystem, one plan. Split first when the spec covers independent
+   subsystems.
+2. **Wave 1, ground.** Dispatch one `how explorer` (`main`) per subsystem, in
+   parallel. Each returns the target files, the interfaces they expose, and
+   the exact names and types the plan must pin. That map is the
+   `## File Structure` decision, built by the role that already knows how the
+   subsystem works.
+3. **Wave 2, write.** Dispatch one depth-1 Plan Author `magic-agent` on the
+   `hardest tasks` role (`deep`), or `judgment and prose` (`deep`) when the
+   plan is mostly sequencing and prose. It writes
+   `docs/plans/YYYY-MM-DD-<feature-name>.md` from the Wave 1 map,
+   the spec, and this skill, then runs the five-point `## Self-Review` and
+   fixes what it finds before reporting.
+4. **Review and hand off.** Read the saved plan against the same five points
+   once, link it, and recommend Subagent-driven execution as
+   `## Execution Handoff` says.
+
+Do the work directly in this session, wave by wave, when you are already
+inside a depth-1 leaf subagent or the harness exposes no subagent tool. Under
+`orchestrator: standard` the root chat may also write the plan inline.
 
 ## Scope Check
 
@@ -43,6 +75,7 @@ independently testable deliverable.
 ## Step Granularity
 
 **Each step is one action with a checkable result:**
+
 - "Write the failing test" - step
 - "Run it to make sure it fails" - step
 - "Implement the minimal code to make the test pass" - step
@@ -56,7 +89,7 @@ independently testable deliverable.
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `/subagent-driven-development` (recommended under `orchestrator: thin`) or execute inline under `/magic-mode` (`orchestrator: standard`) to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -162,7 +195,7 @@ opposite failure, and the self-review catches both.
 
 ## Self-Review
 
-After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist the plan author runs before handing the plan back, not a review dispatch: the Wave 2 Plan Author of `## Wave Delegation` owns it, and a direct run owns it in this session.
 
 **1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
 
@@ -186,19 +219,33 @@ them to review the plan and choose an execution method before implementation.
 
 **When no execution method has already been supplied:**
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan. Which execution approach would you prefer?**
+**"Plan complete and saved to `docs/plans/<filename>.md`. Please review the plan. Which execution approach would you prefer?**
 
 - **Subagent-driven** - A fresh subagent implements each task and a fresh reviewer checks it before the next one starts, then a whole-branch review at the end. Most thorough; costs a fresh context per task and per review.
-- **Native** - I implement every task myself in this session, the way this harness runs work, then one fresh reviewer on the most capable model checks the whole branch. Cheapest and fastest; no independent review until the end. Runs well with a mid-tier session model, since the plan carries the design.
+- **Inline** - I implement every task myself in this session under `/magic-mode` (`orchestrator: standard`), then one fresh reviewer checks the whole branch. Cheapest and fastest; no independent review until the end. Runs well with a mid-tier session model, since the plan carries the design.
 
-**For this plan I recommend <one of the two>, because <one sentence from the plan: how much the tasks depend on each other's interfaces, how many there are, what a shipped mistake would cost>. Does the plan capture what you want, and which approach should we use?"**
+**Under `orchestrator: thin`, when the harness exposes a subagent tool:**
+
+**"For this plan I recommend Subagent-driven, because <one sentence from the plan: how much the tasks depend on each other's interfaces, how many there are, what a shipped mistake would cost>. Does the plan capture what you want, and which approach should we use?"**
+
+**Under `orchestrator: thin` when the harness exposes no subagent tool, recommend Inline, because the fresh implementer and reviewer that justify Subagent-driven do not exist:**
+
+**"For this plan I recommend Inline, because <one sentence from the plan>. Does the plan capture what you want, and which approach should we use?"**
+
+**Under `orchestrator: standard`, inline is the default and the recommendation is per plan:**
+
+**"For this plan I recommend <Subagent-driven | Inline>, because <one sentence from the plan: how much the tasks depend on each other's interfaces, how many there are, what a shipped mistake would cost>. Does the plan capture what you want, and which approach should we use?"**
+
+Recommend Subagent-driven under `orchestrator: standard` only when the plan has several tasks whose interfaces touch, or a shipped mistake would be expensive; otherwise recommend Inline.
 
 **When an execution method has already been supplied:**
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan. Does it capture what you want?"**
+**"Plan complete and saved to `docs/plans/<filename>.md`. Please review the plan. Does it capture what you want?"**
 
 **If Subagent-driven chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
 
-**If Native chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- **REQUIRED SUB-SKILL:** Use `/subagent-driven-development`
+
+**If Inline chosen:**
+
+- Execute the plan inline under `/magic-mode` (`orchestrator: standard`): one task at a time, its own test cycle and commit, then one whole-branch review before the PR.

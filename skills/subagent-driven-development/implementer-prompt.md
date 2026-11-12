@@ -2,11 +2,14 @@
 
 Use this template when dispatching an implementer subagent.
 
-```
+```text
 Subagent (general-purpose):
   description: "Implement Task N: [task name]"
-  model: [MODEL — REQUIRED: choose per SKILL.md Model Selection; an omitted
-         model silently inherits the session's most expensive one]
+  model: <the role line from the `magic-models` role file: `feature, refactoring`
+         for a multi-file task, `fast, mechanical, miners` for transcription or
+         a single-file fix, `hardest tasks` for an architecture task. Never
+         omit the field: an omitted model runs the task on the parent chat's
+         model. See SKILL.md's Model Selection and model-roles.md.>
   prompt: |
     You are implementing Task N: [task name]
 

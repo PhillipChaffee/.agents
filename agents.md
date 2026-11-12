@@ -9,8 +9,10 @@ this file contains repository-only guidance.
 - Carry additions, edits, and deletions into `agents/`, `rules/`, and `skills/`.
 - Keep `skills-disabled/` as an archive; do not install or activate it.
 - Do not import home `scripts/`, credentials, or the generated `.kit-stamp`.
-- Preserve upstream skill bytes and their notices. Check secrets in upstream
-  copies even when their formatting and example links are excluded from lint.
+- Preserve upstream notices and the disabled archive's bytes. Adapted skills
+  keep their upstream structure and credit while naming the kit's roles,
+  adapters, and forge operations; check secrets in archived copies even though
+  their formatting and example links are excluded from lint.
 - Retain repository documentation, installation, validation, and CI support.
 - When adding a new rule via `/writing-rules`:
   - Add `rules/<name>.md` (sorted `alwaysApply` and `description` frontmatter) and a `<= 25`-word single-bullet pointer in `agents.kit.md`.

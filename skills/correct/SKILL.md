@@ -11,9 +11,15 @@ The operator keeps correcting agents in this repo for the same mistakes. Change 
 
 Assume every contributor is an agent that sees only the files it opened, copies the nearest example, and takes the shortest path that compiles. Design the repo so a change that looks right from one file is right for the whole repo.
 
+## How the work is dispatched
+
+Wave 1 mines the evidence and runs on the `why investigators` role (`main`). It reads the evidence sources below and groups the mistakes into classes. A class counts once it has happened twice.
+
+Wave 2 ships the enforcement and runs as one depth-1 `magic-agent`, on the `hardest tasks` role (`deep`) for the structural design or on `feature, refactoring` when the shape is already settled. The root chat hands it the Wave 1 classes and keeps the rule table. When the harness exposes no subagent tool, run both waves inline in this session.
+
 ## Find the mistake classes
 
-First, read recent commits, reverts, review comments, agent instruction files, and comments that explain workarounds. Group the mistakes into classes. A class counts once it has happened twice.
+Hand Wave 1 the evidence, meaning recent commits, reverts, review comments, agent instruction files, and comments that explain workarounds. Each class comes back with the commits or review comments that prove it, so the Wave 2 implementer cites real evidence rather than a plausible story.
 
 ## Fix each class at the highest level that works
 
@@ -30,4 +36,4 @@ Then fix the most frequent classes now, one commit each. Prove each new check fa
 
 Last, keep a table in the agent instruction file that pairs each rule with what enforces it. When the operator corrects you, fix the mistake and add the rule. If the rule was already there and nothing enforces it, that's a repeat, so fix it at the highest level in the same change. Drop a rule once its mistake can't happen.
 
-**Reply:** a 1-2 sentence opening framing line, a Markdown table of each mistake class (`| Mistake Class | Evidence | Enforcement Level | Why Higher Level Didn't Work |`), bullet points for verification commands, and a 1-2 sentence `## TL;DR` section at the bottom.
+**Reply.** Open with a 1-2 sentence framing line, then a Markdown table of each class (`| Class | Evidence | Gate | Why the stronger gate was not used |`), bullets for the commands that prove each gate, and a 1-2 sentence `## TL;DR` at the end.

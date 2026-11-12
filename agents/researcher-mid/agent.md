@@ -6,6 +6,7 @@ description: >-
   gathering and reconciling information across several sources. The deep-thinking
   tier, when configured, is reserved for researcher-deep. Reads the codebase, the
   web, and MCP tools; never edits files.
+disallowedTools: ["Agent", "Edit", "MultiEdit", "NotebookEdit", "Write"]
 enabled: true
 id: researcher-mid
 name: researcher-mid

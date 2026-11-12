@@ -8,6 +8,15 @@
   "homepage": "https://github.com/PhillipChaffee/magic",
   "repository": "https://github.com/PhillipChaffee/magic",
   "license": "MIT",
+  "agents": [
+    "./agents/comment-sicko/agent.md",
+    "./agents/magic-agent/agent.md",
+    "./agents/research-planner/agent.md",
+    "./agents/research-synthesizer/agent.md",
+    "./agents/researcher-deep/agent.md",
+    "./agents/researcher-lite/agent.md",
+    "./agents/researcher-mid/agent.md"
+  ],
   "keywords": [
     "skills",
     "agents",

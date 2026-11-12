@@ -22,15 +22,17 @@ Run Phase A steps 3 and 4 and Phase B of the **arena** skill, with four changes.
 
 ## Verify
 
-Verify each finding per arena Phase F by rerunning its command. Keep a finding when the output shows the failure and the failure breaks the intent. Drop the rest. Merge findings that share a root cause.
+Spawn one depth-1 `magic-agent` on the `judgment and prose` line in the `magic-models` role file (see `model-roles.md`), whose default is `deep`. Its brief carries the scope, the intent, every adversary's report and repro command, and the work below.
 
-Skip arena Phases C, D, and E. Adversaries find different failures, so the verdict keeps every verified finding, not one adversary's list.
+> Rerun each repro command against the real code in an isolated worktree. Keep a finding when the printed output shows the failure and the failure breaks the intent. Drop the rest, and merge findings that share a root cause. Then format the `## Output` sections below, with the summary table, the dropped table, and a bottom `## TL;DR`. You are a depth-1 leaf, so never spawn a subagent.
+
+Skip arena Phases C, D, and E. Adversaries find different failures, so the verdict keeps every verified finding, not one adversary's list. The parent relays the verified report without rewriting it.
 
 ## Output
 
 Keep every prose block to **at most 1-2 sentences**, open each section with a 1-sentence framing line, and use Markdown tables and bullets:
 
-- **Intent**: 1-2 sentences restating the change's intent.
-- **Findings**: a Markdown summary table (`| Finding | Command | Adversaries | How It Breaks Intent |`) plus 1-sentence bullets with the printed output vs. required output for each verified finding. Say "no verified findings" when none survive.
-- **Dropped**: a Markdown table (`| Adversary | Dropped Count | Reason |`) listing each adversary's dropped findings and why.
-- **TL;DR**: a `## TL;DR` section at the bottom with 1-2 plain sentences stating how many verified findings survived and the overall verdict.
+- **Intent.** 1-2 sentences restating the change's intent.
+- **Findings.** A Markdown summary table (`| Finding | Command | Adversaries | How It Breaks Intent |`) plus 1-sentence bullets with the printed output vs. required output for each verified finding. Say "no verified findings" when none survive.
+- **Dropped.** A Markdown table (`| Adversary | Dropped Count | Reason |`) listing each adversary's dropped findings and why.
+- **TL;DR.** A `## TL;DR` section at the bottom with 1-2 plain sentences stating how many verified findings survived and the overall verdict.

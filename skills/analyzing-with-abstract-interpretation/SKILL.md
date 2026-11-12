@@ -15,6 +15,10 @@ Abstract interpretation executes a program over an **abstract domain** (such as 
 
 **REQUIRED SUB-SKILL:** Use `auditing-proof-specifications` before claiming any static-analysis proof is complete.
 
+## Wave Assignment
+
+This skill is a depth-1 leaf. Under `orchestrator: thin`, the root chat either dispatches it as a **Wave 3** worker from the `/proof-driven-development` pipeline or wraps it as a heavy leaf, and it runs on the `hardest tasks` role (`deep`). It executes directly in this session and spawns no subagent, because a second wave inside a leaf would nest a wave inside a wave. When the harness exposes no subagent tool, run it inline in this session as well. The hand-off back to the parent is the report plus the exact commands it must run, and the spec audit stays with `/auditing-proof-specifications`.
+
 ## When to Use
 
 - Proving whole-program absence of runtime errors (overflow, underflow, division by zero, out-of-bounds array access, null pointer dereference, NaN/Inf) in C or embedded systems (Frama-C EVA, Astrée, Goblint).
@@ -55,10 +59,10 @@ digraph abstract_alarm {
 
 Whenever you configure an abstract interpreter or triage its alarms, include all four sections below in order, even when the user insists the alarms are false positives and asks not to touch the C code:
 
-1. **Step 1 — Concrete Boundary Check (Mandatory Before Any Tuning):**
+1. **Step 1 (Concrete Boundary Check, Mandatory Before Any Tuning).**
    - Never take "we ran 1M unit tests and inspected the code" on faith. Substitute the extreme endpoints of the calibrated/caller range (`CAL_MIN`, `CAL_MAX`, `0`, `MAX_ADC`, maximum loop trip count) into the exact expression that raised each alarm.
    - If any concrete endpoint reaches the Forbidden Zone (e.g., `(4095 + 8) >> 4 == 256` on a 256-entry table), classify that alarm as a **Real Concrete Bug** and provide the C code fix. Refusing to fix C code when a concrete input hits out-of-bounds or overflow is never acceptable.
-2. **Step 2 — Mathematical Diagnosis of Over-Approximation Loss:**
+2. **Step 2 (Mathematical Diagnosis of Over-Approximation Loss).**
    - For each alarm that is unreachable on concrete inputs, classify its exact precision-loss mechanism and apply the matching refinement:
 
    | Precision-Loss Mechanism | Symptom in Analyzer | Refinement |
@@ -68,9 +72,9 @@ Whenever you configure an abstract interpreter or triage its alarms, include all
    | **Premature loop widening ($\nabla$)** | Fixed-trip filter loop widens accumulator `acc` to `[0..2147483647]` on iteration 3 | Use semantic loop unrolling (`-eva-auto-loop-unroll N`, `-eva-slevel N`, `/*@ loop unroll N; */`) or discharge with `-then -wp -wp-prop="@alarms"` |
    | **Branch join merging** | Merging two branches loses correlation between a status flag and a pointer/value | Split trace states (`-eva-split-return auto` or ACSL `/*@ split x; */`) |
 
-3. **Step 3 — Reproducible Zero-Alarm, Zero-Suppression Gate:**
+3. **Step 3 (Reproducible Zero-Alarm, Zero-Suppression Gate).**
    - Give the exact CLI invocation with `-eva-error-on-alarms` (and `-then -wp -wp-prop="@alarms"` when combining EVA with WP) that exits `0` with **0 alarms and 0 suppressions**.
-4. **Step 4 — Soundness Boundary & TCB Statement:**
+4. **Step 4 (Soundness Boundary and TCB Statement).**
    - State the verified entry-point contract, target machine ABI (`-machdep`), floating-point semantics, and what lies outside the sequential abstract model (DMA, interrupt service routines, inline assembly, or compiler miscompilation unless compiled with CompCert).
 
 ## Core Pattern: Fixing a Boundary Bug + Refining Relational & Loop Precision in Frama-C EVA

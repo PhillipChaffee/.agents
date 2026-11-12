@@ -179,6 +179,96 @@ test("verify-spec-lock allows exec body synthesis but rejects contract or unwhit
 	assert.match(badUnsafeCheck.stderr, /Unauthorized `unsafe` block/);
 });
 
+const PROOF_LEAVES = [
+	"proving-with-hoare-logic",
+	"proving-with-dependent-types",
+	"model-checking-protocols-and-code",
+	"analyzing-with-abstract-interpretation",
+	"auditing-proof-specifications",
+	"statechart",
+];
+
+test("proof-driven-development runs the four-wave PDD pipeline and locks the spec before synthesis", () => {
+	const text = fs.readFileSync(path.join(root, "skills/proof-driven-development/SKILL.md"), "utf8");
+	assert.match(text, /## The Four-Wave PDD Pipeline/);
+	for (const wave of ["Wave 1", "Wave 2", "Wave 3", "Wave 4"]) {
+		assert.ok(text.includes(wave), `the pipeline must name ${wave}`);
+	}
+	for (const role of ["hardest tasks", "arena cross-judge pool", "swarm workers"]) {
+		assert.ok(text.includes(role), `the pipeline must bind the ${role} role`);
+	}
+	assert.match(text, /orchestrator: thin/);
+	assert.match(text, /magic-agent/);
+	assert.match(text, /sequentially/, "a harness with no subagent tool falls back to inline execution");
+	assert.match(text, /verify-spec-lock\.mjs --generate/);
+	assert.match(text, /verify-spec-lock\.mjs --check/);
+	assert.match(text, /check-proof-cheats\.mjs/);
+	assert.match(text, /#print axioms/);
+	assert.match(text, /take-a-step-back/);
+
+	const lockAt = text.indexOf("Deterministic Lock Gate");
+	const wave3At = text.indexOf("**Wave 3");
+	assert.ok(lockAt !== -1, "the pipeline names the deterministic lock gate");
+	assert.ok(wave3At !== -1, "the pipeline names Wave 3");
+	assert.ok(lockAt < wave3At, "the root chat locks the spec before the proof synthesizer runs");
+	const gate = text.slice(lockAt, wave3At);
+	assert.match(gate, /depth = 0/, "the lock gate runs in the root chat, not a subagent");
+	assert.match(gate, /--generate/);
+
+	const wave4At = text.indexOf("**Wave 4");
+	assert.ok(wave4At !== -1, "the pipeline names Wave 4");
+	assert.ok(wave3At < wave4At, "Wave 3 synthesizes before Wave 4 audits");
+	const wave4 = text.slice(wave4At, text.indexOf("\n\n", wave4At));
+	assert.match(wave4, /verify-spec-lock\.mjs --check/, "Wave 4 rechecks the locked spec");
+});
+
+test("the proof leaf skills execute at depth 1 under the role that dispatches them", () => {
+	for (const skill of PROOF_LEAVES) {
+		const text = fs.readFileSync(path.join(root, "skills", skill, "SKILL.md"), "utf8");
+		assert.match(text, /depth-1 leaf/, `${skill} must name the depth-1 leaf rule`);
+		assert.match(text, /orchestrator: thin/, `${skill} must name the thin orchestrator mode`);
+		assert.match(
+			text,
+			/spawns? no subagent|never spawn|without spawning/i,
+			`${skill} must not spawn a sub-subagent`,
+		);
+		assert.match(
+			text,
+			/executes? (?:it|this skill) directly|executes directly in this/i,
+			`${skill} runs inline`,
+		);
+	}
+	const hoare = fs.readFileSync(path.join(root, "skills/proving-with-hoare-logic/SKILL.md"), "utf8");
+	const dependent = fs.readFileSync(path.join(root, "skills/proving-with-dependent-types/SKILL.md"), "utf8");
+	const modelChecking = fs.readFileSync(path.join(root, "skills/model-checking-protocols-and-code/SKILL.md"), "utf8");
+	const abstract = fs.readFileSync(path.join(root, "skills/analyzing-with-abstract-interpretation/SKILL.md"), "utf8");
+	const statechart = fs.readFileSync(path.join(root, "skills/statechart/SKILL.md"), "utf8");
+	for (const [skill, text] of [
+		["proving-with-hoare-logic", hoare],
+		["proving-with-dependent-types", dependent],
+		["model-checking-protocols-and-code", modelChecking],
+		["analyzing-with-abstract-interpretation", abstract],
+		["statechart", statechart],
+	]) {
+		assert.match(text, /hardest tasks/, `${skill} runs on the hardest tasks role`);
+	}
+
+	const audit = fs.readFileSync(
+		path.join(root, "skills/auditing-proof-specifications/SKILL.md"),
+		"utf8",
+	);
+	assert.match(abstract, /Wave 3/, "the abstract-interpretation leaf names its pipeline wave");
+	assert.match(modelChecking, /Wave 3/, "the model-checking leaf names its pipeline wave");
+	assert.match(dependent, /Wave 3/, "the dependent-types leaf names its pipeline wave");
+	assert.match(hoare, /Wave 3/, "the Hoare-logic leaf names its pipeline wave");
+	assert.match(statechart, /Wave 1/, "the statechart leaf serves the Wave 1 spec author");
+	assert.match(audit, /arena cross-judge pool/, "the spec audit seat comes from the cross-family pool");
+	assert.match(audit, /Wave 4/, "the audit leaf names its pipeline wave");
+	assert.match(audit, /verify-spec-lock\.mjs --check/);
+	assert.match(audit, /check-proof-cheats\.mjs/);
+	assert.match(audit, /#print axioms/);
+});
+
 test("graphviz flowcharts in proof skills extract and render cleanly with stub dot", (t) => {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "proof-graphs-"));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

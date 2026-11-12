@@ -1,11 +1,13 @@
 ---
-name: subagent-driven-development
 description: Use when executing implementation plans with independent tasks in the current session
+name: subagent-driven-development
 ---
 
 # Subagent-Driven Development
 
 Execute plan by dispatching a fresh implementer subagent per task, a task review (spec compliance + code quality) after each, and a broad whole-branch review at the end.
+
+Every dispatch takes its model from a role in the `magic-models` role file. Read [model-roles.md](../magic-mode/references/model-roles.md) once per session for the resolution order, and [harness-adapter.md](../magic-mode/references/harness-adapter.md) for how a depth-1 dispatch, its model field, and its resume work on your harness.
 
 **Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
 
@@ -38,19 +40,20 @@ digraph when_to_use {
     "Tasks mostly independent?" [shape=diamond];
     "Partner chose inline, or no subagent tool?" [shape=diamond];
     "subagent-driven-development" [shape=box];
-    "executing-plans" [shape=box];
+    "inline under magic-mode, orchestrator: standard" [shape=box];
     "Manual execution or brainstorm first" [shape=box];
 
     "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
     "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
     "Tasks mostly independent?" -> "Partner chose inline, or no subagent tool?" [label="yes"];
     "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
-    "Partner chose inline, or no subagent tool?" -> "executing-plans" [label="yes"];
+    "Partner chose inline, or no subagent tool?" -> "inline under magic-mode, orchestrator: standard" [label="yes"];
     "Partner chose inline, or no subagent tool?" -> "subagent-driven-development" [label="no"];
 }
 ```
 
-**vs. Executing Plans (inline):**
+**vs. Inline execution (`/magic-mode`, `orchestrator: standard`):**
+
 - Fresh subagent per task (no context pollution) instead of one context doing every task
 - Review after each task (spec compliance + code quality) instead of only at the end
 - Costs a fresh context per task and per review; inline costs one context plus one final reviewer
@@ -78,7 +81,7 @@ digraph process {
     "More tasks remain?" [shape=diamond];
     "Final review and finish: read references/final-review.md" [shape=box];
     "Final review clean: delete this plan's workspace" [shape=box];
-    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+    "Open the PR: /make-pr-easy-to-review" [shape=box style=filled fillcolor=lightgreen];
 
     "Setup: worktree, ledger check, read plan, pre-flight review" -> "Dispatch implementer subagent (./implementer-prompt.md)";
     "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer asks questions?";
@@ -94,16 +97,17 @@ digraph process {
     "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
     "More tasks remain?" -> "Final review and finish: read references/final-review.md" [label="no"];
     "Final review and finish: read references/final-review.md" -> "Final review clean: delete this plan's workspace";
-    "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
+    "Final review clean: delete this plan's workspace" -> "Open the PR: /make-pr-easy-to-review";
 }
 ```
 
 ## Setup
 
-Ensure the work happens in an isolated workspace: use
-superpowers:using-git-worktrees to create one or verify the existing one.
-Never start implementation on a main/master branch without your human
-partner's explicit consent.
+Ensure the work happens in an isolated worktree: create one as the isolation
+row of [harness-adapter.md](../magic-mode/references/harness-adapter.md)
+describes for your harness, or verify the existing one. Never start
+implementation on a main/master branch without your human partner's explicit
+consent.
 
 Conversation memory does not survive compaction. In real sessions,
 controllers that lost their place have re-dispatched entire completed task
@@ -135,44 +139,55 @@ rulings made without one are provisional.
 
 Before dispatching Task 1, read [references/preflight.md](references/preflight.md)
 and run the conflict scan it describes. Its table and rulings go in the
-ledger.
+ledger. Under `orchestrator: thin`, when the harness exposes a subagent tool,
+the scan and its rulings are one depth-1 Adjudicator subagent on the
+`judgment and prose` role (`deep`), not work in this chat. You are already
+flat when the harness exposes no subagent tool, or when you run inside a
+depth-1 leaf: then run the scan here.
 
 ## Model Selection
 
-Use the least powerful model that can handle each role to conserve cost and increase speed.
+Every dispatch names a role line from the `magic-models` role file, never a
+model, and never a bare tier where a role exists. [model-roles.md](../magic-mode/references/model-roles.md)
+holds the resolution order and the fallback when the harness rejects a model.
 
-**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+| Seat | Role line | Default tier |
+| --- | --- | --- |
+| Mechanical, transcription, and single-file fix implementers | `fast, mechanical, miners` | `fast` |
+| Standard multi-file implementers | `feature, refactoring` | `main` |
+| Task reviewers and scoped re-reviewers | `sdd reviewer` | `main` |
+| Reviewers of concurrency or other high-risk diffs | `judgment and prose`, or `hardest tasks` | `deep` |
+| Architecture tasks and fix-loop rounds 4-5 escalation | `hardest tasks` | `deep` |
+| Final whole-branch review | `judgment and prose` or `arena cross-judge pool` | `deep` |
+| Pre-flight scan, breaker, and plan-conflict rulings | `judgment and prose` | `deep` |
 
-**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+Use the least powerful role that can handle each seat, and say which role you
+used in the ledger line for the task.
 
-**Architecture and design tasks**: use the most capable available model.
-The final whole-branch review is one of these — dispatch it on the most
-capable available model, not the session default.
-
-**Review tasks**: choose the model with the same judgment, scaled to the
-diff's size, complexity, and risk. A small mechanical diff does not need the
-most capable model; a subtle concurrency change does. Scoped re-reviews of
-small fix diffs take a cheap-to-mid tier.
-
-**Fix-loop escalation (rounds 4-5)**: use a model at least one tier above
-the implementer that got stuck.
-
-**Always specify the model explicitly when dispatching a subagent.** An
-omitted model inherits your session's model — often the most capable and
-most expensive — which silently defeats this section.
+**Why roles, not models.** The role file is the consumer's own choice. A role
+named here resolves to that consumer's model, so the same plan runs on a
+different vendor's stack without editing this skill.
 
 **Turn count beats token price.** Wall-clock and context cost scale with how
 many turns a subagent takes, and the cheapest models routinely take 2-3× the
-turns on multi-step work — costing more overall. Use a mid-tier model as the
-floor for reviewers and for implementers working from prose descriptions.
+turns on multi-step work, costing more overall. Take the `sdd reviewer` role as
+the floor for reviewers and for implementers working from prose descriptions.
 When the task's plan text contains the complete code to write, the
-implementation is transcription plus testing: use the cheapest tier for
-that implementer. Single-file mechanical fixes also take the cheapest tier.
+implementation is transcription plus testing: dispatch it on the
+`fast, mechanical, miners` role. Single-file mechanical fixes also take that
+role.
 
 **Task complexity signals (implementation tasks):**
-- Touches 1-2 files with a complete spec → cheap model
-- Touches multiple files with integration concerns → standard model
-- Requires design judgment or broad codebase understanding → most capable model
+
+- Touches 1-2 files with a complete spec → `fast, mechanical, miners`
+- Touches multiple files with integration concerns → `feature, refactoring`
+- Requires design judgment or broad codebase understanding → `hardest tasks`
+
+**The final review is a panel question.** Prefer the `arena cross-judge pool`
+when the role file pins a seat from a family other than the parent chat's; that
+cross-family seat is what makes agreement on the branch worth something. When
+the pool resolves to the parent's own family, use `judgment and prose` and say
+so in the reply.
 
 ## The Task Loop
 
@@ -322,12 +337,15 @@ parked-with-ruling at the cap.
 
 When every task is complete, read
 [references/final-review.md](references/final-review.md) and follow it. It
-covers the whole-branch review, its single fix wave, and how you finish.
+covers the whole-branch review on a cross-family seat, its single fix wave, and
+how you finish: the branch reaches the PR through
+[opening-a-pr.md](../magic-mode/playbooks/opening-a-pr.md) and
+`/make-pr-easy-to-review`.
 
 ## Common Rationalizations
 
 | Excuse | Reality |
-|--------|---------|
+| --- | --- |
 | "Close enough on spec compliance" | Reviewer found spec gaps = not done. Fix or hit the cap and adjudicate — those are the only exits. |
 | "I'll fix it myself, dispatching is overhead" | Controller fixes pollute your context and skip review. Resume the implementer. |
 | "One more round will converge" | Past the cap, rounds don't converge — the failure is structural. Adjudicate and route. |

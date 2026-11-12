@@ -1,9 +1,9 @@
 # Bulletproofing Skills Against Rationalization
 
-Part of superpowers:writing-skills. Use it when the baseline failure is a
+Part of `/writing-skills`. Use it when the baseline failure is a
 discipline failure: the agent knows the rule and skips it under pressure.
 
-## Bulletproofing Skills Against Rationalization
+## The Discipline Failure
 
 Skills that enforce discipline (like TDD) need to resist rationalization. Agents are smart and will find loopholes when under pressure.
 
@@ -15,23 +15,25 @@ Skills that enforce discipline (like TDD) need to resist rationalization. Agents
 
 Don't just state the rule - forbid specific workarounds:
 
-<Bad>
+**Bad:**
+
 ```markdown
 Write code before test? Delete it.
 ```
-</Bad>
 
-<Good>
+**Good:**
+
 ```markdown
 Write code before test? Delete it. Start over.
 
 **No exceptions:**
+
 - Don't keep it as "reference"
 - Don't "adapt" it while writing tests
 - Don't look at it
 - Delete means delete
+
 ```
-</Good>
 
 ### Address "Spirit vs Letter" Arguments
 

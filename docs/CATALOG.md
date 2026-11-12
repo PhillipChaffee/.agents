@@ -41,7 +41,7 @@ Complete reference of the **23 execution playbooks**, **75 active skills** (**50
 | **Entry & Routing** | [`/using-magic`](../skills/using-magic/SKILL.md) | Session-start bootstrap that routes tasks to `/magic-mode`, `/research`, `/proof-driven-development`, or `/magic-help` before acting |
 | **Entry & Routing** | [`/magic-mode`](../skills/magic-mode/SKILL.md) | Default entry point for any non-trivial engineering task |
 | **Entry & Routing** | [`/magic-help`](../skills/magic-help/SKILL.md) | Unsure which skill, playbook, or principle fits your task |
-| **Entry & Routing** | [`/setup-magic`](../skills/setup-magic/SKILL.md) | Configuring per-role models and reasoning budgets |
+| **Entry & Routing** | [`/setup-magic`](../skills/setup-magic/SKILL.md) | Picking a model per role and a reasoning budget, then running repo onboarding (`issue-tracker.md` plus the offer of a verification skill and a formal verification skill) |
 | **Entry & Routing** | [`/figure-it-out`](../skills/figure-it-out/SKILL.md) | No bundled playbook fits; designs a bespoke, auditable playbook |
 | **Planning & Execution** | [`/writing-plans`](../skills/writing-plans/SKILL.md) | Turning a spec or requirements for a multi-step task into a bite-sized TDD implementation plan before touching code |
 | **Planning & Execution** | [`/subagent-driven-development`](../skills/subagent-driven-development/SKILL.md) | Executing an implementation plan with a fresh implementer and two-stage reviewer sub-agent per task |

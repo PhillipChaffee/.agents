@@ -1,6 +1,7 @@
 ---
 connection-type: internal
 description: A deranged comment-hater that savors deletion and condemns workaround code.
+disallowedTools: ["Agent"]
 enabled: true
 id: comment-sicko
 name: comment-sicko

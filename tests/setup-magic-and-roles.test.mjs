@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { typographyViolations } from "./helpers/markdown-checks.mjs";
 
 const repoDir = path.resolve(import.meta.dirname, "..");
 const rolesPath = path.join(repoDir, "skills/magic-mode/references/model-roles.md");
@@ -68,37 +69,6 @@ function roleLines(text) {
 		else roles.push(key);
 	}
 	return { directives, roles };
-}
-
-function typographyViolations(text, file) {
-	const violations = [];
-	const lines = text.split("\n");
-	// YAML frontmatter carries configuration colons by design.
-	const frontmatterEndLine = text.startsWith("---\n")
-		? lines.findIndex((line, index) => index > 0 && line.trim() === "---")
-		: -1;
-	let inFence = false;
-	lines.forEach((line, index) => {
-		const trimmed = line.trim();
-		if (index <= frontmatterEndLine) return;
-		if (trimmed.startsWith("```")) {
-			inFence = !inFence;
-			return;
-		}
-		if (/[\u2013\u2014]/.test(line)) {
-			violations.push(`${file}:${index + 1}: dash character ${trimmed}`);
-		}
-		if (inFence || trimmed === "" || trimmed.startsWith("|") || trimmed.startsWith("#")) return;
-		const prose = line
-			.replace(/`[^`]*`/g, "")
-			.replace(/https?:\/\/\S+/g, "")
-			.replace(/\([^)]*\)/g, "");
-		if (!prose.includes(":")) return;
-		// A colon may end a lead-in before a list, table, or code block.
-		if (prose.trimEnd().endsWith(":")) return;
-		violations.push(`${file}:${index + 1}: mid-sentence colon ${trimmed}`);
-	});
-	return violations;
 }
 
 test("model-roles.md defines orchestrator mode, four tier slots, and all 24 role lines", () => {
@@ -376,6 +346,8 @@ test("research-planner and research-synthesizer pin their read-only tool denials
 			.find((line) => line.startsWith("disallowedTools:"));
 		assert.ok(denial, `${id}: missing disallowedTools`);
 		assert.ok(denial.includes('"Agent"'), `${id}: must deny Agent to stay depth 1`);
-		assert.ok(denial.includes('"Write"'), `${id}: must deny Write`);
+		assert.ok(denial.includes('"Edit"'), `${id}: must deny Edit`);
 	}
+	const planner = fs.readFileSync(path.join(repoDir, "agents/research-planner/agent.md"), "utf8");
+	assert.ok(planner.includes('"Write"'), "research-planner: must deny Write");
 });

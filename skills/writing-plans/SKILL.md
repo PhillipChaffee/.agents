@@ -16,7 +16,7 @@ through the isolation row of
 [harness-adapter.md](../magic-mode/references/harness-adapter.md) at execution
 time.
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+**Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
 
 - (User preferences for plan location override this default)
 
@@ -37,7 +37,7 @@ the plan is one flat set of depth-1 waves. Read the tier slots and roles from
 3. **Wave 2, write.** Dispatch one depth-1 Plan Author `magic-agent` on the
    `hardest tasks` role (`deep`), or `judgment and prose` (`deep`) when the
    plan is mostly sequencing and prose. It writes
-   `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md` from the Wave 1 map,
+   `docs/plans/YYYY-MM-DD-<feature-name>.md` from the Wave 1 map,
    the spec, and this skill, then runs the five-point `## Self-Review` and
    fixes what it finds before reporting.
 4. **Review and hand off.** Read the saved plan against the same five points
@@ -219,7 +219,7 @@ them to review the plan and choose an execution method before implementation.
 
 **When no execution method has already been supplied:**
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan. Which execution approach would you prefer?**
+**"Plan complete and saved to `docs/plans/<filename>.md`. Please review the plan. Which execution approach would you prefer?**
 
 - **Subagent-driven** - A fresh subagent implements each task and a fresh reviewer checks it before the next one starts, then a whole-branch review at the end. Most thorough; costs a fresh context per task and per review.
 - **Inline** - I implement every task myself in this session under `/magic-mode` (`orchestrator: standard`), then one fresh reviewer checks the whole branch. Cheapest and fastest; no independent review until the end. Runs well with a mid-tier session model, since the plan carries the design.
@@ -240,7 +240,7 @@ Recommend Subagent-driven under `orchestrator: standard` only when the plan has 
 
 **When an execution method has already been supplied:**
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan. Does it capture what you want?"**
+**"Plan complete and saved to `docs/plans/<filename>.md`. Please review the plan. Does it capture what you want?"**
 
 **If Subagent-driven chosen:**
 

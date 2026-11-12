@@ -9,7 +9,9 @@ import {
 	loadBootstrapContent,
 	loadKitAgents,
 	loadKitRules,
+	loadKitSkills,
 	loadMagicModelsRule,
+	loadModelsJsonPresets,
 } from "../../lib/bootstrap-core.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -56,6 +58,16 @@ const AGENT_ROLE_KEYS = {
 	"magic-agent": ["feature, refactoring", "main"],
 };
 
+const AGENT_DEFAULT_TIERS = {
+	"researcher-lite": "fast",
+	"researcher-mid": "main",
+	"researcher-deep": "deep",
+	"research-planner": "deep",
+	"research-synthesizer": "deep",
+	"comment-sicko": "main",
+	"magic-agent": "main",
+};
+
 const TIER_NAMES = new Set(["fast", "main", "deep"]);
 const UNRESOLVED_MODELS = new Set(["", "inherit-parent", "auto", "fast", "main", "deep"]);
 
@@ -63,18 +75,35 @@ const firstEntry = (value) => (typeof value === "string" ? value.split(",")[0].t
 
 // Role files may carry an inline `# comment` after the entry. Strip only a
 // whitespace-preceded `#`, because `provider/model#variant` attaches its own.
-const stripModelComment = (entry) => entry.replace(/\s+#.*$/, "").trim();
+const stripModelComment = (entry) => (typeof entry === "string" ? entry.replace(/\s+#.*$/, "").trim() : "");
 
-export function resolveAgentModel(agentId, parsed) {
-	if (!parsed || !parsed.roles) return undefined;
+export function resolveAgentModel(agentId, parsed, presets) {
+	const effectivePresets = presets ?? loadModelsJsonPresets();
+	if (parsed?.roles) {
+		for (const key of AGENT_ROLE_KEYS[agentId] ?? []) {
+			if (!(key in parsed.roles)) continue;
 
-	for (const key of AGENT_ROLE_KEYS[agentId] ?? []) {
-		if (!(key in parsed.roles)) continue;
+			const rawVal = firstEntry(parsed.roles[key]);
+			const stripped = stripModelComment(rawVal);
+			if (stripped === "inherit-parent" || stripped === "auto") {
+				return undefined;
+			}
 
-		let value = stripModelComment(firstEntry(parsed.roles[key]));
-		if (TIER_NAMES.has(value)) value = stripModelComment(firstEntry(parsed.roles[value]));
-		if (UNRESOLVED_MODELS.has(value) || !value.includes("/")) return undefined;
-		return value;
+			let value = stripped;
+			if (TIER_NAMES.has(value)) {
+				value = stripModelComment(firstEntry(parsed.roles[value] ?? effectivePresets?.[value]));
+			}
+
+			if (value && value.includes("/") && !UNRESOLVED_MODELS.has(value)) {
+				return value;
+			}
+		}
+	}
+
+	const defaultTier = AGENT_DEFAULT_TIERS[agentId];
+	const fallbackFromPresets = stripModelComment(firstEntry(effectivePresets?.[defaultTier]));
+	if (fallbackFromPresets && fallbackFromPresets.includes("/") && !UNRESOLVED_MODELS.has(fallbackFromPresets)) {
+		return fallbackFromPresets;
 	}
 
 	return undefined;
@@ -97,22 +126,53 @@ export const parseModelRef = (input) => {
 };
 
 const V2_DEFAULT_PERMISSIONS = [{ action: "*", resource: "*", effect: "allow" }];
-const V2_EDIT_DENY = { action: "edit", resource: "*", effect: "deny" };
 const v2DefaultRequest = () => ({ settings: {}, headers: {}, body: {} });
 
-const isEditDeny = (rule) =>
-	Boolean(rule) && rule.action === "edit" && rule.resource === "*" && rule.effect === "deny";
-
-// Agent.Info.permissions is a Permission.Ruleset: an array of { action,
-// resource, effect } rules rather than the V1 permission map. Rulesets are
-// last-match-wins, so the deny has to be the tail rule; any earlier allow for
-// a matching edit would otherwise win.
-const v2Permissions = (draft, readonly) => {
+const v2Permissions = (draft, agent) => {
 	const rules = Array.isArray(draft?.permissions)
 		? draft.permissions.map((rule) => ({ ...rule }))
 		: V2_DEFAULT_PERMISSIONS.map((rule) => ({ ...rule }));
-	if (readonly && !isEditDeny(rules[rules.length - 1])) rules.push({ ...V2_EDIT_DENY });
+
+	// All kit subagents are depth-1 leaves: deny nested subagents and questions
+	rules.push({ action: "subagent", resource: "*", effect: "deny" });
+	rules.push({ action: "question", resource: "*", effect: "deny" });
+
+	const disallowed = new Set(agent?.disallowedTools ?? []);
+	if (agent?.id === "research-planner" || (disallowed.has("Read") && disallowed.has("Bash"))) {
+		return [{ action: "*", resource: "*", effect: "deny" }];
+	}
+
+	if (disallowed.has("Bash")) {
+		rules.push({ action: "shell", resource: "*", effect: "deny" });
+	}
+
+	if (agent?.readonly || disallowed.has("Edit") || disallowed.has("Write")) {
+		rules.push({ action: "edit", resource: "*", effect: "deny" });
+	}
+
+	if (agent?.id === "research-synthesizer") {
+		// Allow writing designated research artifacts
+		rules.push({ action: "edit", resource: "docs/research/*", effect: "allow" });
+	}
+
 	return rules;
+};
+
+const v1Permission = (agent) => {
+	const perm = { subagent: "deny", question: "deny", task: "deny" };
+	const disallowed = new Set(agent?.disallowedTools ?? []);
+	if (agent?.id === "research-planner") {
+		return { "*": "deny", ...perm };
+	}
+	if (disallowed.has("Bash")) {
+		perm.bash = "deny";
+		perm.shell = "deny";
+	}
+	if (agent?.readonly || disallowed.has("Edit") || disallowed.has("Write")) {
+		perm.edit = "deny";
+		perm.write = "deny";
+	}
+	return perm;
 };
 
 const toModelRef = (value) => {
@@ -235,9 +295,10 @@ export const MagicPlugin = async ({ client }) => {
 		config: async (config) => {
 			try {
 				const magicModels = loadMagicModels();
+				const modelsPresets = loadModelsJsonPresets();
 				config.agent = config.agent || {};
 				for (const agent of loadKitAgents(magicAgentsDir)) {
-					const resolvedModel = resolveAgentModel(agent.id, magicModels?.parsed);
+					const resolvedModel = resolveAgentModel(agent.id, magicModels?.parsed, modelsPresets);
 					const existing = config.agent[agent.id] || {};
 					config.agent[agent.id] = {
 						mode: "subagent",
@@ -245,9 +306,7 @@ export const MagicPlugin = async ({ client }) => {
 						prompt: agent.prompt,
 						...(resolvedModel ? { model: resolvedModel } : {}),
 						...existing,
-						...(agent.readonly
-							? { permission: { ...(existing.permission || {}), edit: "deny" } }
-							: {}),
+						permission: { ...(existing.permission || {}), ...v1Permission(agent) },
 					};
 				}
 			} catch (err) {
@@ -263,13 +322,7 @@ export const MagicPlugin = async ({ client }) => {
 		},
 
 		"experimental.chat.messages.transform": async (_input, output) => {
-			const bootstrap = loadBootstrapContent(
-				magicSkillsDir,
-				V1_MAPPING,
-				undefined,
-				bootstrapSections(loadMagicModels()),
-			);
-			if (!bootstrap || !output.messages.length) return;
+			if (!output.messages || !output.messages.length) return;
 			const firstUser = output.messages.find((m) => m.info.role === "user");
 			if (!firstUser || !firstUser.parts.length) return;
 			if (firstUser.parts.some((p) => p.type === "text" && p.text.startsWith(BOOTSTRAP_MARKER))) return;
@@ -283,6 +336,14 @@ export const MagicPlugin = async ({ client }) => {
 			) {
 				return;
 			}
+
+			const bootstrap = loadBootstrapContent(
+				magicSkillsDir,
+				V1_MAPPING,
+				undefined,
+				bootstrapSections(loadMagicModels()),
+			);
+			if (!bootstrap) return;
 
 			const ref = firstUser.parts[0];
 			firstUser.parts.unshift({ ...ref, type: "text", text: bootstrap });
@@ -304,24 +365,7 @@ async function setup(ctx) {
 	}
 
 	try {
-		const skills = [];
-		if (fs.existsSync(magicSkillsDir)) {
-			for (const entry of fs.readdirSync(magicSkillsDir, { withFileTypes: true })) {
-				if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-				const skillPath = path.join(magicSkillsDir, entry.name, "SKILL.md");
-				if (!fs.existsSync(skillPath)) continue;
-				const { frontmatter, content } = extractAndStripFrontmatter(
-					fs.readFileSync(skillPath, "utf8"),
-				);
-				skills.push({
-					id: entry.name,
-					name: frontmatter.name || entry.name,
-					...(frontmatter.description ? { description: frontmatter.description } : {}),
-					path: skillPath,
-					content,
-				});
-			}
-		}
+		const skills = loadKitSkills(magicSkillsDir);
 		await ctx.skill.transform((draft) => {
 			for (const skill of skills) {
 				try {
@@ -338,81 +382,38 @@ async function setup(ctx) {
 	if (ctx.agent && typeof ctx.agent.transform === "function") {
 		try {
 			const magicModels = loadMagicModels();
+			const modelsPresets = loadModelsJsonPresets();
 			const agents = loadKitAgents(magicAgentsDir);
-			await ctx.agent.transform((editor) => {
-				// @opencode/plugin invokes this callback synchronously and ignores
-				// its return value, so an async callback would yield after the first
-				// agent and strand the rest. Nothing inside may await.
-				const track = (pending, onRejected) => {
-					if (pending && typeof pending.then === "function") pending.then(undefined, onRejected);
-				};
+			ctx.agent.transform((editor) => {
+				if (!editor || typeof editor.update !== "function") return;
 				for (const agent of agents) {
-					const resolvedRef = parseModelRef(resolveAgentModel(agent.id, magicModels?.parsed));
-					const registrationFor = (draft) => {
-						const rawDraft = draft && typeof draft === "object" ? draft : {};
-						const { model: draftModel, ...current } = rawDraft;
-						// An unusable draft model must not survive: only a Model.Ref
-						// shape or a parseable role string is kept.
-						const model = toModelRef(draftModel) ?? resolvedRef;
-						return {
-							...current,
-							id: agent.id,
-							name: agent.name,
-							mode: "subagent",
-							description: agent.description,
-							system: agent.prompt,
-							hidden: current.hidden ?? false,
-							request: current.request ?? v2DefaultRequest(),
-							permissions: v2Permissions(current, agent.readonly),
-							...(model ? { model } : {}),
-						};
-					};
-					const addAgent = () => {
-						if (typeof editor.add !== "function") {
-							console.error(`[magic] agent "${agent.id}" not registered: host exposes neither update nor add`);
-							return;
-						}
-						track(editor.add(registrationFor(undefined)), (err) =>
-							console.error(`[magic] agent "${agent.id}" rejected by host, skipping:`, err),
-						);
-					};
-					const addOrSkip = () => {
-						try {
-							addAgent();
-						} catch (addErr) {
-							console.error(`[magic] agent "${agent.id}" rejected by host, skipping:`, addErr);
-						}
-					};
-
-					if (typeof editor.update !== "function") {
-						addOrSkip();
-						continue;
-					}
-
+					const resolvedModel = resolveAgentModel(agent.id, magicModels?.parsed, modelsPresets);
+					const resolvedRef = parseModelRef(resolvedModel);
 					try {
-						const pending = editor.update(agent.id, (draft = {}) => {
-							const next = registrationFor(draft);
-							try {
-								if (draft && typeof draft === "object") {
-									// An unusable draft model must not survive in-place either.
-									if (!("model" in next)) delete draft.model;
-									Object.assign(draft, next);
-								}
-							} catch (err) {
-								console.error(
-									`[magic] agent "${agent.id}" draft is immutable, using the returned registration:`,
-									err,
-								);
+						editor.update(agent.id, (draft = {}) => {
+							const rawDraft = draft && typeof draft === "object" ? draft : {};
+							const { model: draftModel, ...current } = rawDraft;
+							const model = toModelRef(draftModel) ?? resolvedRef;
+							const next = {
+								...current,
+								id: agent.id,
+								name: agent.name,
+								mode: "subagent",
+								description: agent.description,
+								system: agent.prompt,
+								hidden: current.hidden ?? false,
+								request: current.request ?? v2DefaultRequest(),
+								permissions: v2Permissions(current, agent),
+								...(model ? { model } : {}),
+							};
+							if (draft && typeof draft === "object" && !Object.isFrozen(draft)) {
+								if (!("model" in next)) delete draft.model;
+								Object.assign(draft, next);
 							}
 							return next;
 						});
-						track(pending, (err) => {
-							console.error(`[magic] agent "${agent.id}" rejected by update, retrying with add:`, err);
-							addOrSkip();
-						});
 					} catch (err) {
-						console.error(`[magic] agent "${agent.id}" rejected by update, retrying with add:`, err);
-						addOrSkip();
+						console.error(`[magic] agent "${agent.id}" registration failed:`, err);
 					}
 				}
 			});
@@ -423,13 +424,7 @@ async function setup(ctx) {
 
 	const injectBootstrap = async (event) => {
 		try {
-			const bootstrap = loadBootstrapContent(
-				magicSkillsDir,
-				V2_MAPPING,
-				undefined,
-				bootstrapSections(loadMagicModels()),
-			);
-			if (!bootstrap || !event.messages || !event.messages.length) return;
+			if (!event.messages || !event.messages.length) return;
 			const firstUser = event.messages.find((m) => m.role === "user");
 			if (firstUser && (!firstUser.content || !firstUser.content.length)) return;
 			if (
@@ -446,6 +441,14 @@ async function setup(ctx) {
 			) {
 				return;
 			}
+
+			const bootstrap = loadBootstrapContent(
+				magicSkillsDir,
+				V2_MAPPING,
+				undefined,
+				bootstrapSections(loadMagicModels()),
+			);
+			if (!bootstrap) return;
 
 			if (firstUser) {
 				firstUser.content.unshift({ type: "text", text: bootstrap });

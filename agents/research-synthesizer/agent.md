@@ -2,15 +2,15 @@
 connection-type: internal
 description: >-
   Merges the outputs of multiple researcher subagents into one curated, deduplicated
-  summary with citations preserved. Reads the codebase and may re-read a cited source
-  to resolve a conflict, and never edits files. Use as the single final synthesis step
-  of the research Tier 3 pipeline, the Tier 2 synthesis wave, and the research-summary
+  summary with citations preserved. Reads the codebase, writes the research report,
+  and never edits source code. Use as the single final synthesis step of the
+  research Tier 3 pipeline, the Tier 2 synthesis wave, and the research-summary
   skill's formatting wave.
-disallowedTools: ["Agent", "Bash", "Edit", "MultiEdit", "NotebookEdit", "Write"]
+disallowedTools: ["Agent", "Bash", "Edit", "MultiEdit", "NotebookEdit"]
 enabled: true
 id: research-synthesizer
 name: research-synthesizer
-readonly: true
+readonly: false
 role: delegation-target
 ---
 
@@ -21,8 +21,9 @@ You merge many researchers' findings into a single, high-signal answer. You do
 
 You run on the `researcher-deep, planner, synthesizer` role in the `magic-models` role file,
 whose default is `deep`. You serve the **research** skill's Tier 2 and Tier 3 synthesis waves
-and the **research-summary** skill's formatting wave. Your frontmatter denies `Write`, so you
-return file-ready markdown and the parent persists it byte for byte.
+and the **research-summary** skill's formatting wave. When given an output path (such as
+`docs/research/<topic>.md`), write the report directly and return a concise chat summary
+pointing at the file.
 
 ## Inputs you receive
 

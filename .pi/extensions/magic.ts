@@ -10,6 +10,26 @@ import {
 	loadMagicModelsRule,
 } from "../../lib/bootstrap-core.js";
 
+interface PiTextPart {
+	type: "text";
+	text: string;
+}
+
+type PiMessagePart = PiTextPart | { type?: string; [key: string]: unknown };
+
+interface PiMessage {
+	role: string;
+	content: string | PiMessagePart[];
+	timestamp?: number;
+	[key: string]: unknown;
+}
+
+interface PiContextEvent {
+	type: "context";
+	messages: PiMessage[];
+	[key: string]: unknown;
+}
+
 type ExtensionAPI = {
 	on(event: string, handler: (event: any, ctx?: any) => unknown): void;
 };
@@ -91,24 +111,23 @@ Pi does not ship a standard subagent tool. If a subagent tool such as \`subagent
 Pi does not ship a standard task-list tool. If an installed todo/task tool is available, use it. Otherwise track work in plan files or a repo-local \`TODO.md\` when task tracking is needed. Treat older \`TodoWrite\` references as this task-tracking action.`;
 }
 
-function messageContainsBootstrap(message: unknown): boolean {
-	const content = (message as { content?: unknown }).content;
-	if (typeof content === "string") return content.includes(BOOTSTRAP_MARKER);
-	if (!Array.isArray(content)) return false;
-	return content.some((part) => {
-		return (
+function messageContainsBootstrap(message: PiMessage): boolean {
+	if (typeof message.content === "string") return message.content.includes(BOOTSTRAP_MARKER);
+	if (!Array.isArray(message.content)) return false;
+	return message.content.some((part) => {
+		return Boolean(
 			part &&
-			typeof part === "object" &&
-			(part as { type?: unknown }).type === "text" &&
-			typeof (part as { text?: unknown }).text === "string" &&
-			(part as { text: string }).text.includes(BOOTSTRAP_MARKER)
+				typeof part === "object" &&
+				part.type === "text" &&
+				typeof part.text === "string" &&
+				part.text.includes(BOOTSTRAP_MARKER),
 		);
 	});
 }
 
-function firstNonCompactionSummaryIndex(messages: unknown[]): number {
+function firstNonCompactionSummaryIndex(messages: PiMessage[]): number {
 	let index = 0;
-	while ((messages[index] as { role?: unknown } | undefined)?.role === "compactionSummary") {
+	while (messages[index]?.role === "compactionSummary") {
 		index += 1;
 	}
 	return index;

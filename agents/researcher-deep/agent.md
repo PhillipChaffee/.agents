@@ -6,6 +6,7 @@ description: >-
   reasoning, ambiguous or novel questions, and synthesis across many or conflicting
   sources. Runs on the `researcher-deep, planner, synthesizer` role, reads the
   codebase, the web, and MCP tools, and never edits files.
+disallowedTools: ["Agent", "Edit", "MultiEdit", "NotebookEdit", "Write"]
 enabled: true
 id: researcher-deep
 name: researcher-deep

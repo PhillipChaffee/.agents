@@ -1,6 +1,7 @@
 ---
 connection-type: internal
 description: Delegate subagent for code-writing and helper tasks spawned during a `/magic-mode` run. Use for delegates, not as the runner for `/magic-mode` itself. Spawn a fresh `magic-agent` for each new task, and resume one only in the strict cases that magic-mode's Subagents section names. Reads the `magic-mode` skill's `SKILL.md` in full before any work, including its inline Principles index. Substituting a general-purpose subagent skips that read and drifts.
+disallowedTools: ["Agent"]
 enabled: true
 id: magic-agent
 name: magic-agent

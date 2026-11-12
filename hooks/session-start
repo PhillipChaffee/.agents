@@ -70,7 +70,11 @@ if [ -z "${CURSOR_PLUGIN_ROOT:-}" ]; then
     # Strip a leading YAML frontmatter block, keeping a body that has none.
     if [[ $rule_raw == ---$'\n'* ]]; then
       rest="${rule_raw#---$'\n'}"
-      if [[ $rest == *$'\n'---$'\n'* ]]; then
+      if [[ $rest == ---$'\n'* ]]; then
+        rule_raw="${rest#---$'\n'}"
+      elif [[ $rest == --- ]]; then
+        rule_raw=""
+      elif [[ $rest == *$'\n'---$'\n'* ]]; then
         rule_raw="${rest#*$'\n'---$'\n'}"
       elif [[ $rest == *$'\n'--- ]]; then
         rule_raw=""

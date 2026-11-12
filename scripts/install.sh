@@ -135,6 +135,14 @@ write_models_config() {
 		echo "models: not interactive — skipping tier prompt (configure your harness manually)"
 		return 0
 	fi
+	if [ -f "$file" ] && [ "$FORCE" -eq 0 ]; then
+		echo "models: $file already exists — skipping tier prompt (use --force to re-prompt)"
+		return 0
+	fi
+	if [ "$DRY_RUN" -eq 1 ]; then
+		echo "DRY-RUN would prompt and write $file"
+		return 0
+	fi
 	echo "Choose your harness's model for each tier (the kit pins none — ADR-0001)."
 	read -rp "orchestrator model (the parent chat, optional, blank = fast or main): " orchestrator
 	read -rp "fast subagent model: " fast
@@ -142,10 +150,14 @@ write_models_config() {
 	read -rp "deep model (optional, blank = same as main): " deep
 	orchestrator=${orchestrator:-${fast:-$main}}
 	deep=${deep:-$main}
-	[ "$DRY_RUN" -eq 1 ] && {
-		echo "DRY-RUN would write $file"
-		return 0
-	}
+	orchestrator="${orchestrator//\\/\\\\}"
+	orchestrator="${orchestrator//\"/\\\"}"
+	fast="${fast//\\/\\\\}"
+	fast="${fast//\"/\\\"}"
+	main="${main//\\/\\\\}"
+	main="${main//\"/\\\"}"
+	deep="${deep//\\/\\\\}"
+	deep="${deep//\"/\\\"}"
 	mkdir -p "$STAMP_DIR"
 	cat >"$file" <<JSON
 {

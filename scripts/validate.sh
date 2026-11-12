@@ -74,7 +74,7 @@ for d in skills:
     if "id" in keys and keys["id"].split("id:", 1)[-1].strip() != d.name:
         fail(f"{rel}: id does not match directory name")
     if order != sorted(order):
-        warn(f"{rel}: frontmatter keys not sorted")
+        fail(f"{rel}: frontmatter keys not sorted")
 
 # 2. Agent frontmatter contract
 for d in agents:
@@ -90,7 +90,7 @@ for d in agents:
     if keys.get("id", "").split("id:", 1)[-1].strip() != d.name:
         fail(f"{rel}: id does not match directory name")
     if order != sorted(order):
-        warn(f"{rel}: frontmatter keys not sorted")
+        fail(f"{rel}: frontmatter keys not sorted")
 
 # 2b. Rule frontmatter contract
 for p in rule_files:
@@ -104,7 +104,7 @@ for p in rule_files:
         if k not in keys:
             fail(f"{rel}: missing frontmatter key '{k}'")
     if order != sorted(order):
-        warn(f"{rel}: frontmatter keys not sorted")
+        fail(f"{rel}: frontmatter keys not sorted")
 
 if not agents:
     warn("agents/ tree absent — agent-reference checks skipped")
@@ -203,6 +203,46 @@ for md in md_files:
     if rel not in MAPPING_DOCS:
         for hit in sorted(set(BANNED.findall(text))):
             fail(f"{rel}: harness-, model-, or forge-specific term {hit!r} (ADR-0001, ADR-0007)")
+    # 7. Code fence pairing check
+    in_fence = False
+    fence_char = None
+    fence_len = 0
+    fence_line = 0
+    for line_num, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        m = re.match(r"^(`{3,}|~{3,})(.*)$", stripped)
+        if m:
+            chars = m.group(1)
+            info = m.group(2).strip()
+            ch = chars[0]
+            length = len(chars)
+            if not in_fence:
+                in_fence = True
+                fence_char = ch
+                fence_len = length
+                fence_line = line_num
+            elif ch == fence_char and length >= fence_len:
+                if info:
+                    fail(f"{rel}:{line_num}: closing code fence has unexpected info string {info!r}")
+                in_fence = False
+    if in_fence:
+        fail(f"{rel}:{fence_line}: unclosed code fence at end of file")
+    # 8. Relative markdown links resolve
+    clean_text = re.sub(r"```[\s\S]*?```", "", text)
+    clean_text = re.sub(r"~~~[\s\S]*?~~~", "", clean_text)
+    clean_text = re.sub(r"`[^`\n]+`", "", clean_text)
+    for m in re.finditer(r"(?<!!)(?<!`)\[([^\]]+)\]\(([^)\s]+)\)", clean_text):
+        target = m.group(2).strip()
+        if re.match(r"^(?:https?://|mailto:|#|data:|<)", target) or "<" in target or ">" in target:
+            continue
+        if target in ("url", "URI", "link"):
+            continue
+        target_path = target.split("#")[0].split("?")[0].strip()
+        if not target_path:
+            continue
+        resolved = (md.parent / target_path).resolve()
+        if not resolved.exists():
+            fail(f"{rel}: relative link to non-existent target '{target}'")
 
 for w in warns:
     print(f"WARN {w}")

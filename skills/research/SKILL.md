@@ -91,9 +91,9 @@ tier. When genuinely on the fence between two tiers, pick the lower one but say 
    check. It deduplicates overlaps, applies that check, and resolves or flags contradictions.
    The main chat never synthesizes the findings itself at this tier.
 5. **Persist and relay.** Write the synthesizer's returned markdown to
-   `docs/research/<topic>.md` verbatim (create the directory if needed). Its frontmatter denies
-   `Write`, so persist its bytes without editing them. Then give a short chat summary and the
-   file path.
+   `docs/research/<topic>.md` verbatim if the synthesizer returned the report in chat,
+   or confirm the synthesizer wrote `docs/research/<topic>.md` directly. Then give a short
+   chat summary and the file path.
 
 ## Tier 3 - Complex (full pipeline)
 
@@ -164,7 +164,7 @@ gathering, reading, or looking up sources.
    write the summary yourself, because the synthesis must run in an isolated context. It
    applies [`/principle-take-a-step-back`](../principle-take-a-step-back/SKILL.md), returns one
    curated, deduplicated summary with citations preserved, and names the recommended file path.
-7. **Write and present.** Save the returned summary to
+7. **Write and present.** Confirm or save the returned summary to
    `docs/research/<topic>.md` (create the directory if needed), then relay it in
    chat with the file path. Always surface open questions, gaps, and the sources used.
 

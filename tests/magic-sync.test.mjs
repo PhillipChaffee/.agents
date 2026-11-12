@@ -124,6 +124,7 @@ test("synced magic skill updates and local customizations are preserved", () => 
 		"/tdd",
 		"/typescript-best-practices",
 		"/make-bot-ui",
+		"/simple-english",
 	]) {
 		assert.ok(magicHelp.includes(customSkill), `magic-help missing ${customSkill}`);
 	}
@@ -186,4 +187,29 @@ test("principle-take-a-step-back satisfies skill contract and is wired into Laye
 		const targetText = fs.readFileSync(path.join(repoDir, rel), "utf8");
 		assert.match(targetText, /take-a-step-back/, `${rel} should reference take-a-step-back`);
 	}
+});
+
+test("simple-english skill and references exist, parse folded frontmatter cleanly, and satisfy markdownlint", async () => {
+	const { extractAndStripFrontmatter } = await import("../lib/bootstrap-core.js");
+	const skillDir = path.join(repoDir, "skills/simple-english");
+	const skillText = fs.readFileSync(path.join(skillDir, "SKILL.md"), "utf8");
+	const { frontmatter, content } = extractAndStripFrontmatter(skillText);
+
+	assert.equal(frontmatter.id, "simple-english");
+	assert.equal(frontmatter.name, "simple-english");
+	assert.equal(frontmatter.enabled, "true");
+	assert.match(frontmatter.description, /^Write or rewrite text in plain, layman-readable English/);
+	assert.match(frontmatter.description, /answer first, prose by default\.$/);
+	assert.ok(!content.startsWith("---"));
+	assert.match(content, /^# Simple English/m);
+
+	for (const ref of ["rule-catalog.md", "strict-vocabulary.md", "use-cases.md", "word-swaps.md"]) {
+		const refPath = path.join(skillDir, "references", ref);
+		assert.ok(fs.existsSync(refPath), `missing skills/simple-english/references/${ref}`);
+		const refText = fs.readFileSync(refPath, "utf8");
+		assert.doesNotMatch(refText, /^\|---\|/m, `${ref} must space table delimiter pipes (MD060)`);
+		assert.doesNotMatch(refText, /\n\n\n/, `${ref} must not contain consecutive blank lines (MD012)`);
+	}
+	const catalog = fs.readFileSync(path.join(skillDir, "references/rule-catalog.md"), "utf8");
+	assert.match(catalog, /^## Rules\n\n### Section 1: Words \(Rules 1\.1-1\.14\)/m);
 });

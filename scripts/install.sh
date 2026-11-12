@@ -29,8 +29,8 @@ Usage: scripts/install.sh [flags]
   --help            This text
 
 Safety: never touches any un-managed file in the target home. The kit pins no
-models (docs/adr/0001): the installer asks for your fast/main/deep choices and
-writes a consumer-local models.json beside the installed kit.
+models (docs/adr/0001): the installer asks for your orchestrator/fast/main/deep
+choices and writes a consumer-local models.json beside the installed kit.
 USAGE
 }
 
@@ -136,18 +136,22 @@ write_models_config() {
 		return 0
 	fi
 	echo "Choose your harness's model for each tier (the kit pins none — ADR-0001)."
+	read -rp "orchestrator model (the parent chat, optional, blank = fast or main): " orchestrator
 	read -rp "fast subagent model: " fast
 	read -rp "main subagent model: " main
 	read -rp "deep model (optional, blank = same as main): " deep
+	orchestrator=${orchestrator:-${fast:-$main}}
 	deep=${deep:-$main}
 	[ "$DRY_RUN" -eq 1 ] && {
 		echo "DRY-RUN would write $file"
 		return 0
 	}
+	mkdir -p "$STAMP_DIR"
 	cat >"$file" <<JSON
 {
   "_note": "Consumer-local model choices. Configure your harness to use these tiers; never commit provider keys or tokens.",
   "presets": {
+    "orchestrator": "$orchestrator",
     "fast": "$fast",
     "main": "$main",
     "deep": "$deep"

@@ -82,7 +82,7 @@
   <rect x="878" y="67" width="136" height="96" rx="8" class="node-box" />
   <text x="946" y="96" class="title">6. Review &amp; Clean</text>
   <text x="946" y="118" class="sub">/interrogate</text>
-  <text x="946" y="137" class="sub">/no-comments</text>
+  <text x="946" y="137" class="sub">/clean-code &#183; /no-comments</text>
 
   <!-- Edge 6 to 7 -->
   <path d="M 1014 115 L 1042 115" class="edge" marker-end="url(#arrow)" />

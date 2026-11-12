@@ -244,4 +244,3 @@ Preserve these patterns when used in their proper architectural context.
 | `getattr` with `dataclasses.fields` | Serialization or reflection | Safely reads declared fields of a dataclass dynamically | `[getattr(row, f.name) for f in dataclasses.fields(row)]` |
 | `apps.get_model()` | Django migrations | Models must be resolved dynamically without direct imports | `Order = apps.get_model("orders", "Order")` |
 | `if TYPE_CHECKING:` | Type hints | Breaks circular import cycles strictly for static type analysis | `if TYPE_CHECKING: from billing.models import Invoice` |
-

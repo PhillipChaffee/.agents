@@ -215,4 +215,3 @@ Before opening or updating a PR or MR, clean these common AI slop patterns from 
 - **Single-caller wrappers:** Inline 1-line functions that are only used in a single location.
 - **Silent catch blocks:** Never write `catch {}` that discards errors without handling or logging.
 - **Weakened assertions:** Never cast `as any` or relax test schemas to force failing tests to pass.
-

@@ -1,6 +1,6 @@
 # Catalog Reference
 
-Complete reference of the **23 execution playbooks**, **75 active skills** (**50 workflow/domain skills** + **25 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
+Complete reference of the **23 execution playbooks**, **76 active skills** (**51 workflow/domain skills** + **25 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
 
 ---
 
@@ -34,7 +34,7 @@ Complete reference of the **23 execution playbooks**, **75 active skills** (**50
 
 ---
 
-## 50 Situational, PR, Research, Formal Verification, Planning & Authoring Skills
+## 51 Situational, PR, Research, Formal Verification, Planning & Authoring Skills
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
@@ -82,6 +82,7 @@ Complete reference of the **23 execution playbooks**, **75 active skills** (**50
 | **Prose & Code Hygiene** | [`/no-comments`](../skills/no-comments/SKILL.md) | Stripping narration and alibi comments before review via `comment-sicko` |
 | **Prose & Code Hygiene** | [`/unslop`](../skills/unslop/SKILL.md) | Removing AI tells and filler from prose |
 | **Prose & Code Hygiene** | [`/technical-writing`](../skills/technical-writing/SKILL.md) | Writing docs, RFCs, READMEs, PR descriptions, and commit messages to standard |
+| **Prose & Code Hygiene** | [`/simple-english`](../skills/simple-english/SKILL.md) | Writing and rewriting docs, runbooks, and replies in plain, layman-readable English in the spirit of ASD-STE100 |
 | **Prose & Code Hygiene** | [`/bro`](../skills/bro/SKILL.md) | Restating the previous reply in plain human language |
 | **Meta & Skill Evolution** | [`/writing-skills`](../skills/writing-skills/SKILL.md) | Authoring and testing new skills with sub-agent pressure scenarios (TDD for skills) |
 | **Meta & Skill Evolution** | [`/writing-rules`](../skills/writing-rules/SKILL.md) | Triaging, authoring, and pressure-testing agent rules (`rules/` and `agents.kit.md`) with TDD |

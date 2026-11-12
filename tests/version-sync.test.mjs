@@ -47,6 +47,11 @@ test("THIRD-PARTY-NOTICES.md documents obra/superpowers plugin and bootstrap fil
 	const notices = fs.readFileSync(path.join(repoDir, "THIRD-PARTY-NOTICES.md"), "utf8");
 	assert.match(notices, /obra\/superpowers/);
 	assert.match(notices, /22f0b463e7a5e579904dd6211a5e579904dd6211a520321035526f7|22f0b463e7a5e579904dd6211a520321035526f7/);
+	assert.match(notices, /## SimpleEnglish/);
+	assert.match(notices, /AminBlg\/SimpleEnglish/);
+	assert.match(notices, /300432a9e4c473229a7049ab61b8ca2522d9214c/);
+	assert.match(notices, /2\.1\.2/);
+	assert.match(notices, /Copyright \(c\) 2026 AminBlg/);
 	for (const requiredRef of [
 		"hooks/run-hook.cmd",
 		"hooks/session-start",
@@ -91,6 +96,8 @@ test("README.md and .gitignore document magic quote, SVG workflow diagram, secti
 		"./scripts/install.sh --target agents",
 		"skills/using-magic/SKILL.md",
 		"rules/workflow-routing.md",
+		"https://github.com/AminBlg/SimpleEnglish",
+		"Amin Boulouma (`@AminBlg`)",
 	]) {
 		assert.ok(readme.includes(expectedSnippet), `README.md missing: ${expectedSnippet}`);
 	}
@@ -140,5 +147,19 @@ test("README.md and .gitignore document magic quote, SVG workflow diagram, secti
 	assert.ok(gitignoreLines.includes("node_modules/"), ".gitignore must ignore node_modules/");
 	assert.ok(gitignoreLines.includes(".opencode/node_modules/"), ".gitignore must ignore .opencode/node_modules/");
 	assert.ok(!gitignoreLines.includes("package.json"), ".gitignore must not ignore root package.json");
+});
+
+test("README.md and docs/CATALOG.md report 76 active skills (51 workflow/domain + 25 principles) and list /simple-english", () => {
+	const readme = fs.readFileSync(path.join(repoDir, "README.md"), "utf8");
+	const catalog = fs.readFileSync(path.join(repoDir, "docs/CATALOG.md"), "utf8");
+
+	assert.match(readme, /\*\*76 active skills\*\* \(\*\*51 workflow\/domain skills\*\* \+ \*\*25 engineering principles\*\*\)/);
+	assert.match(catalog, /\*\*76 active skills\*\* \(\*\*51 workflow\/domain skills\*\* \+ \*\*25 engineering principles\*\*\)/);
+	assert.match(catalog, /^## 51 Situational, PR, Research, Formal Verification, Planning & Authoring Skills$/m);
+	assert.ok(
+		catalog.includes(
+			"| **Prose & Code Hygiene** | [`/simple-english`](../skills/simple-english/SKILL.md) | Writing and rewriting docs, runbooks, and replies in plain, layman-readable English in the spirit of ASD-STE100 |",
+		),
+	);
 });
 

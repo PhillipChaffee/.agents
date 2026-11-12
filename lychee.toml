@@ -10,7 +10,6 @@ accept = ["200..=204", "429", "502..=504"]
 # Remap GitHub tree/blob subpaths to repo roots so lychee validates them via
 # api.github.com (with GITHUB_TOKEN) instead of scraping github.com HTML over HTTP/2.
 remap = ["^https://github\\.com/([^/]+/[^/]+)/(?:tree|blob)/.* https://github.com/$1"]
-# Pre-rename canonical URLs resolve once PhillipChaffee/.agents is renamed to PhillipChaffee/magic on GitHub.
-exclude = ["^https://github\\.com/PhillipChaffee/magic"]
-# Upstream skill documents contain plugin-local and illustrative links.
-exclude_path = ["./coverage", "./skills/writing-skills", "./skills/writing-plans", "./skills/subagent-driven-development", "./skills-disabled"]
+# Upstream skill documents keep their plugin-local and illustrative links,
+# which resolve only inside the upstream plugins and never in this repo.
+exclude_path = ["./coverage", "./skills-disabled"]

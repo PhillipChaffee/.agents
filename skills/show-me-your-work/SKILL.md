@@ -19,8 +19,8 @@ Copy `references/decision-log-template.tsv` (the header row) to start a clean lo
 - **phase.** The phase or workstream.
 - **decision.** What was chosen or done, one line.
 - **why.** The reason in plain words. If a principle drove it, say it plainly, not as a jargon tag.
-- **evidence.** A link or path that proves it: commit SHA, PR number, `file:line`, or an artifact, trace, or screenshot path. Never a paragraph.
-- **result.** The outcome or predicate state: `tests green`, `reverted`, `pixel-diff 0`, `INCONCLUSIVE`, `open`.
+- **evidence.** A link or path that proves it, such as a commit SHA, PR number, `file:line`, or an artifact, trace, or screenshot path. Never a paragraph.
+- **result.** The outcome or predicate state, such as `tests green`, `reverted`, `pixel-diff 0`, `INCONCLUSIVE`, or `open`.
 
 An example, plain-spoken so a reviewer reads it at a glance.
 
@@ -38,7 +38,7 @@ Write each entry the way you'd tell a teammate what you did. Plain words, concre
 
 Use the helper `scripts/log.sh <logfile> <phase> <decision> <why> <evidence> <result>`. It stamps `ts`, writes the header on first use, strips stray tabs/newlines, and prefixes any cell starting with `=`, `+`, `-`, or `@` with a single quote. A bare `printf` appending a row works too, but mind those same bytes if cells come from generated or user-supplied text.
 
-Log decision points and checkpoints, not every action: a fork chosen, a unit completed with its verification result, a pivot or revert with its trigger, a blocker surfaced, a gate fixed. For loop runs, one row per iteration. Skip the trivial and self-evident.
+Log decision points and checkpoints, not every action. Log a fork chosen, a unit completed with its verification result, a pivot or revert with its trigger, a blocker surfaced, a gate fixed. For loop runs, one row per iteration. Skip the trivial and self-evident.
 
 A run is one agent conversation, including its later turns and any summary of it. A pickup, a replacement agent, or a new chat starts a new run. When a run adds to a log that already has rows, its first row has phase `start`, and so does its first row after another run's `start` row. So a run that comes back to a log in a later turn first reads the log's last rows to see whether another run wrote since. A `start` row names the `ts` range of the rows before it that this run did not write, and its evidence names this run, such as its agent id. Use phase `start` for nothing else.
 
@@ -55,7 +55,9 @@ Commit it only when the work is ambitious enough that a reviewer needs the trail
 
 ## Audit the log against the transcript
 
-At the end of the run, before handing back, check the log told the truth. Read this run's transcript under the active workspace's session transcript store (the harness adapter names the path). Don't glob across other workspaces. That reads unrelated private chats. Walk this run's rows against what actually happened. Each stretch of them begins at one of this run's `start` rows, or at the first row if this run created the log, and ends at the next `start` row of another run:
+At the end of the run, before handing back, check the log told the truth. The completeness extraction, meaning every row traced back to the transcript moment or artifact it claims, runs on the `fast, mechanical, miners` role. Under `orchestrator: thin`, when the harness exposes a subagent tool, dispatch it as a depth-1 subagent that reads this run's transcript under the active workspace's session transcript store (the harness adapter names the path) and returns the row-by-row map. Don't glob across other workspaces. That reads unrelated private chats. When the harness exposes no subagent tool, run the sweep inline, or fold it into the cross-model trail reviewer below.
+
+Each stretch of rows begins at one of this run's `start` rows, or at the first row if this run created the log, and ends at the next `start` row of another run.
 
 - Check that every row maps to a real decision or action.
 - Check that each row's evidence resolves and shows what the row claims.
@@ -65,7 +67,7 @@ Correct the log, not the story. The audit never edits or removes a row, even an 
 
 ## Cross-model review of the trail
 
-Before handing back, spawn a subagent on a different model family from the one that did the work. Self-review is not a substitute. The subagent reads the audit trail and the run's transcript, then flags what the user should pay attention to. Not a redo of the work, a scan for what's suboptimal or risky. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **magic-mode** skill.
+Before handing back, spawn a subagent from the `arena cross-judge pool` role, on a model family different from the one that did the work. Self-review is not a substitute. Read the `orchestrator:` line in `magic-models` as the parent family baseline when a worker's family was the parent's, and pick the pool seat whose family differs from both. The subagent reads the audit trail and the run's transcript, then flags what the user should pay attention to. Not a redo of the work, a scan for what's suboptimal or risky. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **magic-mode** skill.
 
 - Decisions logged with weak or absent evidence.
 - Verification steps skipped or claimed without proof in the transcript.

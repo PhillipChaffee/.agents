@@ -10,13 +10,17 @@ name: ketchup-video
 
 Follow [`/ketchup`](../ketchup/SKILL.md), but show what happened in a short subtitled video instead of its summary and visuals. Its window starts at the last message the user wrote before `/ketchup-video`, not before any earlier `/ketchup`. Writing and rendering the video, outside the repo, is the one exception to its read-only rule. The reply is ketchup's opening sentence, the embedded video, one line naming any work left that you can do yourself, and the action items. When the video shows a call's options, call each option by the name the video gives it. If the render fails, say so in one line and give only the calls.
 
+## How the work is dispatched
+
+Under `orchestrator: thin`, when the harness exposes a subagent tool, the slides, the subtitle burn, the render, and the frame check run as one depth-1 `magic-agent`. Use the `feature, refactoring` role (`main`) for the build work and the `judgment and prose` role (`deep`) when the slide wording or the subtitle lines need judgment. The subagent writes the video file outside the repo and returns its path plus the frame-check evidence. The root chat embeds it and writes the rest of the reply. When the harness exposes no subagent tool, do the same work inline in this session.
+
 ## Slides
 
 Use the screenshots, recordings, diffs, and data the work produced, not the chat's prose about them. Before you draw, write the one sentence the user should leave with and one line per slide. Drop each slide that does not change what the user knows. Use at most 10 slides, and fewer is better. Neither note goes in the reply.
 
 Each slide makes one point. Build the slides on one picture and change it from slide to slide, rather than cut to an unrelated one. A color or shape means the same thing on every slide. Show the work in pictures, such as how a system works, a PR stack with each PR's state, a before and after of a fix, or options side by side. Point at what changed with arrows, highlights, and motion. A slide is never a bullet list, a status list, a table, or boxes with nothing connecting them.
 
-Keep text to the minimum. Put each label on the thing it names, in plain words a person would say, not tags like "Tests: pass". Never caption what a picture shows, and never give a fact twice, across slides or in the text under them.
+Keep text to the minimum. Put each label on the thing it names, in plain words a person would say, not tags like "Tests pass". Never caption what a picture shows, and never give a fact twice, across slides or in the text under them.
 
 Show what came of each thing the user asked for, and whether it is done, still running, failed, or not checked. Never show something done that still waits on the user. Show any bug found and fixed on the way. If a visible change has no screenshot, say so on its slide and name what changed on screen. Draw only from facts you have. Never invent a number, and never draw a screen you did not capture.
 

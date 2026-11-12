@@ -7,7 +7,13 @@ name: figure-it-out
 
 # Figure it out
 
-When the task matches no playbook, design one. The deliverable before any code is the workflow itself: a sequence of phases that scales rigor to the task, runs the scientific method, and leaves a decision trail a human can audit after stepping away.
+When the task matches no playbook, design one. The deliverable before any code is the workflow itself, meaning a sequence of phases that scales rigor to the task, runs the scientific method, and leaves a decision trail a human can audit after stepping away.
+
+## How the work is dispatched
+
+Wave 1 is grounding, through `how` and `why`. It answers what the work touches and why it is built this way, and it runs on the `how explorer` and `why investigators` roles.
+
+Under `orchestrator: thin`, when the harness exposes a subagent tool, Wave 2 is one depth-1 `magic-agent` on the `hardest tasks` role (`deep`), acting as the Playbook Architect. It receives the Wave 1 grounding and frames the falsifiable predicates, the rigor gates, and the unit sequence. The root chat reviews that framing with the user before a long run starts. Phase C workers then run on the `feature, refactoring` role, or on `hardest tasks` when the unit is gnarly, and each unit verdict comes from a judge in the `arena cross-judge pool`. When the harness exposes no subagent tool, architect and execute inline in this session.
 
 ## Start
 
@@ -18,14 +24,14 @@ Open a todolist whose first item is to read the Principles section of the **magi
 Ground first, then commit. Apply the **take-a-step-back** principle skill to confirm why the user is asking, what they actually want, and whether the framing serves that goal. Don't start the run until you can state:
 
 - The definition of done as a falsifiable predicate (the **prove-it-works** principle skill).
-- Scope, quantified: rough units and effort, plus the blockers grounding surfaced.
+- Scope, quantified. Give rough units and effort, plus the blockers grounding surfaced.
 - The rigor level, biased high. One-way doors and high blast radius get more. Reversible low-stakes steps get less. Rigor is gates and artifacts, not "try harder".
 
 Present the framing and tradeoffs before committing to a long run. Reversible work proceeds (the **never-block-on-the-human** principle skill), but a multi-hour run earns one checkpoint.
 
 ## Phase B: Design the workflow
 
-Decompose into atomic, independently-landable units. Sequence riskiest-unknown-first. Scaffold and verification come before features (the **foundational-thinking** principle skill).
+Hand the grounded framing to the Playbook Architect wave above. It decomposes the work into atomic, independently-landable units and sequences riskiest-unknown-first. Scaffold and verification come before features (the **foundational-thinking** principle skill).
 
 - Build the verification harness before the work, with the baseline captured from the pre-change state, so the check reads as "old value vs new value".
 - For one-way-door design decisions, run the **architect** skill (it runs **arena**). Skip it for mechanical work whose shape is already concrete. A second arena over a settled design is over-engineering (the **laziness-protocol** principle skill).
@@ -36,10 +42,10 @@ Then execute the design. Add its steps to the todolist as concrete items between
 
 ## Phase C: Run the loop
 
-Each unit is an experiment. State the hypothesis, make the smallest change, measure against the predicate on the real artifact, keep it if it advanced, revert it if it didn't. Apply the **sequence-verifiable-units** principle skill, verifying each unit before starting the next instead of batching checks at the end. Apply the **take-a-step-back** principle skill whenever new evidence arrives: if satisfying the predicate still leaves the user's real goal broken, surface the mismatch and redirect rather than grinding on a flawed proxy.
+Each unit is an experiment. State the hypothesis, make the smallest change, measure against the predicate on the real artifact, keep it if it advanced, revert it if it didn't. Apply the **sequence-verifiable-units** principle skill, verifying each unit before starting the next instead of batching checks at the end. Apply the **take-a-step-back** principle skill whenever new evidence arrives. If satisfying the predicate still leaves the user's real goal broken, surface the mismatch and redirect rather than grinding on a flawed proxy.
 
 - Verify by inspecting the artifact, never a self-report. When something passes too easily, suspect the observation method before the system.
-- Pair delegated work with a judge. If a worker games the gate, reset and harden the contract. If the gate itself is wrong, fix the gate in its own change rather than routing around it.
+- Pair delegated work with a judge from the `arena cross-judge pool`, preferring a family different from the worker's. If a worker games the gate, reset and harden the contract. If the gate itself is wrong, fix the gate in its own change rather than routing around it.
 - A verdict is VERIFIED, NOT VERIFIED, or INCONCLUSIVE. Inconclusive is not a pass. Don't hide a negative.
 
 ## Phase D: Keep the audit trail
@@ -50,4 +56,4 @@ Log the run via the **show-me-your-work** skill. figure-it-out's work is usually
 
 Check the whole against the Phase A predicate on the real product, not just the harness. Encode any recurring correction as a gate, a lint rule, a check, or a script (the **encode-lessons-in-structure** principle skill).
 
-**Reply:** the playbook you designed (with a 1-sentence framing line before a Mermaid phase diagram and unit Markdown table), the rigor level and why (1-2 sentences max per prose block, bullets otherwise), the decision-trail path, what's verified against the predicate, what's still open, and a 1-2 sentence `## TL;DR` section at the bottom.
+**Reply.** Return the playbook you designed, with a 1-sentence framing line before a Mermaid phase diagram and unit Markdown table. Give the rigor level and why (1-2 sentences max per prose block, bullets otherwise), the decision-trail path, what's verified against the predicate, what's still open, and a 1-2 sentence `## TL;DR` section at the bottom.

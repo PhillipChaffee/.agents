@@ -10,6 +10,10 @@ name: statechart
 
 The chart shows how a system moves between states, in the words of the person who reads it. That person, the reader, decides whether the behavior is right.
 
+## Wave Assignment
+
+This skill is a depth-1 leaf and the **Wave 1** spec author's visualization step in the `/proof-driven-development` pipeline. Under `orchestrator: thin`, the root chat either dispatches it inside the Wave 1 `magic-agent` that authors the specification or wraps it as a heavy leaf, and it runs on the `hardest tasks` role (`deep`). It executes directly in this session and spawns no subagent, because a second wave inside a leaf would nest a wave inside a wave. When the harness exposes no subagent tool, run it inline in this session as well.
+
 ## Run
 
 Work in a scratch folder outside the repo. Write a TLA+ spec and its config. Then run:
@@ -30,7 +34,7 @@ The first run installs TLC and Java with mise and needs the network.
 
 ## Pick the chart
 
-You do the work that needs judgment: the words on each state and arrow, the phases and their colors, the title, and the report to the reader. Put your work in a view module, and give it with `--view`.
+You do the work that needs judgment, meaning the words on each state and arrow, the phases and their colors, the title, and the report to the reader. Put your work in a view module, and give it with `--view`.
 
 To show the reader's words, the view exports `state(vars)`. The value that `state()` returns picks the form:
 
@@ -79,6 +83,6 @@ Render charts with Pele. When the user asks for an image, or a chart is too larg
 
 ## Hand off
 
-Give each chart and its Mermaid text to the person who must decide. Add one line for each bug: the rule, the reader's sentence for that rule, and the path as the report numbers it. Say what the model leaves out. Give the command that makes the files again, with a new `--out` folder.
+Give each chart and its Mermaid text to the person who must decide. Add one line for each bug, naming the rule, the reader's sentence for that rule, and the path as the report numbers it. Say what the model leaves out. Give the command that makes the files again, with a new `--out` folder.
 
 When the model describes code, replay each bug path against the real code, as a test or a live repro, one step for each action. If a bug does not occur, think that the model is wrong until you show that it is not.

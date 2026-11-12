@@ -115,16 +115,17 @@ AGENT_REF = re.compile(
 )
 SKILL_CMD = re.compile(r"`/([a-z][a-z0-9-]*)`")
 # A /name followed by "/" or "<" is a path or a placeholder such as
-# /verify-<app>, not a skill; "=" or "$" before it is a shell assignment.
-SLASH_REF = re.compile(r"(?<![`\w:./>~=$-])/([a-z](?:[a-z0-9-]*[a-z0-9])?)(?![a-z0-9/<-])")
+# /verify-<app>, not a skill; "=" or "$" before it is a shell assignment,
+# and "<" before it opens an XML-style tag list rather than naming a skill.
+SLASH_REF = re.compile(r"(?<![`\w:./<>~=$-])/([a-z](?:[a-z0-9-]*[a-z0-9])?)(?![a-z0-9/<-])")
 SKILL_PATH = re.compile(r"skills/([a-z][a-z0-9-]*)/SKILL\.md")
 RULE_REF = re.compile(r"rules/([a-z][a-z0-9-]*)\.md")
 EXTERNAL_SKILL_IDS = {
     "add-language",
-    "canvas", "create-rule", "create-skill",
+    "canvas", "create-rule",
     "diagnosing-bugs", "domain-modeling", "grill-me", "grill-with-docs",
     "grilling", "handoff", "implement", "improve-codebase-architecture",
-    "setup-matt-pocock-skills", "tdd", "to-spec", "to-tickets", "triage",
+    "setup-matt-pocock-skills", "to-spec", "to-tickets", "triage",
     "wayfinder",
     "loop",
 }
@@ -139,6 +140,7 @@ MAPPING_DOCS = {
     "skills/magic-mode/references/harness-adapter.md",
     "skills/magic-mode/references/model-roles.md",
     "skills/magic-mode/references/forge-operations.md",
+    "skills/setup-magic/references/issue-tracker-templates.md",
 }
 # Files the owner restored to upstream wording on purpose.
 VERBATIM_LIST = Path("scripts/magic-verbatim.txt")
@@ -147,10 +149,12 @@ if VERBATIM_LIST.exists():
         line = line.strip()
         if line and not line.startswith("#"):
             MAPPING_DOCS.add(line)
-# ADR-0001 and ADR-0007 guard: no vendor model slug, Cursor subagent
-# field, or forge CLI in kit skills and agents.
+# ADR-0001 and ADR-0007 guard: no vendor model slug, capitalized
+# vendor model prose name, Cursor subagent field, or forge CLI in kit skills
+# and agents.
 BANNED = re.compile(
     r"\b(?:grok|composer|gpt|gemini)-[0-9]|\bclaude-[a-z]+-[0-9]|"
+    r"\bClaude (?:Opus|Sonnet|Haiku)\b|\bGPT-[0-9]|\bGemini [0-9]|\bGrok [0-9]|"
     r"subagent_type: generalPurpose|environment: \"(?:cloud|local)\"|"
     r"cloud_base_branch|\bAskQuestion\b|cursor-team-kit|\bBugbot\b|"
     r"~/\.cursor|magic-models\.mdc|\borigin pr\b|\bgh (?:pr|api|issue)\b|"
@@ -165,8 +169,6 @@ if Path("agents.kit.md").exists():
 for md in md_files:
     text = md.read_text()
     rel = str(md)
-    if rel.startswith(("skills/writing-skills/", "skills/writing-plans/", "skills/subagent-driven-development/")):
-        continue
     # 3. Agent references resolve
     for ref in set(AGENT_REF.findall(text)):
         if agents and ref not in agent_ids:

@@ -15,6 +15,10 @@ Auto-active verification proves a Hoare triple $\{P\}\; C \;\{Q\}$ by translatin
 
 **REQUIRED SUB-SKILL:** Use `auditing-proof-specifications` before claiming any proof is complete.
 
+## Wave Assignment
+
+This skill is a depth-1 leaf. Under `orchestrator: thin`, the root chat either dispatches it as a **Wave 3** worker from the `/proof-driven-development` pipeline or wraps it as a heavy leaf, and it runs on the `hardest tasks` role (`deep`). It executes directly in this session and spawns no subagent, because a second wave inside a leaf would nest a wave inside a wave. When the harness exposes no subagent tool, run it inline in this session as well. The hand-off back to the parent is the report plus the exact commands it must run, and the spec audit stays with `/auditing-proof-specifications`.
+
 ## When to Use
 
 - Proving an imperative function or state-machine transition computes the right output and never overflows, panics, or indexes out of bounds for inputs of arbitrary size $N$.
@@ -155,7 +159,7 @@ Why all four obligations hold:
 | "Verus/Dafny can't verify `tokio::select!` or compile under standard `cargo`, so we have to abandon formal verification" | Never put `.await` or `tokio::select!` inside `verus!`. Split the synchronous state machine (`decide(&mut self, event) -> StepDecision`) into a verified core crate with a ghost-erasure shim for standard `cargo`, and wrap it in a thin async `perform` shell. |
 | "Add `requires v.len() < 1000` just to stop the overflow warning" | Restricting `requires` shifts an unverified runtime obligation onto every caller and hides real overflow bugs. Only add preconditions that reflect true domain constraints. |
 | "Add `assume(...)`, `#[verifier::trusted]`, or `#[verifier::external_body]` to turn CI green now and prove it next sprint" | An unproved `assume`, `trusted`, or `external_body` silently poisons every downstream theorem that calls this function, turning a failing check into a false proof. |
-| "The user asked for a brief answer, so I'll omit the 4-obligation loop breakdown or `verify_spec_not_vacuous`" | A loop annotation without checking Base, Preservation, Exit, and Termination—or a contract without a non-vacuity lemma—is how missing invariants and vacuous specs slip through. Keep them concise, never omitted. |
+| "The user asked for a brief answer, so I'll omit the 4-obligation loop breakdown or `verify_spec_not_vacuous`" | A loop annotation without checking Base, Preservation, Exit, and Termination, or a contract without a non-vacuity lemma, is how missing invariants and vacuous specs slip through. Keep them concise, never omitted. |
 
 ## Red Flags - STOP and Fix Properly
 

@@ -35,11 +35,9 @@ Pass each template verbatim, substituting the transcript path or digest where ma
 
 One subagent spawn, general-purpose, `model` from the `reflect judgment, divergent, synthesizer` line (default `deep`), read-write. It spot-verifies citations through MCP, and read-only types drop MCP access in some harnesses. Pass `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. It returns an Accepted / Rejected / Backlog list.
 
-## 4. Structural enforcement check
+That template also runs the structural-enforcement check. Any Accepted item that a lint rule, script, metadata flag, or runtime check would enforce more reliably moves to Backlog (the **encode-lessons-in-structure** principle skill). Keep that check inside the synthesizer prompt so one subagent owns both the routing and the enforcement test.
 
-Move any Accepted item that a lint rule, script, metadata flag, or runtime check would enforce more reliably to Backlog. See the **encode-lessons-in-structure** principle skill.
-
-## 5. Apply
+## 4. Apply
 
 Present the synthesizer's full Accepted / Rejected / Backlog output and wait for explicit approval before applying any Accepted edit. The user picks the subset and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
 
@@ -47,21 +45,25 @@ File each Backlog item to your team's devex or backlog tracker without waiting. 
 
 Never edit a skill in an installed kit copy. Before approval, show its destination, the project's skills directory (`.agents/skills/<skill>/`) or the user's (`~/.agents/skills/<skill>/`). The harness adapter lists the others. After approval, copy the skill folder there and edit the copy. Never open a PR or push.
 
-Follow each approved row's Routing exactly:
+Under `orchestrator: thin`, when the harness exposes a subagent tool, Wave 4a dispatches one depth-1 `magic-agent` on the `judgment and prose` role (`deep`) with the approved rows and their destinations. It applies the approved trivial existing-skill edits and drafts any substantive or new-skill `SKILL.md` change per `/writing-skills`, then applies `/unslop`. For a substantive or new-skill row, the root chat dispatches Wave 4b pressure-test and validator leaves at depth 1 on the `arena cross-judge pool` role, and on `swarm workers` for the validator seats, before iterating. The root chat relays the leaf summary.
 
-- Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): the parent does it directly.
-- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to the **create-skill** skill (installed separately with the main flow) and run its draft / test / iterate loop.
-- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to `create-skill` and run its description-optimization loop.
-- `new skill via create-skill: <kebab-name>`: hand creation to `create-skill`. Do not invent the shape ad hoc.
+Under `orchestrator: standard`, or when the harness exposes no subagent tool, apply trivial edits inline in this session and run `/writing-skills` from the root chat.
 
-If your environment ships a SKILL.md validator, run it on every touched skill before declaring done.
+Follow each approved row's Routing exactly.
 
-## 6. Summarize for the user
+- Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected). Wave 4a applies it, or this session applies it inline.
+- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines). Wave 4a drafts it per `/writing-skills`, then Wave 4b runs the draft / test / iterate loop before the root chat applies it.
+- `tune description: <skill path>` (the skill exists but didn't trigger when it should have). Same waves, with the `/writing-skills` description-optimization loop.
+- `new skill via /writing-skills: <kebab-name>`. Same waves. Do not invent the shape ad hoc.
 
-Keep prose blocks to at most 1-2 sentences, present Accepted / Backlog / Dropped items as a Markdown table or concise bullets, and end with a 1-2 sentence `## TL;DR` section at the bottom:
+If your environment ships a SKILL.md validator, Wave 4b runs it on every touched skill before declaring done.
 
-- Edits applied: `<skill path>`. What changed, one line each.
-- New skills created: `<skill path>`. One line each (rare).
-- Backlog filed to the devex tracker: `<issue title>` (`<tags>`). One line each.
-- Dropped: one line per rejected finding + reason from the synthesizer.
-- `## TL;DR`: 1-2 plain sentences stating what landed or awaits approval.
+## 5. Summarize for the user
+
+Keep prose blocks to at most 1-2 sentences, present Accepted / Backlog / Dropped items as a Markdown table or concise bullets, and end with a 1-2 sentence `## TL;DR` section at the bottom.
+
+- Edits applied. `<skill path>`. What changed, one line each.
+- New skills created. `<skill path>`. One line each (rare).
+- Backlog filed to the devex tracker. `<issue title>` (`<tags>`). One line each.
+- Dropped. One line per rejected finding + reason from the synthesizer.
+- `## TL;DR`. 1-2 plain sentences stating what landed or awaits approval.

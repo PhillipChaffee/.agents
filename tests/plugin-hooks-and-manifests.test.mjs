@@ -11,7 +11,7 @@ const sessionStartHook = path.join(hooksDir, "session-start");
 const runHookCmd = path.join(hooksDir, "run-hook.cmd");
 const bashBin = spawnSync("bash", ["-c", 'printf "%s" "$BASH"'], { encoding: "utf8" }).stdout.trim() || "/bin/bash";
 
-function parseHookOutput(stdout, shape) {
+function parseHookOutput(stdout, shape, { rules = true } = {}) {
 	const payload = JSON.parse(stdout);
 	const keys = Object.keys(payload);
 	let context;
@@ -33,6 +33,16 @@ function parseHookOutput(stdout, shape) {
 	assert.match(context, /magic:using-magic/);
 	assert.match(context, /# Using Magic/);
 	assert.doesNotMatch(context, /Error reading using-magic skill/);
+	if (rules) {
+		assert.match(context, /# Workflow Routing/, "hook must inject rules/*.md bodies");
+		assert.doesNotMatch(context, /alwaysApply:/, "injected rules must strip YAML frontmatter");
+		assert.ok(
+			context.indexOf("# Using Magic") < context.indexOf("# Workflow Routing"),
+			"rules must follow the using-magic content",
+		);
+	} else {
+		assert.doesNotMatch(context, /# Workflow Routing/, "Cursor loads rules from its own manifest, so the hook must not duplicate them");
+	}
 	return context;
 }
 
@@ -63,11 +73,13 @@ test("session-start and run-hook.cmd emit mutually exclusive harness JSON shapes
 		{
 			name: "Claude Code nested hookSpecificOutput",
 			shape: "nested",
+			rules: true,
 			env: { HOME: tmpDir, PATH: process.env.PATH ?? "", CLAUDE_PLUGIN_ROOT: repoDir },
 		},
 		{
 			name: "Cursor additional_context precedence over CLAUDE_PLUGIN_ROOT",
 			shape: "cursor",
+			rules: false,
 			env: {
 				HOME: tmpDir,
 				PATH: process.env.PATH ?? "",
@@ -78,6 +90,7 @@ test("session-start and run-hook.cmd emit mutually exclusive harness JSON shapes
 		{
 			name: "Copilot CLI top-level additionalContext",
 			shape: "sdk",
+			rules: true,
 			env: {
 				HOME: tmpDir,
 				PATH: process.env.PATH ?? "",
@@ -88,16 +101,17 @@ test("session-start and run-hook.cmd emit mutually exclusive harness JSON shapes
 		{
 			name: "Empty PATH survival",
 			shape: "nested",
+			rules: true,
 			env: { HOME: tmpDir, PATH: "", CLAUDE_PLUGIN_ROOT: repoDir },
 		},
 	];
 
-	for (const { name, shape, env } of envCases) {
+	for (const { name, shape, rules, env } of envCases) {
 		for (const args of [[sessionStartHook], [runHookCmd, "session-start"]]) {
 			const res = spawnSync(bashBin, args, { env, encoding: "utf8" });
 			assert.equal(res.status, 0, `${name} (${args.join(" ")}) failed: ${res.stderr}`);
 			assert.equal(res.stderr, "");
-			parseHookOutput(res.stdout, shape);
+			parseHookOutput(res.stdout, shape, { rules });
 		}
 	}
 
@@ -115,6 +129,7 @@ test("session-start and run-hook.cmd emit mutually exclusive harness JSON shapes
 	fs.mkdirSync(backslashRoot, { recursive: true });
 	fs.symlinkSync(hooksDir, path.join(backslashRoot, "hooks"));
 	fs.symlinkSync(path.join(repoDir, "skills"), path.join(backslashRoot, "skills"));
+	fs.symlinkSync(path.join(repoDir, "rules"), path.join(backslashRoot, "rules"));
 	fs.symlinkSync(sessionStartHook, path.join(backslashRoot, "hooks\\session-start"));
 	const backslashRes = spawnSync(bashBin, ["hooks\\session-start"], {
 		cwd: backslashRoot,
@@ -155,6 +170,33 @@ test("session-start and run-hook.cmd emit mutually exclusive harness JSON shapes
 	}
 });
 
+test("session-start strips YAML frontmatter from CRLF rule files (Git for Windows core.autocrlf)", (t) => {
+	const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dot-agents-crlf-"));
+	t.after(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
+
+	fs.mkdirSync(path.join(tmpRoot, "hooks"));
+	fs.copyFileSync(sessionStartHook, path.join(tmpRoot, "hooks/session-start"));
+	fs.symlinkSync(path.join(repoDir, "skills"), path.join(tmpRoot, "skills"));
+	const crlfRules = path.join(tmpRoot, "rules");
+	fs.mkdirSync(crlfRules);
+	fs.writeFileSync(
+		path.join(crlfRules, "crlf-rule.md"),
+		"---\r\nalwaysApply: true\r\ndescription: crlf fixture\r\n---\r\n\r\n# CRLF Fixture Rule\r\n\r\nBody survives intact.\r\n",
+	);
+	assert.match(fs.readFileSync(path.join(crlfRules, "crlf-rule.md"), "utf8"), /---\r\n/);
+
+	const res = spawnSync(bashBin, [path.join(tmpRoot, "hooks/session-start")], {
+		env: { HOME: tmpRoot, PATH: "", CLAUDE_PLUGIN_ROOT: tmpRoot },
+		encoding: "utf8",
+	});
+	assert.equal(res.status, 0, res.stderr);
+	const context = parseHookOutput(res.stdout, "nested", { rules: false });
+	assert.match(context, /# CRLF Fixture Rule/, "a CRLF rule body must still be injected");
+	assert.doesNotMatch(context, /alwaysApply:/, "CRLF YAML frontmatter must be stripped");
+	assert.match(context, /Body survives intact\./);
+	assert.doesNotMatch(context, /\r/, "normalized content must carry no carriage returns");
+});
+
 test("Claude Code, Cursor, and Codex plugin and marketplace manifests satisfy schema contracts", () => {
 	const claudePlugin = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".claude-plugin/plugin.json"), "utf8"),
@@ -162,6 +204,18 @@ test("Claude Code, Cursor, and Codex plugin and marketplace manifests satisfy sc
 	assert.equal(claudePlugin.name, "magic");
 	assert.equal(claudePlugin.version, "0.2.0");
 	assert.equal(claudePlugin.repository, "https://github.com/PhillipChaffee/magic");
+	assert.deepEqual(claudePlugin.agents, [
+		"./agents/comment-sicko/agent.md",
+		"./agents/magic-agent/agent.md",
+		"./agents/research-planner/agent.md",
+		"./agents/research-synthesizer/agent.md",
+		"./agents/researcher-deep/agent.md",
+		"./agents/researcher-lite/agent.md",
+		"./agents/researcher-mid/agent.md",
+	]);
+	for (const agentPath of claudePlugin.agents) {
+		assert.ok(fs.existsSync(path.join(repoDir, agentPath)), `${agentPath} must exist`);
+	}
 
 	const claudeMarketplace = JSON.parse(
 		fs.readFileSync(path.join(repoDir, ".claude-plugin/marketplace.json"), "utf8"),

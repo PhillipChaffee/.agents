@@ -14,7 +14,7 @@ set -euo pipefail
 # fork costs tens of milliseconds under Git Bash on Windows. The paths stay
 # relative to the current directory, which is all the file read below needs.
 case "$0" in
-  */*|*\\*) SCRIPT_DIR="${0%[/\\]*}" ;;
+  */* | *\\*) SCRIPT_DIR="${0%[/\\]*}" ;;
   *) SCRIPT_DIR="." ;;
 esac
 PLUGIN_ROOT="${SCRIPT_DIR}/.."
@@ -26,6 +26,9 @@ skill_md="${PLUGIN_ROOT}/skills/using-magic/SKILL.md"
 using_magic_content="Error reading using-magic skill"
 if [ -r "$skill_md" ]; then
   IFS= read -r -d '' using_magic_content < "$skill_md" || true
+  # Normalize CRLF checkouts (Git for Windows core.autocrlf) so no stray
+  # carriage return rides into the JSON payload.
+  using_magic_content="${using_magic_content//$'\r'/}"
   while [[ $using_magic_content == *$'\n' ]]; do
     using_magic_content="${using_magic_content%$'\n'}"
   done
@@ -34,19 +37,68 @@ fi
 # Escape string for JSON embedding using bash parameter substitution.
 # Each ${s//old/new} is a single C-level pass - orders of magnitude
 # faster than the character-by-character loop this replaces. The result
-# goes to a variable instead of stdout, so no $(...) subshell is needed.
+# goes to escaped_out instead of stdout, so no $(...) subshell is needed.
 escape_for_json() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\r'/\\r}"
-    s="${s//$'\t'/\\t}"
-    using_magic_escaped="$s"
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  escaped_out="$s"
 }
 
 escape_for_json "$using_magic_content"
-session_context="<EXTREMELY_IMPORTANT>\nYou have magic.\n\n**Below is the full content of your 'magic:using-magic' bootstrap skill. Follow it to route every task. For all other skills, use your platform's skill tool or read the skill's SKILL.md:**\n\n${using_magic_escaped}\n</EXTREMELY_IMPORTANT>"
+using_magic_escaped="$escaped_out"
+
+# Load the kit rules when the harness does not read rules/*.md on its own.
+# Cursor declares "rules": "./rules/" in .cursor-plugin/plugin.json and loads
+# them itself, so injecting them here would duplicate every rule. Claude Code,
+# Copilot CLI, and Muse have no rules manifest key, so this hook is their only
+# channel. Everything below is a bash builtin: no fork, so an empty PATH
+# cannot break it and startup stays fast on Windows.
+rules_content=""
+if [ -z "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  for rule_md in "${PLUGIN_ROOT}"/rules/*.md; do
+    # An unmatched glob stays literal, so skip anything unreadable.
+    [ -r "$rule_md" ] || continue
+    rule_raw=""
+    IFS= read -r -d '' rule_raw < "$rule_md" || true
+    # Normalize CRLF checkouts before the frontmatter match: a \r\n checkout
+    # would fail the ---$'\n' test below and leak YAML into session context.
+    rule_raw="${rule_raw//$'\r'/}"
+    # Strip a leading YAML frontmatter block, keeping a body that has none.
+    if [[ $rule_raw == ---$'\n'* ]]; then
+      rest="${rule_raw#---$'\n'}"
+      if [[ $rest == *$'\n'---$'\n'* ]]; then
+        rule_raw="${rest#*$'\n'---$'\n'}"
+      elif [[ $rest == *$'\n'--- ]]; then
+        rule_raw=""
+      fi
+    fi
+    while [[ $rule_raw == $'\n'* ]]; do
+      rule_raw="${rule_raw#$'\n'}"
+    done
+    while [[ $rule_raw == *$'\n' ]]; do
+      rule_raw="${rule_raw%$'\n'}"
+    done
+    if [ -n "$rule_raw" ]; then
+      if [ -n "$rules_content" ]; then
+        rules_content="${rules_content}"$'\n\n'"${rule_raw}"
+      else
+        rules_content="$rule_raw"
+      fi
+    fi
+  done
+fi
+
+rules_block=""
+if [ -n "$rules_content" ]; then
+  escape_for_json "$rules_content"
+  rules_block='\n\n'"${escaped_out}"
+fi
+
+session_context="<EXTREMELY_IMPORTANT>\nYou have magic.\n\n**Below is the full content of your 'magic:using-magic' bootstrap skill. Follow it to route every task. For all other skills, use your platform's skill tool or read the skill's SKILL.md:**\n\n${using_magic_escaped}${rules_block}\n</EXTREMELY_IMPORTANT>"
 
 # Output context injection as JSON.
 # Cursor hooks expect additional_context (snake_case).
@@ -70,7 +122,7 @@ session_context="<EXTREMELY_IMPORTANT>\nYou have magic.\n\n**Below is the full c
 emit_json() {
   trap '' PIPE
   # shellcheck disable=SC2059 # every caller passes a literal format string
-  printf "$@" 2>/dev/null || true
+  printf "$@" 2> /dev/null || true
 }
 
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then

@@ -1,6 +1,14 @@
+import os from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BOOTSTRAP_MARKER, loadBootstrapContent } from "../../lib/bootstrap-core.js";
+import {
+	BOOTSTRAP_MARKER,
+	extractAndStripFrontmatter,
+	isUsableMagicModels,
+	loadBootstrapContent,
+	loadKitRules,
+	loadMagicModelsRule,
+} from "../../lib/bootstrap-core.js";
 
 type ExtensionAPI = {
 	on(event: string, handler: (event: any, ctx?: any) => unknown): void;
@@ -12,6 +20,29 @@ The using-magic skill content is included below and is already loaded for this P
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
 const skillsDir = resolve(extensionDir, "../../skills");
+const rulesDir = resolve(extensionDir, "../../rules");
+
+function magicModelsCandidates(): string[] {
+	return [
+		process.env.MAGIC_MODELS_PATH,
+		resolve(os.homedir(), ".pi/agent/rules/magic-models.md"),
+		resolve(os.homedir(), ".agents/rules/magic-models.md"),
+	].filter(Boolean) as string[];
+}
+
+// A consumer's magic-models.md is only usable as a bootstrap extra when it
+// actually configures roles or orchestrator directives; anything else at
+// those paths is unrelated and must not be injected.
+function loadMagicModelsBody(): string {
+	const loaded = loadMagicModelsRule(magicModelsCandidates());
+	if (!loaded || !isUsableMagicModels(loaded.parsed)) return "";
+
+	return extractAndStripFrontmatter(loaded.raw).content.trim();
+}
+
+function bootstrapExtraSections(): string[] {
+	return [loadKitRules(rulesDir), loadMagicModelsBody()].filter(Boolean);
+}
 
 export default function magicPiExtension(pi: ExtensionAPI) {
 	let injectBootstrap = true;
@@ -28,7 +59,7 @@ export default function magicPiExtension(pi: ExtensionAPI) {
 		if (!injectBootstrap) return;
 		if (event.messages.some(messageContainsBootstrap)) return;
 
-		const bootstrap = loadBootstrapContent(skillsDir, piToolMapping(), PI_PREAMBLE);
+		const bootstrap = loadBootstrapContent(skillsDir, piToolMapping(), PI_PREAMBLE, bootstrapExtraSections());
 		if (!bootstrap) return;
 
 		const bootstrapMessage = {

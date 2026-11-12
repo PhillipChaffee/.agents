@@ -12,6 +12,7 @@ const ALL_58_MAGIC_SKILLS = [
 	"benchmark-checklist",
 	"blast-radius",
 	"bro",
+	"clean-code",
 	"correct",
 	"create-formal-verification-skill",
 	"create-verification-skill",
@@ -61,19 +62,27 @@ const ALL_58_MAGIC_SKILLS = [
 	"tdd",
 	"teach",
 	"technical-writing",
-	"typescript-best-practices",
 	"unslop",
 	"why",
 ];
 
-test("all 58 core magic skills are present including make-bot-ui, tdd, and typescript-best-practices", () => {
+test("all 58 core magic skills are present including make-bot-ui, tdd, and clean-code", () => {
 	assert.equal(ALL_58_MAGIC_SKILLS.length, 58);
 	for (const skill of ALL_58_MAGIC_SKILLS) {
 		const entry = path.join(repoDir, "skills", skill, "SKILL.md");
 		assert.ok(fs.existsSync(entry), `missing magic skill: ${skill}`);
 	}
 	assert.ok(
-		fs.existsSync(path.join(repoDir, "skills/typescript-best-practices/references/patterns.md")),
+		fs.existsSync(path.join(repoDir, "skills/clean-code/references/python.md")),
+		"missing python reference in clean-code",
+	);
+	assert.ok(
+		fs.existsSync(path.join(repoDir, "skills/clean-code/references/typescript.md")),
+		"missing typescript reference in clean-code",
+	);
+	assert.ok(
+		!fs.existsSync(path.join(repoDir, "skills/typescript-best-practices")),
+		"typescript-best-practices should be retired into clean-code",
 	);
 });
 
@@ -122,11 +131,15 @@ test("synced magic skill updates and local customizations are preserved", () => 
 		"/make-pr-easy-to-review",
 		"/thermo-nuclear-code-quality-review",
 		"/tdd",
-		"/typescript-best-practices",
+		"/clean-code",
 		"/make-bot-ui",
 	]) {
 		assert.ok(magicHelp.includes(customSkill), `magic-help missing ${customSkill}`);
 	}
+	assert.ok(
+		!magicHelp.includes("/typescript-best-practices"),
+		"magic-help should not reference retired typescript-best-practices",
+	);
 });
 
 test("magic-mode and PR playbooks wire /make-pr-easy-to-review when opening or updating a PR/MR while preserving upstream make-pr-easy-to-review bytes", () => {
@@ -160,6 +173,63 @@ test("magic-mode and PR playbooks wire /make-pr-easy-to-review when opening or u
 
 	const verbatimList = fs.readFileSync(path.join(repoDir, "scripts/magic-verbatim.txt"), "utf8");
 	assert.match(verbatimList, /^skills\/make-pr-easy-to-review\/SKILL\.md$/m);
+});
+
+test("clean-code skill routes by language, enforces pre-PR/MR cleanup contract, and is wired across PR/MR entry points", () => {
+	const cleanCodePath = path.join(repoDir, "skills/clean-code/SKILL.md");
+	assert.ok(fs.existsSync(cleanCodePath), "missing skills/clean-code/SKILL.md");
+	const cleanCodeText = fs.readFileSync(cleanCodePath, "utf8");
+	assert.match(cleanCodeText, /^description:\s*["']?Use when/m);
+	assert.match(cleanCodeText, /references\/python\.md/);
+	assert.match(cleanCodeText, /references\/typescript\.md/);
+	assert.match(cleanCodeText, /Universal AI Slop Checklist/);
+	assert.match(cleanCodeText, /## TL;DR/);
+
+	const pyRefPath = path.join(repoDir, "skills/clean-code/references/python.md");
+	assert.ok(fs.existsSync(pyRefPath), "missing python reference");
+	const pyRefText = fs.readFileSync(pyRefPath, "utf8");
+	assert.match(pyRefText, /getattr/i);
+	assert.match(pyRefText, /OneToOne/);
+	assert.match(pyRefText, /inline import/i);
+	assert.match(pyRefText, /SimpleNamespace/);
+	assert.match(pyRefText, /dataclasses\.fields/);
+	assert.match(pyRefText, /TYPE_CHECKING/);
+	assert.doesNotMatch(pyRefText, /sela-ai/, "references/python.md must not contain private repo names");
+
+	const tsRefPath = path.join(repoDir, "skills/clean-code/references/typescript.md");
+	assert.ok(fs.existsSync(tsRefPath), "missing typescript reference");
+	const tsRefText = fs.readFileSync(tsRefPath, "utf8");
+	assert.match(tsRefText, /discriminated union/i);
+	assert.match(tsRefText, /branded/i);
+	assert.match(tsRefText, /unknown/i);
+	assert.match(tsRefText, /as/i);
+
+	const magicMode = fs.readFileSync(path.join(repoDir, "skills/magic-mode/SKILL.md"), "utf8");
+	assert.match(magicMode, /\/clean-code/);
+
+	const openingPr = fs.readFileSync(
+		path.join(repoDir, "skills/magic-mode/playbooks/opening-a-pr.md"),
+		"utf8",
+	);
+	assert.match(openingPr, /\/clean-code/);
+
+	const autopilotFull = fs.readFileSync(
+		path.join(repoDir, "skills/magic-mode/playbooks/autopilot-full.md"),
+		"utf8",
+	);
+	assert.match(autopilotFull, /\/clean-code/);
+
+	const multiPhasePlan = fs.readFileSync(
+		path.join(repoDir, "skills/magic-mode/playbooks/multi-phase-plan.md"),
+		"utf8",
+	);
+	assert.match(multiPhasePlan, /clean-code/);
+	for (const line of multiPhasePlan.split(/\r?\n/)) {
+		if (line.includes("clean-code")) {
+			assert.doesNotMatch(line, /[\u2013\u2014]/, `long dash in multi-phase-plan.md: ${line}`);
+			assert.doesNotMatch(line, /: \S/, `mid-sentence colon in multi-phase-plan.md: ${line}`);
+		}
+	}
 });
 
 test("principle-take-a-step-back satisfies skill contract and is wired into Layer 2 checkpoints", () => {

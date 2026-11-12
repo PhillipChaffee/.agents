@@ -24,22 +24,22 @@ Route each touched file to its language guide before reviewing changes.
 
 ## Universal AI Slop Checklist
 
-Scan every modified or added line against these twelve patterns.
+Scan every modified or added line against these twelve language-agnostic patterns.
 
 | # | Anti-pattern | Tell | Clean alternative |
 | --- | --- | --- | --- |
-| 1 | Widened types and type soup | `Any`, `object`, unvalidated `dict`, anonymous tuples, `Record<string, any>` | Strongly typed domain models, schemas, or protocols |
-| 2 | Dynamic attribute probing | `getattr`, `hasattr`, `setattr`, reflection on known types | Direct attribute access `obj.attr`, explicit fields, narrowing |
-| 3 | Internal mock theater | Mocking internal functions under test, `SimpleNamespace`, fake methods | Test through public boundaries with real fixtures or protocols |
-| 4 | Redundant internal checks | Duplicating `isinstance`, `is True`, `.strip()` deep inside internal code | Parse once at system boundary; trust internal types |
-| 5 | Section banners and echo docstrings | `# === Properties ===` ASCII lines, docstrings that only restate names | Delete decorative banners; document non-obvious invariants |
-| 6 | Single-caller 1-line wrappers | 1-line helper functions called in only one place | Inline the expression directly at the call site |
-| 7 | Pasting into god-files | Adding more branches to 2,000+ line sprawling files | Extract cohesive domain modules and shared constants |
-| 8 | Cross-module private access | Calling `_private` methods across boundaries, mutating framework state | Promote helper to public contract; use public extension hooks |
-| 9 | Inefficient database loops | Looping single-row ORM queries, `.delete()`-recreate destroying audit history | Batch operations (`bulk_create`), diff updates, pure validation |
-| 10 | Test theater and weakened assertions | Inverting assertions to match bad output, mock SQL engines, tautological tests | Keep security guardrails strict; test against real databases |
-| 11 | Hidden imports and path hacks | Inline function body `import` statements hiding cycles, `sys.path` edits | Top-of-file imports; extract leaf modules or use typing guards |
-| 12 | Blanket error swallowing | `except Exception:` or empty `catch {}` discarding stack traces | Catch narrow expected errors; let unexpected crashes fail fast |
+| 1 | Type degradation and escape hatches | Untyped containers, wildcards, raw strings, dynamic property reflection | Strong domain models, typed schemas, or explicit interface contracts |
+| 2 | Redundant defensive validation | Re-checking the same bounds, types, or nullability deep inside internal code | Validate once at system ingress; trust internal domain types |
+| 3 | Mock theater and private coupling | Spying on internal private functions under test, mocks that assert against themselves | Test observable behavior through public APIs with real inputs or fakes |
+| 4 | Blanket error swallowing | Catch-all handlers with silent defaults that discard root-cause stack traces | Catch only narrow expected errors; let unexpected programmer bugs fail loudly |
+| 5 | Decorative banners and echo comments | Visual divider banners, commented-out dead code, comments that repeat code names | Delete divider noise; document non-obvious constraints and intent |
+| 6 | Single-caller wrapper fragmentation | 1-line helper functions used in only one place to game complexity metrics | Inline the expression at the call site; simplify the underlying branching |
+| 7 | Accretion in monolithic files | Appending more branches and magic numbers into sprawling files | Extract cohesive domain modules and shared configuration constants |
+| 8 | Encapsulation bypass | Calling unexported or private symbols across module boundaries | Define an explicit public contract; respect module boundaries |
+| 9 | Inefficient imperative loops | Row-by-row lookups or writes in loops, destructive delete-and-recreate cycles | Batch lookups, bulk writes, and differential state updates |
+| 10 | Weakened test guardrails | Inverting or relaxing assertions to match broken behavior or bypass CI | Fix the underlying logic; never weaken security or schema assertions |
+| 11 | Dead code and speculative branches | Unused parameters, dead configuration flags, and unreachable error branches | Delete dead code; build only what is required for current behavior |
+| 12 | Hidden imports and coupling cycles | Deferred imports buried inside function bodies to hide circular dependencies | Re-layer modules so dependencies flow in one direction without cycles |
 
 ## Execution Steps
 
@@ -57,13 +57,13 @@ Watch for these common rationalizations when inspecting diffs.
 
 | Rationalization | Trap and reality | Required fix |
 | --- | --- | --- |
-| "It is defensive programming." | Hides type defects and breaks framework properties like reverse relationships. | Use direct attribute access and trust typed schemas. |
-| "It avoids a circular import." | Inline imports hide coupling and architectural cycle flaws. | Move imports to top of file and extract leaf modules. |
-| "The tests pass." | Tests mocking internal implementation details pass while production breaks. | Test public behavior with real fixtures and integration points. |
-| "Just adjust the test expectation to ship." | Weakens security guardrails and leaks private endpoints or regressions. | Fix the underlying code; never weaken or invert assertions. |
-| "It is just an optional state bag." | Allows invalid combinations like loading and error simultaneously. | Replace with a discriminated union representing valid states. |
-| "The 1-line helper improves readability." | Introduces cognitive indirection and games complexity metrics without reuse. | Inline single-caller expressions at their call site. |
-| "We must catch all exceptions to prevent crashes." | Swallows critical bugs like attribute or type errors without alerting. | Catch only specific expected exceptions; let bugs raise. |
+| "It is defensive programming." | Bypasses type safety, hides real bugs, and breaks framework invariants. | Trust verified types inside boundaries; let invalid states fail fast. |
+| "It avoids a circular dependency." | Deferred imports inside function bodies hide architectural coupling and cycles. | Re-layer modules so dependencies flow strictly in one direction. |
+| "The tests pass." | Tests that mock internal functions pass even when runtime behavior breaks. | Test public behavior against real contracts without spying on internals. |
+| "Just adjust the test expectation to ship." | Weakens security guardrails and leaks private endpoints or regressions. | Fix the underlying code; never weaken or invert test assertions. |
+| "It is just a loose data bag." | Allows impossible or contradictory combinations of state to exist. | Model mutually exclusive states with explicit variants or unions. |
+| "The 1-line helper improves readability." | Introduces cognitive indirection and games complexity linters without reuse. | Inline single-caller expressions directly at their call site. |
+| "Catching all errors prevents crashes." | Swallows critical bugs like syntax errors or null pointer defects without alerting. | Catch only specific expected domain exceptions; fail loud on unexpected errors. |
 
 ## Final Response
 

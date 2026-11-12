@@ -142,7 +142,7 @@ test("synced magic skill updates and local customizations are preserved", () => 
 	);
 });
 
-test("magic-mode and PR playbooks wire /make-pr-easy-to-review when opening or updating a PR/MR while preserving upstream make-pr-easy-to-review bytes", () => {
+test("magic-mode and PR playbooks wire /make-pr-easy-to-review when opening or updating a PR/MR, and the skill resolves forge operations", () => {
 	const magicMode = fs.readFileSync(path.join(repoDir, "skills/magic-mode/SKILL.md"), "utf8");
 	assert.match(magicMode, /\/make-pr-easy-to-review/);
 
@@ -172,7 +172,17 @@ test("magic-mode and PR playbooks wire /make-pr-easy-to-review when opening or u
 	}
 
 	const verbatimList = fs.readFileSync(path.join(repoDir, "scripts/magic-verbatim.txt"), "utf8");
-	assert.match(verbatimList, /^skills\/make-pr-easy-to-review\/SKILL\.md$/m);
+	assert.doesNotMatch(
+		verbatimList,
+		/^skills\//m,
+		"make-pr-easy-to-review is adapted now, so no skill path stays in the verbatim list",
+	);
+
+	const makePr = fs.readFileSync(path.join(repoDir, "skills/make-pr-easy-to-review/SKILL.md"), "utf8");
+	assert.match(makePr, /forge-operations\.md/, "the skill resolves its forge operations through the adapter");
+	assert.match(makePr, /issue-tracker\.md/, "the skill resolves the repository's forge once per session");
+	assert.doesNotMatch(makePr, /\bgh pr\b/, "the skill names the operation, never a forge command");
+	assert.match(makePr, /HEAD\^\{tree\}/, "history cleanup still proves content identity through the tree");
 });
 
 test("clean-code skill routes by language, enforces pre-PR/MR cleanup contract, and is wired across PR/MR entry points", () => {

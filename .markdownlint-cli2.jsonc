@@ -17,6 +17,9 @@
     "MD010": { "code_blocks": false }
   },
   "globs": ["**/*.md"],
-  // Home and upstream copies retain their source bytes, including formatting.
-  "ignores": ["agents.kit.md", "skills/writing-skills/**", "skills/writing-plans/**", "skills/subagent-driven-development/**", "skills-disabled/**"]
+  // The disabled skill archive keeps its upstream bytes. `agents.kit.md` is a
+  // bullet list by contract, one rule per line, so it carries no heading. The
+  // `.superpowers/` workspace holds briefs and reports that are working notes.
+  // No entry may start with "!": a negated ignore cancels the whole glob set.
+  "ignores": ["agents.kit.md", ".superpowers/**", "skills-disabled/**"]
 }

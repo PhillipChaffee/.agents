@@ -3,9 +3,12 @@
 ## Superpowers — writing-skills, writing-plans, and subagent-driven-development
 
 `skills/writing-skills/`, `skills/writing-plans/`, and
-`skills/subagent-driven-development/` are copied without content changes from
+`skills/subagent-driven-development/` are adapted from
 [obra/superpowers](https://github.com/obra/superpowers/tree/22f0b463e7a5e579904dd6211a520321035526f7/skills),
-commit `22f0b463e7a5e579904dd6211a520321035526f7`. `hooks/run-hook.cmd`,
+commit `22f0b463e7a5e579904dd6211a520321035526f7`: their workflows, prompts,
+and references keep the upstream structure, with every harness, model, and
+forge name resolved to the kit's role file, harness adapter, and forge
+operations. `hooks/run-hook.cmd`,
 `hooks/session-start`, `lib/bootstrap-core.js`, `.opencode/plugins/magic.js`,
 and `.pi/extensions/magic.ts` are adapted from `obra/superpowers` commit
 `22f0b463e7a5e579904dd6211a520321035526f7`.
@@ -103,9 +106,11 @@ SOFTWARE.
 ## cursor-team-kit
 
 `skills/make-pr-easy-to-review/` and `skills/thermo-nuclear-code-quality-review/`
-are copied without content changes from `cursor-team-kit` in
+are adapted from `cursor-team-kit` in
 [cursor/plugins](https://github.com/cursor/plugins), commit
-`ae5650febf4320793844c12c4adaa937f417f8da`.
+`ae5650febf4320793844c12c4adaa937f417f8da`: their review workflows keep the
+upstream structure, with every forge command resolved to the kit's forge
+operations and every review seat resolved to the kit's model roles.
 
 ```text
 MIT License

@@ -131,23 +131,23 @@ Do not modify the command or add additional flags.
 
 ### Test with all models you plan to use
 
-Skills act as additions to models, so effectiveness depends on the underlying model. Test your Skill with all the models you plan to use it with.
+Skills act as additions to models, so effectiveness depends on the underlying model. Test your Skill with all the roles you plan to use it with.
 
-**Testing considerations by model**:
+**Testing considerations by model tier** (the tiers are the ones in [`model-roles.md`](../../magic-mode/references/model-roles.md)):
 
-* **Claude Haiku** (fast, economical): Does the Skill provide enough guidance?
-* **Claude Sonnet** (balanced): Is the Skill clear and efficient?
-* **Claude Opus** (powerful reasoning): Does the Skill avoid over-explaining?
+* **`fast`** (fast, economical): Does the Skill provide enough guidance?
+* **`main`** (balanced): Is the Skill clear and efficient?
+* **`deep`** (powerful reasoning): Does the Skill avoid over-explaining?
 
-What works perfectly for Opus might need more detail for Haiku. If you plan to use your Skill across multiple models, aim for instructions that work well with all of them.
+What works perfectly for a `deep` seat might need more detail on a `fast` one. If you plan to use your Skill across multiple roles, aim for instructions that work well with all of them.
 
 ## Skill structure
 
 <Note>
   **YAML Frontmatter**: The SKILL.md frontmatter requires two fields:
 
-  * `name` - Human-readable name of the Skill (64 characters maximum)
-  * `description` - One-line description of what the Skill does and when to use it (1024 characters maximum)
+* `name` - Human-readable name of the Skill (64 characters maximum)
+* `description` - One-line description of what the Skill does and when to use it (1024 characters maximum)
 
   For complete Skill structure details, see the [Skills overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview#skill-structure).
 </Note>
@@ -189,9 +189,9 @@ The `description` field enables Skill discovery and should include both what the
 <Warning>
   **Always write in third person**. The description is injected into the system prompt, and inconsistent point-of-view can cause discovery problems.
 
-  * **Good:** "Processes Excel files and generates reports"
-  * **Avoid:** "I can help you process Excel files"
-  * **Avoid:** "You can use this to process Excel files"
+* **Good:** "Processes Excel files and generates reports"
+* **Avoid:** "I can help you process Excel files"
+* **Avoid:** "You can use this to process Excel files"
 </Warning>
 
 **Be specific and include key terms**. Include both what the Skill does and specific triggers/contexts for when to use it.
@@ -254,7 +254,7 @@ As your Skill grows, you can bundle additional content that agents load only whe
 
 The complete Skill directory structure might look like this:
 
-```
+```text
 pdf/
 ├── SKILL.md              # Main instructions (loaded when triggered)
 ├── FORMS.md              # Form-filling guide (loaded as needed)
@@ -298,7 +298,7 @@ Agents load FORMS.md, REFERENCE.md, or EXAMPLES.md only when needed.
 
 For Skills with multiple domains, organize content by domain to avoid loading irrelevant context. When a user asks about sales metrics, the agent only needs to read sales-related schemas, not finance or marketing data. This keeps token usage low and context focused.
 
-```
+```text
 bigquery-skill/
 ├── SKILL.md (overview and navigation)
 └── reference/
@@ -1037,7 +1037,7 @@ Skills run in a code execution environment with filesystem access, bash commands
 
 **Example:**
 
-```
+```text
 bigquery-skill/
 ├── SKILL.md (overview, points to reference files)
 └── reference/
@@ -1129,7 +1129,7 @@ Before sharing a Skill, verify:
 ### Testing
 
 * [ ] At least three evaluations created
-* [ ] Tested with Haiku, Sonnet, and Opus
+* [ ] Tested across your configured `fast`, `main`, and `deep` tiers
 * [ ] Tested with real usage scenarios
 * [ ] Team feedback incorporated (if applicable)
 

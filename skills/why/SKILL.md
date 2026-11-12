@@ -25,7 +25,13 @@ If the target is vague ("why do we do it this way?" with no clear referent), mak
 
 ## Step 2. Establish the Code Anchor
 
-Before spawning investigators, build the seed context inline: file paths and line ranges, key symbols (functions, classes, constants), the last few commits touching the target, PR numbers from merge commits (pattern `(#1234)` in the subject line), and any linked ticket IDs. Run `git blame -L <start>,<end> <file>` for last-touch commits, `git log --follow -p -- <file>` for full history with patches through renames, `git log --oneline -20 -- <file>` for recent commits with PR numbers visible, and `git log -1 --format=%B <commit>` to extract PR numbers. Then pull the PR bodies and discussion for any substantive commit (forge operation **PR history**). This anchor goes to every investigator and to the synthesizer.
+Run this step as **Wave 1** in a subagent, never inline. Spawn one **Anchor Collector** on the `researcher-lite, collectors` role in the `magic-models` role file (see `model-roles.md`), whose default is `fast`. It runs at depth 1 in its own context, so raw `git log -p` patches stay out of this chat.
+
+Its brief is self-contained and names the target and the user's question. It writes `code-anchor.md` into the session's scratch or store directory and returns a tight summary plus that path. The file holds the file paths and line ranges, the key symbols (functions, classes, constants), the last few commits touching the target, the PR numbers from merge commits (pattern `(#1234)` in the subject line), any linked ticket IDs, and the PR bodies and discussion for every substantive commit (forge operation **PR history**).
+
+The collector runs `git blame -L <start>,<end> <file>` for last-touch commits, `git log --follow -p -- <file>` for full history with patches through renames, `git log --oneline -20 -- <file>` for recent commits with PR numbers visible, and `git log -1 --format=%B <commit>` to extract PR numbers. It keeps the patches in `code-anchor.md` and returns only the summary.
+
+Pass the `code-anchor.md` path, not its contents, to every investigator in Step 3 and to the synthesizer in Step 4.
 
 ## Step 3. Spawn Parallel Investigators
 
@@ -47,13 +53,13 @@ Map each available MCP to one evidence category:
 
 Source control is always available through git and the forge. For the other six, classify using the MCP name, server instructions, tool names, and resource descriptors. If an MCP could fit more than one category, choose the one matching its primary evidence. Record ambiguous cases in the coverage map.
 
-Spawn one investigator per category that has a matching MCP, all in a single message so they run concurrently, each owning exactly one tool or MCP. Don't ask one agent to cover multiple MCPs. `model`: the `why investigators` line, default `main`.
+Spawn one investigator per category that has a matching MCP, all in a single message so they run concurrently, each owning exactly one tool or MCP. Don't ask one agent to cover multiple MCPs. Set `model` to the `why investigators` line, default `main`.
 
 Each investigator's prompt is `references/investigator-prompt.md` filled in, plus:
 
 - the category playbook `references/sources/<source>.md` for the selected MCP, adapted from the examples in `references/source-playbook.md`
 - `references/sources/incident-postmortem.md` **if the target code looks defensive** (null checks, retry logic, timeout handling, rate limiting, feature flags, egress guards, OOM handlers)
-- the code anchor and the user's original question
+- the `code-anchor.md` path and the user's original question
 
 ### Investigator roster, one per available evidence category
 
@@ -71,17 +77,17 @@ Each category below is uniquely positioned to surface one shape of "why", shown 
 
 Only with an **explicit, written justification** that goes in the final Sources Consulted. Two valid reasons:
 
-- **No MCP is available for that category** in this environment. Flag it as a gap, not a choice: "Real-time team chat skipped. No matching MCP available, so the conversational record was not searchable."
-- **The source is provably irrelevant**, not just "probably irrelevant." A high bar: "Error / exception tracking skipped. Target is a build-time script with no runtime code path."
+- **No MCP is available for that category** in this environment. Flag it as a gap, not a choice. For example, "Real-time team chat skipped. No matching MCP available, so the conversational record was not searchable."
+- **The source is provably irrelevant**, not just "probably irrelevant." Set a high bar. For example, "Error / exception tracking skipped. Target is a build-time script with no runtime code path."
 
 If your scope assessment suggests a single-commit trivial target where the PR description already contains the complete answer, you may answer inline **only after** confirming all seven available category searches would be redundant. Say so explicitly. This should be rare.
 
 ## Step 4. Synthesize
 
-Spawn one synthesizer. `model`: the `why synthesizer` line, default `deep`. It gets:
+Spawn one synthesizer. Set `model` to the `why synthesizer` line, default `deep`. It gets:
 
 1. The investigator findings, including any null results and any categories skipped with justification
-2. The code anchor
+2. The `code-anchor.md` path and the anchor summary
 3. The user's original question
 4. The epistemics framework from `references/epistemics.md`
 5. The synthesizer prompt template from `references/synthesizer-prompt.md`
@@ -92,7 +98,7 @@ Present the synthesizer's output to the user. You may lightly edit for clarity o
 
 ## Output Format
 
-The structure is the one in `references/synthesizer-prompt.md`: The Question (1-2 sentences), The Code in Question (1-sentence framing + Markdown table), Causal / Timeline Visualization (1-sentence framing + Mermaid diagram when multi-step history exists), What We Found (cited bullets), What We Can Reasonably Infer (hedged bullets), Competing Hypotheses (Markdown table), What We Don't Know (bullets), Sources Consulted (Markdown table), and a 1-2 sentence `### TL;DR` section at the bottom. Keep every prose block to at most 1-2 sentences, preserve the confidence separation, and include every investigator in the Sources Consulted table.
+Follow the structure in `references/synthesizer-prompt.md`. Its sections are The Question (1-2 sentences), The Code in Question (1-sentence framing and Markdown table), Causal / Timeline Visualization (1-sentence framing and Mermaid diagram when multi-step history exists), What We Found (cited bullets), What We Can Reasonably Infer (hedged bullets), Competing Hypotheses (Markdown table), What We Don't Know (bullets), Sources Consulted (Markdown table), and a 1-2 sentence `### TL;DR` section at the bottom. Keep every prose block to at most 1-2 sentences, preserve the confidence separation, and include every investigator in the Sources Consulted table.
 
 After Sources Consulted, if the user's `why` question is a precursor to changing this code, convert the lineage findings into a Preserve / Change / Avoid / Risk Markdown table before the bottom `### TL;DR`.
 

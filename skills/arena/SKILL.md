@@ -7,14 +7,14 @@ name: arena
 
 # Arena
 
-Open a todolist with one entry per phase (Frame, Fan out, Cross-judge, Pick, Graft, Verify) before launching anything.
+Open a todolist with one entry per phase (Frame, Fan out, Cross-judge, Pick and graft, Verify) before launching anything.
 
 ## Phase A: Frame
 
 Every candidate gets the same prompt, so the prompt is the contract.
 
 1. State the artifact each candidate is producing.
-2. Derive the rubric, 3-6 concrete gradeable criteria for what success looks like on *this* task. It is the picker's tool in Phase D. Candidates only see the task.
+2. Derive the rubric, 3-6 concrete gradeable criteria for what success looks like on *this* task. It is the picker's tool in Phase D and E. Candidates only see the task.
 3. Pick the runners. Use the `arena runners` line in the `magic-models` role file (see `model-roles.md`). If the role file or that line is missing, use the role's default tier from `model-roles.md`. An `auto` or `inherit-parent` entry in this line means the parent model, so omit `model` for it. If the harness rejects a configured entry, run that seat on the role's default tier and say so. If the family has no default, or the harness rejects that default, use the closest valid model of the same family from its error message, or drop the seat and say so when there is none. If dropped seats leave fewer than two runners, add runners until there are two, or one when the line has one entry. Run each added runner on a remaining runner's model, or omit `model` so it runs on the parent model when none remain, and say so. A panel is diverse only when its seats resolve to different model families; see `model-roles.md`. Spawn more runners when the arena covers multiple design directions. Use the same model N times when the work is generation-bound rather than judgment-sensitive. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **magic-mode** skill.
 4. Give each candidate its own output location (a git worktree where possible, otherwise `/tmp/arena-<slug>/candidate-<n>/`), per the **separate-before-serializing-shared-state** principle skill.
 
@@ -26,24 +26,28 @@ If a candidate produces no output, proceed with N-1 and note the dropout.
 
 ## Phase C: Cross-judge
 
-After all Phase B candidates complete, choose one model from the `arena cross-judge pool` line in the `magic-models` role file (see `model-roles.md`). If the role file or that line is missing, choose from the role's default tier in `model-roles.md`. Spawn one read-only judge subagent (forbid edits in the brief; use the harness's read-only type when it has one). The judge is never from the parent's family. Try only the entries from another family, in pool order. An `auto` or `inherit-parent` entry is the parent model, so it never judges. If the harness rejects an entry, use a valid model of the same family at the closest level or speed from the error message, or move to the next entry when there is none. If no entry from another family runs, try the default pool's entries from another family the same way. If none of those runs, skip the judge, pick the base alone in Phase D, and say so. If you do not know the parent's model, try the pool's real models in pool order and say that the family check did not run. The judge sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with your reading in Phase D. Don't spawn it while candidates are still writing.
+After all Phase B candidates complete, choose one model from the `arena cross-judge pool` line in the `magic-models` role file (see `model-roles.md`). If the role file or that line is missing, choose from the role's default tier in `model-roles.md`. The judge is never from the parent's family. Try only the entries from another family, in pool order, and treat an `auto` or `inherit-parent` entry as the parent model, so it never judges.
 
-## Phase D: Pick a base
+When the runtime does not expose the parent chat's model slug, read the `orchestrator:` line in the `magic-models` role file before you pick a judge. That line names the parent family, so the cross-family check always has a baseline. Never skip the check just because the harness hides the parent model ID.
 
-Read every candidate end to end before picking. Score each against the rubric criterion by criterion, not on holistic feel, and compare with the cross-judge when Phase C ran one. Agreement on the base confirms the pick. Disagreement means one of you is biased or the rubric was ambiguous. Read both rationales before deciding.
+Spawn one read-only judge subagent (forbid edits in the brief; use the harness's read-only type when it has one). If the harness rejects an entry, use a valid model of the same family at the closest level or speed from the error message, or move to the next entry when there is none. If no entry from another family runs, try the default pool's entries from another family the same way. If none of those runs, skip the judge, let the Phase D and E wave pick the base alone, and say so. The judge sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. Don't spawn it while candidates are still writing.
 
-Pick the base a future maintainer can extend most easily without breaking invariants. When two feel tied, prefer the cleaner boundary or smaller API, per the Laziness Protocol.
+## Phase D and Phase E: Pick and graft in one wave
 
-## Phase E: Graft
+Phases D and E are mandatory and run together in **one** depth-1 `magic-agent` on the `arena synthesizer` role in the `magic-models` role file (see `model-roles.md`), whose default is `deep`. The parent chat never picks the base or grafts by hand, because base selection and grafting are judgment work that a thin parent outsources.
 
-Walk each losing candidate once more for what is worth porting into the base, usually one or two things per candidate, not most of it. Fold each graft in by hand, per the **redesign-from-first-principles** principle skill, so the result stays coherent under one mental model. Don't paste mechanically.
+Give that agent the candidate paths, the rubric, the Phase C cross-judge report, the original task, the artifact location, and this brief.
 
-If the candidates converge on one shape, that is strong agreement. Note it and ship the consensus shape. No graft is needed. If they wildly diverge, Phase A was under-specified. Reframe and re-run rather than averaging the divergence.
+> Read every candidate end to end before picking. Score each against the rubric criterion by criterion, not on holistic feel, and compare with the cross-judge report. Agreement on the base confirms the pick. Disagreement means one of you is biased or the rubric was ambiguous, so read both rationales before deciding. Pick the base a future maintainer can extend most easily without breaking invariants, and prefer the cleaner boundary or smaller API when two feel tied. Then walk each losing candidate once more for what is worth porting into the base, usually one or two things per candidate, and graft each one by hand per the redesign-from-first-principles principle skill so the result stays coherent under one mental model. Rewrite rather than paste. Write the `## Outputs` comparison table and the synthesis report. You are a depth-1 leaf, so never spawn a subagent.
+
+If the candidates converge on one shape, that is strong agreement. Note it and ship the consensus shape with no graft. If they wildly diverge, Phase A was under-specified. Say so and stop, and the parent reframes and re-runs rather than averaging the divergence.
 
 ## Phase F: Verify
 
-Verify the synthesized artifact like any other output, per the **prove-it-works** principle skill. If verification finds a problem the arena missed, either Phase A was wrong (re-frame and re-run) or a candidate caught it and you missed the graft (go back to Phase E). Don't paper over it.
+Spawn one `magic-agent` on the `swarm workers` role (default `main`) to verify the synthesized artifact like any other output, per the **prove-it-works** principle skill. If verification finds a problem the arena missed, either Phase A was wrong (re-frame and re-run) or a candidate caught it and the graft missed it (send the finding back to a fresh Phase D and E wave). Don't paper over it.
+
+The parent relays the verified artifact and the synthesis report without rewriting either.
 
 ## Outputs
 
-One synthesized artifact, with a structured synthesis report alongside (1-2 sentence max prose blocks, a candidate comparison Markdown table scoring each criterion, bullets naming the base and why, the cross-judge's verdict or that Phase C skipped the judge, each graft with its source candidate, what was rejected and why, any convergence or dropouts, the verification result, and a 1-2 sentence `## TL;DR` section at the bottom).
+The Phase D and E wave returns one synthesized artifact plus a structured synthesis report. The report keeps 1-2 sentence max prose blocks, a candidate comparison Markdown table scoring each criterion, bullets naming the base and why, the cross-judge's verdict or that Phase C skipped the judge, each graft with its source candidate, what was rejected and why, any convergence or dropouts, the Phase F verification result, and a 1-2 sentence `## TL;DR` section at the bottom. The parent relays both after Phase F passes.

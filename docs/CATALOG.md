@@ -60,7 +60,7 @@ Complete reference of the **23 execution playbooks**, **75 active skills** (**50
 | **Design & Parallelism** | [`/swarm`](../skills/swarm/SKILL.md) | Dispatching `N` parallel workers across slices or races into one report |
 | **Design & Parallelism** | [`/blast-radius`](../skills/blast-radius/SKILL.md) | Checking what else a small-looking change could break outside the diff |
 | **Build & Implementation** | [`/tdd`](../skills/tdd/SKILL.md) | Fixing a bug test-first with a focused failing regression test when a cheap local test path exists |
-| **Build & Implementation** | [`/typescript-best-practices`](../skills/typescript-best-practices/SKILL.md) | Applying TypeScript discriminated-union, branded-type, and boundary-validation patterns on `.ts`/`.tsx` files |
+| **Build & Implementation** | [`/clean-code`](../skills/clean-code/SKILL.md) | Cleaning AI code slop from diffs before commit, PR, or review, routing by language |
 | **Build & Implementation** | [`/make-bot-ui`](../skills/make-bot-ui/SKILL.md) | Building a custom UI that wakes a bot over a webhook and exposes the page on Tailscale |
 | **Formal Verification** | [`/proof-driven-development`](../skills/proof-driven-development/SKILL.md) | Choosing a formal proof technique, verifier tool, or multi-skill verification pipeline |
 | **Formal Verification** | [`/proving-with-hoare-logic`](../skills/proving-with-hoare-logic/SKILL.md) | Proving code contracts, loop invariants, and bounds with SMT-backed verifiers (Verus, Dafny, SPARK, Creusot, Frama-C WP) |
@@ -141,8 +141,8 @@ Complete reference of the **23 execution playbooks**, **75 active skills** (**50
 
 | File | Scope | Rule Summary |
 | --- | --- | --- |
-| [`agents.kit.md`](../agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution, workflow routing pointer, `/make-pr-easy-to-review` on PR/MR open or update, chunked large-file creation, new-repo bootstrap) |
-| [`rules/workflow-routing.md`](../rules/workflow-routing.md) | Always applied | Route engineering, PR/MR reviewability, research, and formal-proof tasks to `/magic-mode`, `/make-pr-easy-to-review`, `/research`, or `/proof-driven-development` before acting |
+| [`agents.kit.md`](../agents.kit.md) | Installed as `~/.agents/agents.md` | Distilled root instruction layer (single-bullet rules: use `rg`, separate test files, GitHub user commit attribution, workflow routing pointer, `/clean-code` and `/make-pr-easy-to-review` on PR/MR open or update, chunked large-file creation, new-repo bootstrap) |
+| [`rules/workflow-routing.md`](../rules/workflow-routing.md) | Always applied | Route engineering, code cleanup, PR/MR reviewability, research, and formal-proof tasks to `/magic-mode`, `/clean-code`, `/make-pr-easy-to-review`, `/research`, or `/proof-driven-development` before acting |
 | [`rules/look-it-up.md`](../rules/look-it-up.md) | Always applied | Never answer factual tool/API questions from memory; check official docs and primary sources first |
 | [`rules/new-repo-setup.md`](../rules/new-repo-setup.md) | New repo creation | Bootstrap greenfield repos from `full-lint` (`>= 95%` coverage + full hygiene gates) and set up `magic` |
 | [`rules/sleeps-and-polling.md`](../rules/sleeps-and-polling.md) | CI & background waits | Cap single-call sleeps at `<= 30s` and return control between polls |

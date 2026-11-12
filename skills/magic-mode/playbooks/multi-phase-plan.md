@@ -37,6 +37,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] `<kit>/skills/swarm/skill.md`
   - [ ] `git show origin/main:<control skill path>`
   - [ ] `<kit>/skills/magic-mode/playbooks/opening-a-pr.md`
+  - [ ] `<kit>/skills/clean-code/skill.md`
   - [ ] `<kit>/skills/make-pr-easy-to-review/skill.md`
   - [ ] `<kit>/skills/<each other leaf skill the program uses>`
 - [ ] On the operator's go, arm the audit tick as the loop command (`/loop 1h` where the harness has one, a scheduled hourly re-prompt elsewhere) with the tick prompt below. Never leave the cadence to memory.
@@ -57,7 +58,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 - [ ] Resolve the forge once from the repo's `docs/agents/issue-tracker.md` (or from `git remote -v` when that file is absent, and say which) and keep it for every PR operation.
 - [ ] Open the PR ready, never draft, per **Opening a PR**. Open it against `<base-branch>` (forge operation **open PR**). A stack child targets its parent branch.
 - [ ] Run the repo's lint and typecheck once before the PR-facing push. Push with hooks on.
-- [ ] Run a slop pass over the diff (delete dead code, defensive noise, and narration, per the **laziness-protocol** principle skill) before each commit, `/no-comments` before review, and `/make-pr-easy-to-review` when opening the PR or right after reaching code-ready on an early-opened PR.
+- [ ] Run `/clean-code` over the diff before each commit, `/no-comments` before review, and `/make-pr-easy-to-review` when opening the PR or right after reaching code-ready on an early-opened PR.
 - [ ] Triage every review-bot and security-reviewer comment per `../references/review-bot-triage.md`.
 - [ ] Rebase onto current trunk before the code-ready report and babysit. Keep that merge base in fix rounds. Rebase again only at merge prep, on a `git merge-tree` conflict with trunk, on a CI failure that comes from a change on trunk, or when a known concurrent change to the same files lands.
 

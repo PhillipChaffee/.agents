@@ -62,8 +62,9 @@
 
   <!-- 4. Architect and Plan -->
   <rect x="448" y="136" width="186" height="72" rx="8" class="node-box" />
-  <text x="541" y="163" class="title">4. Architect &amp; Plan</text>
-  <text x="541" y="183" class="sub">/architect &#183; /writing-plans</text>
+  <text x="541" y="157" class="title">4. Architect &amp; Plan</text>
+  <text x="541" y="176" class="sub">/architect</text>
+  <text x="541" y="194" class="sub">/writing-plans</text>
 
   <!-- Edges 3 and 4 to 5 -->
   <path d="M 634 58 L 656 58 L 656 100 L 676 100" class="edge" marker-end="url(#arrow)" />
@@ -80,9 +81,10 @@
 
   <!-- 6. Review and Clean -->
   <rect x="878" y="67" width="136" height="96" rx="8" class="node-box" />
-  <text x="946" y="96" class="title">6. Review &amp; Clean</text>
-  <text x="946" y="118" class="sub">/interrogate</text>
-  <text x="946" y="137" class="sub">/no-comments</text>
+  <text x="946" y="91" class="title">6. Review &amp; Clean</text>
+  <text x="946" y="109" class="sub">/interrogate</text>
+  <text x="946" y="127" class="sub">/clean-code</text>
+  <text x="946" y="145" class="sub">/no-comments</text>
 
   <!-- Edge 6 to 7 -->
   <path d="M 1014 115 L 1042 115" class="edge" marker-end="url(#arrow)" />

@@ -29,6 +29,21 @@ if [ -r "$skill_md" ]; then
   # Normalize CRLF checkouts (Git for Windows core.autocrlf) so no stray
   # carriage return rides into the JSON payload.
   using_magic_content="${using_magic_content//$'\r'/}"
+  if [[ $using_magic_content == ---$'\n'* ]]; then
+    rest="${using_magic_content#---$'\n'}"
+    if [[ $rest == ---$'\n'* ]]; then
+      using_magic_content="${rest#---$'\n'}"
+    elif [[ $rest == --- ]]; then
+      using_magic_content=""
+    elif [[ $rest == *$'\n'---$'\n'* ]]; then
+      using_magic_content="${rest#*$'\n'---$'\n'}"
+    elif [[ $rest == *$'\n'--- ]]; then
+      using_magic_content=""
+    fi
+  fi
+  while [[ $using_magic_content == $'\n'* ]]; do
+    using_magic_content="${using_magic_content#$'\n'}"
+  done
   while [[ $using_magic_content == *$'\n' ]]; do
     using_magic_content="${using_magic_content%$'\n'}"
   done

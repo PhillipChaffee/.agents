@@ -1,6 +1,6 @@
 # Catalog Reference
 
-Complete reference of the **23 execution playbooks**, **75 active skills** (**50 workflow/domain skills** + **25 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
+Complete reference of the **23 execution playbooks**, **76 active skills** (**51 workflow/domain skills** + **25 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
 
 ---
 
@@ -34,7 +34,7 @@ Complete reference of the **23 execution playbooks**, **75 active skills** (**50
 
 ---
 
-## 50 Situational, PR, Research, Formal Verification, Planning & Authoring Skills
+## 51 Situational, PR, Research, Formal Verification, Planning & Authoring Skills
 
 | Group | Skill | Use It When |
 | --- | --- | --- |
@@ -62,6 +62,7 @@ Complete reference of the **23 execution playbooks**, **75 active skills** (**50
 | **Build & Implementation** | [`/tdd`](../skills/tdd/SKILL.md) | Fixing a bug test-first with a focused failing regression test when a cheap local test path exists |
 | **Build & Implementation** | [`/typescript-best-practices`](../skills/typescript-best-practices/SKILL.md) | Applying TypeScript discriminated-union, branded-type, and boundary-validation patterns on `.ts`/`.tsx` files |
 | **Build & Implementation** | [`/make-bot-ui`](../skills/make-bot-ui/SKILL.md) | Building a custom UI that wakes a bot over a webhook and exposes the page on Tailscale |
+| **Build & Implementation** | [`/setup-repository`](../skills/setup-repository/SKILL.md) | Installing maintained rule payloads word-for-word with conflict approval and byte-exact verification |
 | **Formal Verification** | [`/proof-driven-development`](../skills/proof-driven-development/SKILL.md) | Choosing a formal proof technique, verifier tool, or multi-skill verification pipeline |
 | **Formal Verification** | [`/proving-with-hoare-logic`](../skills/proving-with-hoare-logic/SKILL.md) | Proving code contracts, loop invariants, and bounds with SMT-backed verifiers (Verus, Dafny, SPARK, Creusot, Frama-C WP) |
 | **Formal Verification** | [`/proving-with-dependent-types`](../skills/proving-with-dependent-types/SKILL.md) | Proving compiler passes, crypto, policy lattices, or state impossibility in Lean 4, Rocq, Isabelle/HOL, or F* |

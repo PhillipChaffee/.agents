@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+Added `setup-repository` to install maintained repository working rules verbatim (#24).
+
+- Bundles four authoritative TXT payloads (`coding.txt`, `domain.txt`, `agent-rules.txt`, `issue-tracker-evidence.txt`) with pinned hashes and byte-exact verification
+- Adds deterministic Python helper `install_rules.py` for preflight destination inspection, conflict diff detection, existing domain guide preservation, and idempotent repeated installation
+- Integrates with `full-lint` initializers and `setup-matt-pocock-skills` for greenfield repository bootstrap
+
 Ported pstack 0.15.32 into the kit as harness-, model-, and forge-neutral skills (ADR-0008).
 
 - 55 skills from [pstack](https://github.com/cursor/plugins/tree/main/pstack)

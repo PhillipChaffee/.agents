@@ -1,6 +1,6 @@
 ---
-name: make-pr-easy-to-review
 description: Prepare PRs for review by cleaning noisy history, improving PR descriptions, and adding reviewer guidance without changing code behavior. Use for "make this easy to review", "tidy this PR", "clean up commits", or "annotate the diff".
+name: make-pr-easy-to-review
 ---
 
 # Make PR Easy to Review
@@ -11,16 +11,15 @@ Prepare a PR so a reviewer can quickly understand the intent, important files, a
 
 1. Resolve the target PR from the user-provided URL or current branch.
 2. Inspect commits, diff size, changed paths, generated files, and PR description.
-3. Identify reviewability issues: noisy commits, stale description, unrelated changes, mixed mechanical and logic changes, missing tests, or unclear reviewer entry points.
+3. Identify reviewability issues: noisy commits, stale description, missing motivation ("Why"), unrelated changes, mixed mechanical and logic changes, missing tests, or unclear reviewer entry points.
 4. Propose a plan before rewriting history or force-pushing.
 5. Apply safe improvements, then verify the tree or diff still matches the intended code.
 
 ## History Cleanup
 
-Only rewrite history when the user asks for it or agrees to the plan. Before rewriting:
+Only rewrite history when the user asks for it or agrees to the plan. Before rewriting, run the resolved forge's **view PR** operation (see [forge operations](../magic-mode/references/forge-operations.md)) to record the title, head branch, base branch, state, and commits, then capture the remote tree:
 
 ```bash
-gh pr view <PR> --json title,headRefName,baseRefName,state,commits
 git fetch origin <headRefName> <baseRefName>
 ORIGINAL_TREE=$(git rev-parse origin/<headRefName>^{tree})
 ```
@@ -47,6 +46,7 @@ Do not push if the tree changed unintentionally.
 
 When code behavior should stay untouched, prefer PR description and review notes:
 
+- Open with a `## Why` section explaining the problem being solved, the motivation, and why the change belongs in this PR.
 - Add a TL;DR that matches the actual diff.
 - Separate core files from generated or mechanical files.
 - Call out risky behavior changes, migration order, rollout plan, and test coverage.

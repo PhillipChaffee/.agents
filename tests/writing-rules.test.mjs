@@ -66,8 +66,9 @@ test("rules/, agents.kit.md, README.md, and docs/CATALOG.md satisfy the universa
 	}
 });
 
-test("workflow-routing.md, agents.kit.md, and using-magic route PR/MR creation and updates to /make-pr-easy-to-review", () => {
+test("workflow-routing.md, agents.kit.md, and using-magic route PR/MR creation and updates to /clean-code and /make-pr-easy-to-review", () => {
 	const routingRule = fs.readFileSync(path.join(repoDir, "rules/workflow-routing.md"), "utf8");
+	assert.match(routingRule, /\/clean-code/);
 	assert.match(routingRule, /\/make-pr-easy-to-review/);
 	assert.match(routingRule, /pull request or merge request/i);
 	assert.match(
@@ -76,9 +77,11 @@ test("workflow-routing.md, agents.kit.md, and using-magic route PR/MR creation a
 	);
 
 	const kitText = fs.readFileSync(path.join(repoDir, "agents.kit.md"), "utf8");
+	assert.match(kitText, /\/clean-code/);
 	assert.match(kitText, /\/make-pr-easy-to-review/);
 
 	const usingMagic = fs.readFileSync(path.join(repoDir, "skills/using-magic/SKILL.md"), "utf8");
+	assert.match(usingMagic, /\/clean-code/);
 	assert.match(usingMagic, /\/make-pr-easy-to-review/);
 	assert.match(
 		usingMagic,

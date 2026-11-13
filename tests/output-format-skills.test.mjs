@@ -26,6 +26,7 @@ const OUTPUT_FORMAT_FILES = [
 	"skills/reflect/SKILL.md",
 	"skills/figure-it-out/SKILL.md",
 	"skills/tdd/SKILL.md",
+	"skills/clean-code/SKILL.md",
 	"skills/writing-rules/SKILL.md",
 	"agents/research-synthesizer/agent.md",
 ];

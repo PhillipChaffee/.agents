@@ -112,7 +112,7 @@ git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/i
 - **3. Design ([`architect`](skills/architect/SKILL.md), [`writing-plans`](skills/writing-plans/SKILL.md))** — Settles types and module boundaries, then writes a bite-sized TDD implementation plan.
 - **4. Execute ([`magic-mode`](skills/magic-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 23 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
 - **5. Prove ([`tdd`](skills/tdd/SKILL.md), [`proof-driven-development`](skills/proof-driven-development/SKILL.md))** — Enforces RED-GREEN-REFACTOR tests and routes subtle invariants to formal verification ([Hoare/SMT](skills/proving-with-hoare-logic/SKILL.md), [Lean 4](skills/proving-with-dependent-types/SKILL.md), [TLA+/Kani](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), [spec audit](skills/auditing-proof-specifications/SKILL.md)).
-- **6. Review ([`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md), [`unslop`](skills/unslop/SKILL.md))** — Strips narration comments, pits adversarial models against the diff, and cleans AI prose tells.
+- **6. Review ([`clean-code`](skills/clean-code/SKILL.md), [`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md), [`unslop`](skills/unslop/SKILL.md))** — Cleans AI code slop from diffs by language, strips narration comments, pits adversarial models against the diff, and cleans AI prose tells.
 - **7. Ship ([`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md), [`shipping`](skills/magic-mode/playbooks/shipping.md))** — Structures clean commits, resolves CI and review threads, and verifies against the real artifact.
 - **First-time walkthrough:** [The magic guide (`docs/magic-guide/README.md`)](docs/magic-guide/README.md) · **Full catalog:** [Catalog reference (`docs/CATALOG.md`)](docs/CATALOG.md) · **Configure model roles:** [`/setup-magic`](skills/setup-magic/SKILL.md) · **Ask what to run:** [`/magic-help`](skills/magic-help/SKILL.md)
 
@@ -125,6 +125,7 @@ git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/i
 - **[pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan (`@poteto`)** — The heart of the execution engine (adapted here as `/magic-mode`, `/magic-help`, `/setup-magic`, `magic-agent`, and `docs/magic-guide/`): all 23 execution playbooks, the 24 `principle-*` skills, the situational engineering and review skills (such as `/how`, `/why`, `/architect`, `/arena`, `/interrogate`, and `/statechart`), the `magic-agent` and `comment-sicko` sub-agents, and the walkthrough guide. Augmented here with vendor-neutral harness, model-role, and forge adapters so the entire stack runs outside Cursor too.
 - **[Superpowers](https://github.com/obra/superpowers) by Jesse Vincent (`@obra`) and [Prime Radiant](https://primeradiant.com)** — The multi-harness plugin and zero-fork session-start bootstrap architecture (`hooks/run-hook.cmd`, `hooks/session-start`, `.opencode/plugins/magic.js`, `.pi/extensions/magic.ts`, and the Claude Code, Cursor, and Codex plugin manifests), plus the `/writing-skills`, `/writing-plans`, and `/subagent-driven-development` workflows.
 - **[cursor-team-kit](https://github.com/cursor/plugins) by Cursor** — The `/make-pr-easy-to-review` and `/thermo-nuclear-code-quality-review` PR review and maintainability audit skills.
+- **[SimpleEnglish](https://github.com/AminBlg/SimpleEnglish) by Amin Boulouma (`@AminBlg`)** — The `/simple-english` plain-language writing, rewriting, and ASD-STE100 Issue 9 verification skill and reference tables.
 - **[mattpocock/skills](https://github.com/mattpocock/skills) by Matt Pocock** — The preserved skill archive in `skills-disabled/` and inspiration for spec-first grilling and vertical-slice planning workflows.
 
 Full upstream commit hashes, provenance notes, and MIT license notices are preserved in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
@@ -133,7 +134,7 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 
 ## Catalog Reference
 
-Browse the full inventory of **23 playbooks**, **75 active skills** (**50 workflow/domain skills** + **25 engineering principles**), **7 sub-agents**, and **5 operational rules** in **[`docs/CATALOG.md`](docs/CATALOG.md)**.
+Browse the full inventory of **23 playbooks**, **76 active skills** (**51 workflow/domain skills** + **25 engineering principles**), **7 sub-agents**, and **5 operational rules** in **[`docs/CATALOG.md`](docs/CATALOG.md)**.
 
 ---
 

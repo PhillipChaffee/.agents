@@ -1,6 +1,6 @@
 # Design red flags
 
-Screen every candidate before synthesis. A red flag is a reason to revise or reject the shape.
+Screen every candidate before synthesis. A red flag is a reason to revise or reject the shape. Screen `Track S` against the first eight code red flags, and screen `Track M` and `Track L` against all fourteen.
 
 ## Shallow module
 
@@ -55,3 +55,27 @@ Make internals unreachable from outside the module, so an import from outside fa
 Two or more places list the same items, and adding an item means editing every list. An agent that sees one list updates only that one.
 
 Keep one list and derive the others from it. If a list can't be derived, make the build fail when the lists disagree.
+
+## High-volatility distributed boundary
+
+High semantic coupling (`Strength`) placed across a network or service hop (`Distance`) in a fast-changing core domain (`Volatility`) creates a distributed monolith. Keep tightly coupled, volatile domains inside one architectural quantum unless scaling, fault isolation, or team cognitive load demands separation.
+
+## Uncoordinated dual-write
+
+Updating a database and publishing to a queue, cache, or remote API in separate network calls leaves inconsistent state when a process crashes between writes. Require a Transactional Outbox, CDC stream, or idempotent saga with replayable compensation.
+
+## Unfenced lease or lock
+
+A distributed lock or worker lease without a storage-enforced monotonic fencing token (`generation_clock` or epoch) allows a GC-paused or partitioned zombie writer to overwrite newer committed state. Every external lease must pass a monotonic token checked by the storage resource.
+
+## Unbounded queue, loop, or retry
+
+An unbounded channel, `SELECT` without `LIMIT`, retry loop without a client-side adaptive retry token bucket (`<= 10%`), or FIFO queue without deadline propagation violates TigerStyle static bounds and triggers metastable overload collapses under brownouts.
+
+## Control-plane dependency on the hot path
+
+Calling a config server, feature-flag service, or service discovery control plane synchronously during live data-plane requests causes a global outage whenever the control plane degrades. Enforce Static Stability so the data plane continues serving from local last-known-good state.
+
+## One-way write cutover without reverse sync
+
+Switching primary writes onto a new table or datastore without maintaining asynchronous reverse sync back to the old store during the bake window makes post-cutover rollback lose customer writes. Require the `6-step Expand-Contract with reverse sync` sequence whenever data loss is unacceptable.

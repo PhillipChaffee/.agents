@@ -1,6 +1,6 @@
 # Rationale template
 
-The prose that ships alongside the type sketch. One page. Sentence-case headings, no boilerplate. Replace the italic notes with actual content.
+The prose that ships alongside a `Track S` type sketch. One page. Sentence-case headings, no boilerplate. For `Track M` and `Track L` stateful or distributed designs, use [`design-doc-template.md`](design-doc-template.md) instead. Replace the italic notes with actual content.
 
 ## Problem
 

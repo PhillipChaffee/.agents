@@ -110,7 +110,7 @@ git clone https://github.com/PhillipChaffee/magic.git && cd magic && ./scripts/i
 - **1. Route ([`using-magic`](skills/using-magic/SKILL.md), [`workflow-routing`](rules/workflow-routing.md))** — Auto-injected at session start on plugin installs (no manual invocation needed; invoke manually only on bare `.agents` directory installs) to load the matching entry-point skill before the first tool call.
 - **2. Understand ([`research`](skills/research/SKILL.md), [`how`](skills/how/SKILL.md), [`why`](skills/why/SKILL.md))** — Dispatches read-only sub-agents to investigate code, history, or options into `docs/research/<topic>.md`.
 - **3. Design ([`architect`](skills/architect/SKILL.md), [`writing-plans`](skills/writing-plans/SKILL.md))** — Settles types and module boundaries, then writes a bite-sized TDD implementation plan.
-- **4. Execute ([`magic-mode`](skills/magic-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 23 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
+- **4. Execute ([`magic-mode`](skills/magic-mode/SKILL.md), [`subagent-driven-development`](skills/subagent-driven-development/SKILL.md))** — Runs one of 24 step-by-step playbooks or dispatches a fresh implementer + reviewer sub-agent per task.
 - **5. Prove ([`tdd`](skills/tdd/SKILL.md), [`proof-driven-development`](skills/proof-driven-development/SKILL.md))** — Enforces RED-GREEN-REFACTOR tests and routes subtle invariants to formal verification ([Hoare/SMT](skills/proving-with-hoare-logic/SKILL.md), [Lean 4](skills/proving-with-dependent-types/SKILL.md), [TLA+/Kani](skills/model-checking-protocols-and-code/SKILL.md), [abstract interpretation](skills/analyzing-with-abstract-interpretation/SKILL.md), [spec audit](skills/auditing-proof-specifications/SKILL.md)).
 - **6. Review ([`clean-code`](skills/clean-code/SKILL.md), [`interrogate`](skills/interrogate/SKILL.md), [`no-comments`](skills/no-comments/SKILL.md), [`unslop`](skills/unslop/SKILL.md))** — Cleans AI code slop from diffs by language, strips narration comments, pits adversarial models against the diff, and cleans AI prose tells.
 - **7. Ship ([`make-pr-easy-to-review`](skills/make-pr-easy-to-review/SKILL.md), [`autopilot`](skills/autopilot/SKILL.md), [`shipping`](skills/magic-mode/playbooks/shipping.md))** — Structures clean commits, resolves CI and review threads, and verifies against the real artifact.
@@ -134,7 +134,7 @@ Full upstream commit hashes, provenance notes, and MIT license notices are prese
 
 ## Catalog Reference
 
-Browse the full inventory of **23 playbooks**, **76 active skills** (**51 workflow/domain skills** + **25 engineering principles**), **7 sub-agents**, and **5 operational rules** in **[`docs/CATALOG.md`](docs/CATALOG.md)**.
+Browse the full inventory of **24 playbooks**, **76 active skills** (**51 workflow/domain skills** + **25 engineering principles**), **7 sub-agents**, and **5 operational rules** in **[`docs/CATALOG.md`](docs/CATALOG.md)**.
 
 ---
 

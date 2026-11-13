@@ -14,6 +14,7 @@ For a quick ballpark the user asked for, one run is enough. Still check question
 ## Before you run anything
 
 - Write down the claim you expect to make, in the words you would ship ("export is 30% faster at p50 on the 60k-row dataset"). The questions test that sentence.
+- For pre-design capacity estimates before code exists, run the capacity and queueing checks in `../architect/references/quantitative-envelope.md`.
 - Read the measurement script. Note what it times, counts, and ignores.
 - Check the load average with `uptime` and the core count with `nproc`. If the machine is busy, find out what is running. If you cannot stop it, interleave the sides so both see the same noise, and say so in the report.
 
@@ -26,6 +27,7 @@ For a quick ballpark the user asked for, one run is enough. Still check question
 5. **Does it reproduce?** Run each side at least 5 times, alternating (A, B, A, B, and so on) so warmup, lazy initialization, caches, and drift favor neither. Report the median and range. A gap smaller than the run-to-run variation is no measurable difference. When the call is close, use a rank-sum test or the harness's own statistics.
 6. **Does it matter?** Next to any micro result, measure the end-to-end path a user waits on, with realistic data sizes and concurrency, and report the micro result as a share of the whole. A helper that takes 1% of a request can make the request at most 1% faster, however fast the helper gets.
 7. **Did it even happen?** Confirm the work ran inside the timed region: the request reached the server, the rows were written, the bytes were read, and the code used the result. Lazy code (generators nobody iterates, promises nobody awaits, results the JIT can discard) and timeouts produce numbers for work that never happened.
+8. **How does it behave at the knee and in the tail?** Check steady-state utilization against the `0.70` Kingman queueing knee, report `p99` and `p99.9` alongside `p50` under fan-out (`1 - p^k`), and confirm the load generator uses open-loop arrival timing so client stalls do not hide coordinated omission.
 
 ## Report
 

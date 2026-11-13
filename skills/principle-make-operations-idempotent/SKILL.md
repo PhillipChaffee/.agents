@@ -22,3 +22,9 @@ Anything a run leaves behind, such as a lock, a temporary file, a half-written r
 3. Does re-execution converge to the same end state?
 
 If any answer is "it depends on what state was left behind," the operation needs a reconciliation step.
+
+**Distributed and cross-service bounds:**
+
+- **Monotonic fencing tokens.** Every distributed lease, lock, or worker claim must carry a strictly increasing epoch or generation token checked by the storage resource so paused zombie writers are rejected.
+- **Idempotency key retention.** Set idempotency record TTL greater than or equal to the maximum retry window plus Dead-Letter Queue replay horizon.
+- **Zero uncoordinated dual-writes.** Use a Transactional Outbox or Change Data Capture (`CDC`) log when updating a database and publishing a downstream event or message.

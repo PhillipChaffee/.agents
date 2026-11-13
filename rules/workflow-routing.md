@@ -9,7 +9,7 @@ Before acting on a task, load and follow the matching entry-point skill:
 
 | Observable task signal | Entry-point skill |
 | --- | --- |
-| Writing, editing, debugging, refactoring, testing, reviewing, or shipping code, docs, or configuration | `/magic-mode` |
+| Writing, designing, architecting, editing, debugging, refactoring, testing, reviewing, or shipping code, systems, docs, or configuration | `/magic-mode` |
 | Opening, creating, updating, or preparing a pull request or merge request for review | `/clean-code` (on code diffs before opening or updating) and `/make-pr-easy-to-review` (on PR/MR structure and description) |
 | Investigating a codebase, comparing options, or answering how, why, or where questions across files, web, or MCP | `/research` |
 | Writing or auditing formal proofs, loop invariants, state machines, or model-checked specifications | `/proof-driven-development` |

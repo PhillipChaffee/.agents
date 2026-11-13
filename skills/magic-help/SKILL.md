@@ -122,7 +122,7 @@ Close calls:
 
 - `/how` explains what the code does. `/why` explains the reasons. `/teach` runs one or both and explains the result plainly.
 - `/arena` gives every worker the same brief and merges the best parts. `/swarm` splits work into slices or a race and returns one report.
-- `/architect` implements right after it settles the design. Add "with checkpoint" to review the design before it writes code.
+- `/architect` implements right after it settles the design. Add "with checkpoint" to review before coding, or ask for a design doc, diagram, and plan to run the System design playbook without editing code.
 - `/interrogate` reviews the diff. `/blast-radius` looks for breakage outside the diff and proves the one fact that makes the change safe.
 - `/recall` rebuilds context across recent chats. `/ketchup` covers only this chat since the user's last message. Resuming one specific chat or branch is the Session pickup playbook.
 - `/figure-it-out` designs one rigorous run. The Orchestrate playbook runs a program that spans days and many PRs. The Autonomous run playbook drives one task to a finish condition.
@@ -146,7 +146,7 @@ Playbooks are step lists inside `/magic-mode`, not skills, so they have no slash
 
 The Playbooks section of [`magic-mode`](../magic-mode/SKILL.md) lists every playbook and when it applies. [Guide page 6](../../docs/magic-guide/06-verify-and-ship.md) covers opening, babysitting, and landing a PR.
 
-For implementation plans, the kit includes [`/writing-plans`](../writing-plans/SKILL.md) and [`/subagent-driven-development`](../subagent-driven-development/SKILL.md) from Superpowers, and the harness's plan mode works alongside them. For work that spans phases or stacked PRs, asking `/magic-mode` for a plan runs the [Multi-phase plan playbook](../magic-mode/playbooks/multi-phase-plan.md), which writes the plan and doesn't implement it. For a design question, the Prototype playbook or `/architect` settles it in code first.
+For implementation plans, the kit includes [`/writing-plans`](../writing-plans/SKILL.md) and [`/subagent-driven-development`](../subagent-driven-development/SKILL.md) from Superpowers, and the harness's plan mode works alongside them. Asking `/magic-mode` to design a system and output a design doc, diagram, and plan runs the [System design playbook](../magic-mode/playbooks/system-design.md) before touching application code. For work that spans phases or stacked PRs, asking `/magic-mode` for a plan runs the [Multi-phase plan playbook](../magic-mode/playbooks/multi-phase-plan.md), which writes the plan and doesn't implement it. For a design question, the Prototype playbook or `/architect` settles it in code first.
 
 Principles are one-rule skills that `/magic-mode` reads and cites in its replies. The user rarely invokes one. They steer with the names instead, as in "apply prove it works. show me the real output." Typing `/principle-<name>` still loads one on demand. [Guide page 8](../../docs/magic-guide/08-principles.md) lists them.
 

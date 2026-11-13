@@ -12,7 +12,7 @@ Use this template for `Track M` (target `<= 1,200` words) and `Track L` (target 
 
 ## 1. Context, scope, and strategy kernel
 
-State objective baseline facts, hard SLO, RPO, and RTO constraints, and link `CONTEXT.md` if present. Write the three-part strategy kernel: Diagnosis (primary structural bottleneck), Guiding Policy (chosen architectural rule), and Coherent Actions.
+State objective baseline facts, hard SLO, RPO, and recovery time objective constraints, and link `CONTEXT.md` if present. Write the three-part strategy kernel: Diagnosis (primary structural bottleneck), Guiding Policy (chosen architectural rule), and Coherent Actions.
 
 ## 2. Goals, non-goals, and tenets
 

@@ -36,12 +36,11 @@ Classify the task on two axes before reading subsystems or launching runners.
 | `Track M` | Stateful subsystem change adding or altering a table, index, lock, queue, cache, or cross-module contract | Run `references/quantitative-envelope.md`, apply all 14 red flags, and target `references/design-doc-template.md`. |
 | `Track L` | New deployable service or quantum, storage engine, consistency shift, or greater than `10x` scale target | Full `Track M` gates plus formal state-machine verification, pre-code **interrogate**, and persistent `docs/adr/` records. |
 
-On `Track M` and `Track L`, run the Serial Availability (`prod(A_i) >= SLO`) and Data Gravity (`T_migration > RTO`) checks in [`references/quantitative-envelope.md`](references/quantitative-envelope.md) to identify impossible sync chains and Type-1 one-way doors early.
+On `Track M` and `Track L`, run the Serial Availability (`prod(A_i) >= SLO`) and Data Gravity (`T_migration` greater than the recovery time objective) checks in [`references/quantitative-envelope.md`](references/quantitative-envelope.md) to identify impossible sync chains and Type-1 one-way doors early.
 
 ## Phase A: Ground the problem
 
 Execute the Context Mode rule from Phase 0. Naming a file is not grounding. For `Brownfield Extension` and `Brownfield Reshape`, produce the architectural explanation **how** prescribes and read `CONTEXT.md` if the repository keeps one. After grounding, apply the **take-a-step-back** principle skill before sketching: verify that the requested design actually serves the user's goal and does not optimize the wrong layer or ignore an existing mechanism. If grounding shows the premise is off track, flag what the user missed with evidence and redirect before Phase B.
-
 
 For `Track M` and `Track L`, run the calculator in [`references/quantitative-envelope.md`](references/quantitative-envelope.md) with the workload inputs and record the printed JSON numbers as hard constraints before Phase B.
 

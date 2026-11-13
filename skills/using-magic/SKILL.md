@@ -25,7 +25,7 @@ Invoke the matching entry-point skill BEFORE any tool call, file read, codebase 
 
 | Observable task signal | Entry-point skill |
 | --- | --- |
-| Writing, editing, debugging, refactoring, testing, reviewing, or shipping code, docs, or configuration, or running multi-step engineering workflows | [`/magic-mode`](../magic-mode/SKILL.md) |
+| Writing, designing, architecting, editing, debugging, refactoring, testing, reviewing, or shipping code, systems, docs, or configuration, or running multi-step engineering workflows | [`/magic-mode`](../magic-mode/SKILL.md) |
 | Opening, creating, updating, or preparing a pull request or merge request for review | [`/clean-code`](../clean-code/SKILL.md) (on code diffs before opening or updating) and [`/make-pr-easy-to-review`](../make-pr-easy-to-review/SKILL.md) (on PR/MR structure and description) |
 | Investigating a codebase, comparing options, or answering how, why, or where questions across files, web, or MCP | [`/research`](../research/SKILL.md) |
 | Producing a brief, cited research summary with a head-to-head comparison table | [`/research-summary`](../research-summary/SKILL.md) |

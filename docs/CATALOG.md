@@ -147,4 +147,4 @@ Complete reference of the **23 execution playbooks**, **76 active skills** (**51
 | [`rules/look-it-up.md`](../rules/look-it-up.md) | Always applied | Never answer factual tool/API questions from memory; check official docs and primary sources first |
 | [`rules/new-repo-setup.md`](../rules/new-repo-setup.md) | New repo creation | Bootstrap greenfield repos from `full-lint` (`>= 95%` coverage + full hygiene gates) and set up `magic` |
 | [`rules/sleeps-and-polling.md`](../rules/sleeps-and-polling.md) | CI & background waits | Cap single-call sleeps at `<= 30s` and return control between polls |
-| [`rules/large-file-creation.md`](../rules/large-file-creation.md) | Files `> 300` lines | Write the header/first section, append `<= 300`-line sections with Edit or `cat >>` heredocs, and verify with `wc -l` |
+| [`rules/large-file-creation.md`](../rules/large-file-creation.md) | Files `> 1000` lines | Write the header/first section, append `<= 1000`-line sections with Edit or `cat >>` heredocs, and verify with `wc -l` |

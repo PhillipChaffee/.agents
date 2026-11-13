@@ -1,10 +1,10 @@
 # Catalog Reference
 
-Complete reference of the **23 execution playbooks**, **76 active skills** (**51 workflow/domain skills** + **25 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
+Complete reference of the **24 execution playbooks**, **76 active skills** (**51 workflow/domain skills** + **25 engineering principles**), **7 specialist sub-agents**, and **5 operational rules** shipped in `magic`.
 
 ---
 
-## 23 Playbooks (auto-routed by `/magic-mode`)
+## 24 Playbooks (auto-routed by `/magic-mode`)
 
 | Category | Playbook | Use For |
 | --- | --- | --- |
@@ -17,6 +17,7 @@ Complete reference of the **23 execution playbooks**, **76 active skills** (**51
 | **Build, Fix & Optimize** | [perf issue](../skills/magic-mode/playbooks/perf-issue.md) | Trace a measured slowness and improve it against a baseline |
 | **Build, Fix & Optimize** | [hillclimb](../skills/magic-mode/playbooks/hillclimb.md) | Sustained, hypothesis-driven improvement of one metric against a target |
 | **Build, Fix & Optimize** | [prototype](../skills/magic-mode/playbooks/prototype.md) | Throwaway sketch to settle a design or empirical fork by observation |
+| **Build, Fix & Optimize** | [system design](../skills/magic-mode/playbooks/system-design.md) | Produce a System Design Document, validated Mermaid diagrams, and an Implementation Plan before editing code |
 | **Build, Fix & Optimize** | [visual parity](../skills/magic-mode/playbooks/visual-parity.md) | Pixel-exact UI equivalence between two implementations |
 | **PRs & Shipping** | [opening a PR](../skills/magic-mode/playbooks/opening-a-pr.md) | Open a review-ready PR from small ordered commits (runs at the end of build playbooks) |
 | **PRs & Shipping** | [babysit](../skills/magic-mode/playbooks/babysit.md) | Drive a PR or stack to merge-ready: conflicts, review threads, and CI |

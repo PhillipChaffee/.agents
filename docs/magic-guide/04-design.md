@@ -10,13 +10,15 @@ The two most common design mistakes are taking the agent's first design and poli
 /architect design the import pipeline before writing any code. i care most about how callers use it.
 ```
 
-[`/architect`](../../skills/architect/SKILL.md) grounds itself first, running `/how` over the code the design touches and `/why` when it moves ownership or layers. Then it runs `/arena` to produce competing design sketches, with the caller's usage written first in each, followed by types, signatures, and a module map.
+[`/architect`](../../skills/architect/SKILL.md) classifies every task in Phase 0 across Context Mode (`Greenfield`, `Brownfield Extension`, or `Brownfield Reshape`) and Rigor Track (`Track S` for in-process changes, `Track M` for stateful subsystems, and `Track L` for new services or distributed protocols). It grounds itself first, running `/how` over touched code and `/why` when moving ownership or reshaping existing systems, plus the [`quantitative-envelope.md`](../../skills/architect/references/quantitative-envelope.md) calculator on `Track M` and `Track L`. Then it runs `/arena` with orthogonal constraint axes to produce competing design sketches, screened against 14 design red flags.
 
-By default it proceeds straight from the synthesized design into implementation. If you want to see the design first, say so:
+By default it proceeds straight from the synthesized design into implementation. If you want to see the design first or stop before writing code, say so:
 
 ```text
 /architect with checkpoint. stop and show me before implementing.
 ```
+
+To generate a System Design Document (`docs/designs/YYYY-MM-DD-<slug>.md`), validated Mermaid diagrams (`check-mermaid.mjs`), and a linked Implementation Plan without touching source code, ask for a design doc, diagram, and plan, which routes through [`playbooks/system-design.md`](../../skills/magic-mode/playbooks/system-design.md), or run `/architect design-only`.
 
 The design isn't sacred once code starts. If implementation shows the same workaround in unrelated places, or types that only compile with `any` or forced casts, `/architect` treats that as proof the design is wrong. It scraps the sketch and starts over instead of patching around it.
 
@@ -64,7 +66,7 @@ Reach for it when parallelism buys coverage or lets independent checks race. `/a
 /interrogate the whole branch, but skeptically. no nitpicks unless it's an actual bug or regression.
 ```
 
-[`/interrogate`](../../skills/interrogate/SKILL.md) gives the change and its intent to adversaries on the configured models, and each tries to break it with a run against the real code. Adversaries find different failures. A finding survives only when rerunning its command shows a failure that breaks the intent. The report lists every verified finding with the adversaries that found it, then what each adversary dropped and why, and applies nothing.
+[`/interrogate`](../../skills/interrogate/SKILL.md) gives the change and its intent to adversaries on the configured models. On code diffs, each adversary tries to break the change with a run against real code. In Pre-Code Design Mode, adversaries stress-test sketches, design docs, and plans against [`postmortem-corpus.md`](../../skills/interrogate/references/postmortem-corpus.md) using quantitative failure probes, state-machine counterexamples, or cited DFMEA boundary omissions. A finding survives only when rerunning its script or checking the cited section confirms it breaks the intent. The report lists every verified finding with the adversaries that found it, then what each adversary dropped and why, and applies nothing.
 
 Read the Dropped list too. You can override the verdict.
 
@@ -84,7 +86,7 @@ The same idea scales up to a real design. Pair `/architect` with prototypes and 
 /magic-mode we need rate limiting for external webhooks. /architect it first, and answer open questions with prototypes. let me review before proceeding.
 ```
 
-Don't spend adversaries on an abstract plan. `/interrogate` drops every finding a run does not prove, so a plan with no code behind it gives them little to break. Let prototypes settle the questions, then review what got built.
+When pointed at code without a spec, let prototypes settle empirical questions first, then run `/interrogate` on what got built. For `Track M` and `Track L` design docs (`docs/designs/`), `/interrogate` also checks DFMEA coverage and the 10-class postmortem corpus before code is written.
 
 ## Write the README first for shared code
 

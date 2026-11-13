@@ -62,6 +62,7 @@ Complete reference of the **23 execution playbooks**, **76 active skills** (**51
 | **Build & Implementation** | [`/tdd`](../skills/tdd/SKILL.md) | Fixing a bug test-first with a focused failing regression test when a cheap local test path exists |
 | **Build & Implementation** | [`/clean-code`](../skills/clean-code/SKILL.md) | Cleaning AI code slop from diffs before commit, PR, or review, routing by language |
 | **Build & Implementation** | [`/make-bot-ui`](../skills/make-bot-ui/SKILL.md) | Building a custom UI that wakes a bot over a webhook and exposes the page on Tailscale |
+| **Build & Implementation** | [`/setup-repository`](../skills/setup-repository/SKILL.md) | Installing maintained rule payloads word-for-word with conflict approval and byte-exact verification |
 | **Formal Verification** | [`/proof-driven-development`](../skills/proof-driven-development/SKILL.md) | Choosing a formal proof technique, verifier tool, or multi-skill verification pipeline |
 | **Formal Verification** | [`/proving-with-hoare-logic`](../skills/proving-with-hoare-logic/SKILL.md) | Proving code contracts, loop invariants, and bounds with SMT-backed verifiers (Verus, Dafny, SPARK, Creusot, Frama-C WP) |
 | **Formal Verification** | [`/proving-with-dependent-types`](../skills/proving-with-dependent-types/SKILL.md) | Proving compiler passes, crypto, policy lattices, or state impossibility in Lean 4, Rocq, Isabelle/HOL, or F* |

@@ -1,0 +1,37 @@
+## Required terminology and naming
+
+1. You can tell what a function does from its name at the call site.
+2. One concept has one name everywhere.
+3. Name helps me understand what else it relates to in the system and uses the
+   same terms used elsewhere.
+
+Apply these rules across code, documentation, and every session.
+Use the canonical names and meanings in `CONTEXT.md`.
+If an important, recurring concept is missing, add its name and a concise
+definition to `CONTEXT.md` before using it.
+
+## Working rules
+
+Before planning work, read `README.md` for the project goal and current milestone.
+
+- Coding: read `docs/agents/coding.md` before planning, changing, reviewing, or
+  explaining project-owned code.
+
+## Evidence
+
+Support claims about code behavior with inspected sources or executed checks.
+Distinguish source inspection from execution in the result.
+
+## Comments
+
+- Describe the present state.
+- Explain why; let code show what.
+- Attach issue numbers only to live constraints.
+- Display only measured or source-backed numbers.
+
+## Human-facing writing
+
+Run `/avoid-ai-writing` and `/simple-english` in Plain mode on human-facing
+documentation or presentation deliverables so they are human consumable.
+Preserve canonical terms, factual meaning, evidence limits, numbers, code,
+commands, paths, links, and quoted text.
